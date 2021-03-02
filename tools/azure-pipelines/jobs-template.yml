@@ -61,7 +61,7 @@ jobs:
     displayName: Cache Maven local repo
   - task: Cache@2
     inputs:
-      key: e2e-artifact-cache | $(E2E_CACHE_FOLDER)
+      key: e2e-artifact-cache | $(E2E_CACHE_FOLDER)/*.cache
       path: $(E2E_CACHE_FOLDER)
     displayName: Cache E2E artifact files
     continueOnError: true
