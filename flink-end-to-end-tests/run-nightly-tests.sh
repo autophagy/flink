@@ -32,7 +32,8 @@ if [ -z "$FLINK_DIR" ] ; then
     exit 1
 fi
 
-ls $E2E_TARBALL_CACHE
+CACHE_CONTENT="`ls $E2E_TARBALL_CACHE`"
+echo $CACHE_CONTENT
 
 exit 1
 
