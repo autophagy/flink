@@ -83,9 +83,9 @@ jobs:
         sudo apt-get install -y bc moreutils
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
-      #    - script: ${{parameters.environment}} ./tools/ci/compile.sh
-      #      displayName: Build Flink
-      #      condition: not(eq(variables['SKIP'], '1'))
+    - script: ${{parameters.environment}} ./tools/ci/compile.sh
+      displayName: Build Flink
+      condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/e2e_uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh
       timeoutInMinutes: 250
       displayName: Run e2e tests
