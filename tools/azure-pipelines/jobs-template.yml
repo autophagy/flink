@@ -62,8 +62,7 @@ jobs:
       condition: not(eq(variables['SKIP'], '1'))
     - task: Cache@2
       inputs:
-        key: e2e-cache | $(E2E_TARBALL_CACHE)/*
-        restoreKeys: e2e-cache
+        key: e2e-cache
         path: $(E2E_TARBALL_CACHE)
       displayName: Cache E2E artifacts
       condition: not(eq(variables['SKIP'], '1'))
