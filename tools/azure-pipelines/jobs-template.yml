@@ -62,9 +62,11 @@ jobs:
       condition: not(eq(variables['SKIP'], '1'))
     - task: Cache@2
       inputs:
-        key: e2e-cache
+        key: e2e-artifact-cache | "$(Agent.OS)"
+        restoreKeys: e2e-artifact-cache
         path: $(E2E_TARBALL_CACHE)
       displayName: Cache E2E artifacts
+      continueOnError: true
       condition: not(eq(variables['SKIP'], '1'))
     - script: |
         echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
