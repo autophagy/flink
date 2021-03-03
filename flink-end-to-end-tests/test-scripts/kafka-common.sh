@@ -39,10 +39,8 @@ function setup_kafka_dist {
   mkdir -p $TEST_DATA_DIR
   KAFKA_URL="https://archive.apache.org/dist/kafka/$KAFKA_VERSION/kafka_2.12-$KAFKA_VERSION.tgz"
   echo "Downloading Kafka from $KAFKA_URL"
-  cache_location="$(get_artifact $KAFKA_URL)"
-  echo "Downloaded Kafka. Loc: $cache_location"
-  echo "Cache loc: $E2E_TARBALL_CACHE"
-  ln "$cache_location" "${TEST_DATA_DIR}/kafka.tgz"
+  get_artifact cache_path $KAFKA_URL
+  ln "$cache_path" "${TEST_DATA_DIR}/kafka.tgz"
 
   tar xzf $TEST_DATA_DIR/kafka.tgz -C $TEST_DATA_DIR/
 
@@ -56,8 +54,8 @@ function setup_confluent_dist {
   mkdir -p $TEST_DATA_DIR
   CONFLUENT_URL="http://packages.confluent.io/archive/$CONFLUENT_MAJOR_VERSION/confluent-oss-$CONFLUENT_VERSION-2.11.tar.gz"
   echo "Downloading confluent from $CONFLUENT_URL"
-  cache_location="$(get_artifact $CONFLUENT_URL)"A
-  ln "$cache_location" "${TEST_DATA_DIR}/confluent.tgz"
+  get_artifact cache_path $CONFLUENT_URL
+  ln "$cache_path" "${TEST_DATA_DIR}/confluent.tgz"
 
   tar xzf $TEST_DATA_DIR/confluent.tgz -C $TEST_DATA_DIR/
 

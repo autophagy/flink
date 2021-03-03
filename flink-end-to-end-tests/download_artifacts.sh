@@ -28,14 +28,21 @@ fi
 
 mkdir -p $E2E_TARBALL_CACHE
 
+# Given a variable name and a URL, checks whether the file exists in the E2E_TARBALL_CACHE,
+# otherwise retrieves from source, and evals the path to the result variable.
+# For example:
+# get_artifact result https://archive.apache.org/artifact.tar.gz
+# echo $result
+
 function get_artifact {
-    BASENAME="`basename $1`"
+    local __resultvar=$1
+    BASENAME="`basename $2`"
     echo "Checking $1"
     if [ -f "$E2E_TARBALL_CACHE/$BASENAME" ]; then
-        echo "$BASENAME already exists"
+        echo "$BASENAME already exists. Retrieving from local cache"
     else
-        echo "$BASENAME does not exist"
-        curl $1 --retry 10 --retry-max-time 120 --output $E2E_TARBALL_CACHE/$BASENAME
+        echo "$BASENAME does not exist. Retrieving from $2"
+        curl $2 --retry 10 --retry-max-time 120 --output $E2E_TARBALL_CACHE/$BASENAME
     fi
-    echo $E2E_TARBALL_CACHE/$BASENAME
+    eval $_result="'$E2E_TARBALL_CACHE/$BASENAME'"
 }
