@@ -33,7 +33,7 @@ if [ -z "$FLINK_DIR" ] ; then
 fi
 
 # Start artifact cache proxy
-CACHE_PROXY="http://localhost:7644/"
+CACHE_PROXY="http://localhost:7654/"
 export CACHE_PROXY
 python3 ${END_TO_END_DIR}/../tools/ci/e2e_artifact_cache.py -p 7654 -d $E2E_CACHE_FOLDER &
 CACHE_PID=$!
