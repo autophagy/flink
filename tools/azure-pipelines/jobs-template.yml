@@ -111,7 +111,8 @@ jobs:
       condition: and(succeeded(),not(eq(variables['SKIP'], '1')))
     - script: |
         mkdir -p $E2E_DOCKER_CACHE
-        docker save xxx > $E2E_DOCKER_CACHE/cache.tar
+        docker save ${DOCKER_HADOOP_IMAGE_NAME:-flink/docker-hadoop-secure-cluster:latest} > $E2E_DOCKER_CACHE/cache.tar
+      displayName: Save E2E docker image
       condition: ne(variables['SKIP'], '1')
       # upload debug artifacts
     - task: PublishPipelineArtifact@1
