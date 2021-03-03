@@ -32,6 +32,10 @@ if [ -z "$FLINK_DIR" ] ; then
     exit 1
 fi
 
+ls $E2E_TARBALL_CACHE
+
+exit 1
+
 source "${END_TO_END_DIR}/../tools/ci/maven-utils.sh"
 source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
 
