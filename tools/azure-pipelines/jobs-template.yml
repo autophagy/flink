@@ -68,6 +68,19 @@ jobs:
       displayName: Cache E2E artifacts
       continueOnError: true
       condition: not(eq(variables['SKIP'], '1'))
+    - task: Cache@2
+      inputs:
+        key: e2e-docker-cache | "$(Agent.OS)"
+        restoreKeys: e2e-docker-cache
+        path: $(E2E_DOCKER_CACHE)
+        cacheHitVar: DOCKER_CACHE_RESTORED
+      displayName: Cache E2E docker images
+      continueOnError: true
+      condition: not(eq(variables['SKIP'], '1'))
+    - script: |
+        docker load < $E2E_DOCKER_CACHE/cache.tar
+      displayName: "Load cached docker images"
+      condition: and(ne(variables['SKIP'], '1'), eq(variables.DOCKER_CACHE_RESTORED, 'true'))
     - script: |
         echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
         echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
@@ -96,6 +109,10 @@ jobs:
         IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
         IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
       condition: and(succeeded(),not(eq(variables['SKIP'], '1')))
+    - script: |
+        mkdir -p $E2E_DOCKER_CACHE
+        docker save xxx > $E2E_DOCKER_CACHE/cache.tar
+      condition: ne(variables['SKIP'], '1')
       # upload debug artifacts
     - task: PublishPipelineArtifact@1
       condition: and(succeededOrFailed(), not(eq(variables['SKIP'], '1')), not(eq(variables['ARTIFACT_DIR'], '')))

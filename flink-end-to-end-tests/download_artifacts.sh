@@ -37,7 +37,7 @@ mkdir -p $E2E_TARBALL_CACHE
 function get_artifact {
     local __resultvar=$1
     BASENAME="`basename $2`"
-    echo "Checking $1"
+    echo "Checking $2"
     if [ -f "$E2E_TARBALL_CACHE/$BASENAME" ]; then
         echo "$BASENAME already exists. Retrieving from local cache"
     else

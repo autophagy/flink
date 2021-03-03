@@ -50,6 +50,7 @@ variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
   E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
   E2E_TARBALL_CACHE: $(Pipeline.Workspace)/e2e_artifact_cache
+  E2E_DOCKER_CACHE: $(Pipeline.Workspace)/e2e_docker_cache
   MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
   CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
   CACHE_FALLBACK_KEY: maven | $(Agent.OS)
