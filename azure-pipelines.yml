@@ -47,15 +47,29 @@ resources:
 # - See https://stackoverflow.com/questions/60742105/how-can-i-access-a-secret-value-from-an-azure-pipelines-expression
 #   to understand why the secrets are handled like this
 variables:
-  MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
-  E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
-  MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
-  CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
-  CACHE_FALLBACK_KEY: maven | $(Agent.OS)
-  FLINK_ARTIFACT_DIR: $(Pipeline.Workspace)/flink_artifact
-  SECRET_S3_BUCKET: $[variables.IT_CASE_S3_BUCKET]
-  SECRET_S3_ACCESS_KEY: $[variables.IT_CASE_S3_ACCESS_KEY]
-  SECRET_S3_SECRET_KEY: $[variables.IT_CASE_S3_SECRET_KEY]
+  - name: MAVEN_CACHE_FOLDER
+    readonly: true
+    value: $(Pipeline.Workspace)/.m2/repository
+  - name: E2E_CACHE_FOLDER
+    readonly: true
+    value: $(Pipeline.Workspace)/e2e_cache
+  - name: E2E_TARBALL_CACHE
+    readonly: true
+    value: $(Pipeline.Workspace)/e2e_artifact_cache
+  - name: MAVEN_OPTS
+    value: "-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)"
+  - name: CACHE_KEY
+    value: "maven | $(Agent.OS) | **/pom.xml, !**/target/**"
+  - name: CACHE_FALLBACK_KEY
+    value: "maven | $(Agent.OS)"
+  - name: FLINK_ARTIFACT_DIR
+    value: $(Pipeline.Workspace)/flink_artifact
+  - name: SECRET_S3_BUCKET
+    value: "$[variables.IT_CASE_S3_BUCKET]"
+  - name: SECRET_S3_ACCESS_KEY
+    value: "$[variables.IT_CASE_S3_ACCESS_KEY]"
+  - name: SECRET_S3_SECRET_KEY
+    value: "$[variables.IT_CASE_S3_SECRET_KEY]"
 
 
 stages:
