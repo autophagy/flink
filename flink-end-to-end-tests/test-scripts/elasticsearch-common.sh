@@ -22,6 +22,8 @@ if [[ -z $TEST_DATA_DIR ]]; then
   exit 1
 fi
 
+source "$(dirname "$0")"/common_artifact_download_cacher.sh
+
 function setup_elasticsearch {
     mkdir -p $TEST_DATA_DIR
 
@@ -39,10 +41,12 @@ function setup_elasticsearch {
     echo "Downloading Elasticsearch from $downloadUrl ..."
     for i in {1..10};
     do
-        wget "$downloadUrl" -O $TEST_DATA_DIR/elasticsearch.tar.gz
-        if [ $? -eq 0 ]; then
+        local cache_path=$(get_artifact $downloadUrl)
+        if [ ! -z $cache_path ]; then
             echo "Download successful."
             echo "Extracting..."
+
+            ln "$cache_path" "$TEST_DATA_DIR/elasticsearch.tar.gz"
             tar xzf $TEST_DATA_DIR/elasticsearch.tar.gz -C $elasticsearchDir --strip-components=1
             if [ $? -eq 0 ]; then
                 break
