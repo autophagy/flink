@@ -44,5 +44,5 @@ function get_artifact {
         echo "$BASENAME does not exist. Retrieving from $2"
         curl $2 --retry 10 --retry-max-time 120 --output $E2E_TARBALL_CACHE/$BASENAME
     fi
-    eval $_result="'$E2E_TARBALL_CACHE/$BASENAME'"
+    eval $__resultvar="'$E2E_TARBALL_CACHE/$BASENAME'"
 }
