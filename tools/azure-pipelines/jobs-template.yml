@@ -104,4 +104,3 @@ jobs:
       inputs:
         targetPath: $(ARTIFACT_DIR)
         artifact: logs-${{parameters.stage_name}}-e2e
-
