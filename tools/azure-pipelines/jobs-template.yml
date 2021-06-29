@@ -140,7 +140,7 @@ jobs:
     displayName: Cache Testcontainer docker images
 
   - script: |
-      docker load -i $(TESTCONTAINER_CACHE_FOLDER)/cache.tar
+      docker load -i $(TESTCONTAINER_CACHE_FOLDER)/cache.tar || true
     displayName: Restore Testcontainer docker images
     condition: and(not(canceled()), eq(variables.TESTCONTAINER_CACHE_HIT, 'true'))
     continueOnError: true
