@@ -25,13 +25,13 @@ echo "Caching Testing Docker Images"
 echo "=============================================================================="
 echo ""
 
-if [ -z "$TESTCONTAINER_CACHE_FOLDER" ]
+if [ -z "$TESTING_CONTAINERS_CACHE_FOLDER" ]
 then
-      echo "\$TESTCONTAINER_CACHE_FOLDER must be set to cache the testing docker images. Exiting"
+      echo "\$TESTING_CONTAINERS_CACHE_FOLDER must be set to cache the testing docker images. Exiting"
       exit 1
 fi
 
-mkdir -p "${TESTCONTAINER_CACHE_FOLDER}"
+mkdir -p "${TESTING_CONTAINERS_CACHE_FOLDER}"
 
 # This is the pattern that determines which containers we save.
 DOCKER_IMAGE_CACHE_PATTERN="testcontainers|kafka|elasticsearch|postgres|mysql"
@@ -52,5 +52,5 @@ else
           echo "${IMAGE}"
       done
 
-      docker save ${IMAGES_TO_CACHE} -o "${TESTCONTAINER_CACHE_FOLDER}/cache.tar"
+      docker save ${IMAGES_TO_CACHE} -o "${TESTING_CONTAINERS_CACHE_FOLDER}/cache.tar"
 fi
