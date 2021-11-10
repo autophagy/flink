@@ -220,7 +220,7 @@ public class AbstractHaServicesTest extends TestLogger {
         }
 
         @Override
-        protected RunningJobsRegistry createRunningJobsRegistry() {
+        protected JobResultStore createJobResultStore() {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 
