@@ -62,4 +62,14 @@ public interface JobResultStore {
      * @throws IOException
      */
     CompletableFuture<Boolean> hasJobResultEntry(JobID jobId) throws IOException;
+
+    /**
+     * Get a {@link JobResult} for a given {@link JobID}.
+     *
+     * @param jobId Ident of the job we wish to retrieve the JobResult for.
+     * @return Future with a JobResult obtained from the store, which completes exceptionally in the
+     *     event of no result being found.
+     * @throws IOException
+     */
+    CompletableFuture<JobResultEntry> getJobResultEntry(JobID jobId) throws IOException;
 }

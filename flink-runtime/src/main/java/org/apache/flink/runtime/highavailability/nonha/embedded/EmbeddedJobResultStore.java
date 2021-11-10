@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
@@ -54,6 +55,17 @@ public class EmbeddedJobResultStore implements JobResultStore {
     @Override
     public CompletableFuture<Boolean> hasJobResultEntry(JobID jobId) throws IOException {
         return CompletableFuture.completedFuture(internalHasJobResultEntry(jobId));
+    }
+
+    @Override
+    public CompletableFuture<JobResultEntry> getJobResultEntry(JobID jobId) throws IOException {
+        if (internalHasJobResultEntry(jobId)) {
+            return CompletableFuture.completedFuture(inMemoryMap.get(jobId));
+        } else {
+            return FutureUtils.completedExceptionally(
+                    new FlinkException(
+                            String.format("Could not find JobResult with ID of {}", jobId)));
+        }
     }
 
     private boolean internalHasJobResultEntry(JobID jobId) {

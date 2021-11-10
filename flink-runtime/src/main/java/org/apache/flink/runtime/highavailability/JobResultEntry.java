@@ -31,7 +31,7 @@ public class JobResultEntry {
     private final JobResult jobResult;
     private JobResultState state;
 
-    enum JobResultState {
+    public enum JobResultState {
         /** Job has finished, successfully or unsuccessfully, but not cleaned up. */
         DIRTY,
 
