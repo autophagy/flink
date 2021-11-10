@@ -89,7 +89,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -354,8 +353,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
      */
     private boolean isInGloballyTerminalState(JobID jobId) throws FlinkException {
         try {
-            return jobResultStore.hasJobResultEntry(jobId).get();
-        } catch (IOException | ExecutionException | InterruptedException e) {
+            return jobResultStore.hasJobResultEntry(jobId);
+        } catch (IOException e) {
             throw new FlinkException(
                     String.format("Failed to retrieve job scheduling status for job %s.", jobId),
                     e);

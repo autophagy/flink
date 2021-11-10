@@ -22,12 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * An implementation of the {@link JobResultStore} which only persists the store to an in memory
@@ -38,34 +35,26 @@ public class EmbeddedJobResultStore implements JobResultStore {
     private final HashMap<JobID, JobResultEntry> inMemoryMap = new HashMap<>();
 
     @Override
-    public CompletableFuture<Void> createDirtyResult(JobResult jobResult) throws IOException {
+    public void createDirtyResult(JobResult jobResult) throws IOException {
         final JobResultEntry jobResultEntry = JobResultEntry.createDirtyJobResultEntry(jobResult);
         inMemoryMap.put(jobResult.getJobId(), jobResultEntry);
-        return FutureUtils.completedVoidFuture();
     }
 
     @Override
-    public CompletableFuture<Void> markResultAsClean(JobID jobId) throws IOException {
+    public void markResultAsClean(JobID jobId) throws IOException {
         if (internalHasJobResultEntry(jobId)) {
             inMemoryMap.get(jobId).markAsClean();
         }
-        return FutureUtils.completedVoidFuture();
     }
 
     @Override
-    public CompletableFuture<Boolean> hasJobResultEntry(JobID jobId) throws IOException {
-        return CompletableFuture.completedFuture(internalHasJobResultEntry(jobId));
+    public boolean hasJobResultEntry(JobID jobId) throws IOException {
+        return internalHasJobResultEntry(jobId);
     }
 
     @Override
-    public CompletableFuture<JobResultEntry> getJobResultEntry(JobID jobId) throws IOException {
-        if (internalHasJobResultEntry(jobId)) {
-            return CompletableFuture.completedFuture(inMemoryMap.get(jobId));
-        } else {
-            return FutureUtils.completedExceptionally(
-                    new FlinkException(
-                            String.format("Could not find JobResult with ID of {}", jobId)));
-        }
+    public JobResultEntry getJobResultEntry(JobID jobId) throws IOException {
+        return inMemoryMap.get(jobId);
     }
 
     private boolean internalHasJobResultEntry(JobID jobId) {

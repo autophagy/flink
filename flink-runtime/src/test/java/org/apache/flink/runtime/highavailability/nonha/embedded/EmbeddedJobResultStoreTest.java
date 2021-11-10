@@ -64,9 +64,9 @@ public class EmbeddedJobResultStoreTest extends TestLogger {
                                         "test", new SerializedValue<>(OptionalFailure.of(1.0))))
                         .build();
         embeddedJobResultStore.createDirtyResult(jobResult);
-        assertTrue(embeddedJobResultStore.hasJobResultEntry(jobId).get());
+        assertTrue(embeddedJobResultStore.hasJobResultEntry(jobId));
 
-        JobResultEntry jobResultEntry = embeddedJobResultStore.getJobResultEntry(jobId).get();
+        JobResultEntry jobResultEntry = embeddedJobResultStore.getJobResultEntry(jobId);
 
         assertEquals(jobResultEntry.getState(), JobResultEntry.JobResultState.DIRTY);
     }
@@ -90,7 +90,7 @@ public class EmbeddedJobResultStoreTest extends TestLogger {
         embeddedJobResultStore.createDirtyResult(jobResult);
         embeddedJobResultStore.markResultAsClean(jobId);
 
-        JobResultEntry jobResultEntry = embeddedJobResultStore.getJobResultEntry(jobId).get();
+        JobResultEntry jobResultEntry = embeddedJobResultStore.getJobResultEntry(jobId);
         assertEquals(jobResultEntry.getState(), JobResultEntry.JobResultState.CLEAN);
     }
 }
