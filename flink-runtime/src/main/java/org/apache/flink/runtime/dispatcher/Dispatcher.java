@@ -35,7 +35,7 @@ import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -89,6 +89,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -108,7 +109,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private final Configuration configuration;
 
     private final JobGraphWriter jobGraphWriter;
-    private final RunningJobsRegistry runningJobsRegistry;
+    private final JobResultStore jobResultStore;
 
     private final HighAvailabilityServices highAvailabilityServices;
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
@@ -176,7 +177,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 JobManagerSharedServices.fromConfiguration(
                         configuration, blobServer, fatalErrorHandler);
 
-        this.runningJobsRegistry = highAvailabilityServices.getRunningJobsRegistry();
+        this.jobResultStore = highAvailabilityServices.getJobResultStore();
 
         runningJobs = new HashMap<>(16);
 
@@ -353,10 +354,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
      */
     private boolean isInGloballyTerminalState(JobID jobId) throws FlinkException {
         try {
-            final RunningJobsRegistry.JobSchedulingStatus schedulingStatus =
-                    runningJobsRegistry.getJobSchedulingStatus(jobId);
-            return schedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE;
-        } catch (IOException e) {
+            return jobResultStore.hasJobResultEntry(jobId).get();
+        } catch (IOException | ExecutionException | InterruptedException e) {
             throw new FlinkException(
                     String.format("Failed to retrieve job scheduling status for job %s.", jobId),
                     e);
@@ -844,14 +843,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         jobManagerMetricGroup.removeJob(jobId);
         if (jobGraphRemoved) {
             try {
-                runningJobsRegistry.clearJob(jobId);
-            } catch (IOException e) {
-                log.warn(
-                        "Could not properly remove job {} from the running jobs registry.",
-                        jobId,
-                        e);
-            }
-            try {
                 highAvailabilityServices.cleanupJobData(jobId);
             } catch (Exception e) {
                 log.warn(
@@ -859,6 +850,11 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             }
         }
         blobServer.cleanupJob(jobId, jobGraphRemoved);
+        try {
+            jobResultStore.markResultAsClean(jobId);
+        } catch (IOException e) {
+            log.warn("Could not properly mark job {} result as clean.", jobId, e);
+        }
     }
 
     private void cleanUpHighAvailabilityJobData(JobID jobId) {

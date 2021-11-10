@@ -21,6 +21,7 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -174,6 +175,10 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
      * @return Running job registry to retrieve running jobs
      */
     RunningJobsRegistry getRunningJobsRegistry() throws Exception;
+
+    default JobResultStore getJobResultStore() {
+        return new EmbeddedJobResultStore();
+    }
 
     /**
      * Creates the BLOB store in which BLOBs are stored in a highly-available fashion.
