@@ -33,16 +33,19 @@ import org.apache.flink.runtime.blob.TestingBlobStore;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.JobResultEntry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -57,7 +60,9 @@ import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -76,6 +81,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Queue;
@@ -87,7 +93,9 @@ import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests the resource cleanup by the {@link Dispatcher}. */
@@ -111,7 +119,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private Configuration configuration;
 
-    private SingleRunningJobsRegistry runningJobsRegistry;
+    private SingleJobResultStore jobResultStore;
 
     private TestingHighAvailabilityServices highAvailabilityServices;
 
@@ -149,8 +157,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         highAvailabilityServices = new TestingHighAvailabilityServices();
         clearedJobLatch = new OneShotLatch();
-        runningJobsRegistry = new SingleRunningJobsRegistry(jobId, clearedJobLatch);
-        highAvailabilityServices.setRunningJobsRegistry(runningJobsRegistry);
+        jobResultStore = new SingleJobResultStore(jobId, clearedJobLatch);
+        highAvailabilityServices.setJobResultStore(jobResultStore);
         cleanupJobHADataFuture = new CompletableFuture<>();
         highAvailabilityServices.setCleanupJobDataFuture(cleanupJobHADataFuture);
 
@@ -364,16 +372,26 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     /**
-     * Tests that the {@link RunningJobsRegistry} entries are cleared after the job reached a
+     * Tests that the {@link JobResultStore} entries are marked as clean after the job reached a
      * terminal state.
      */
     @Test
-    public void testRunningJobsRegistryCleanup() throws Exception {
+    public void testJobResultStoreCleanup() throws Exception {
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob();
 
-        runningJobsRegistry.setJobRunning(jobId);
-        assertThat(runningJobsRegistry.contains(jobId), is(true));
+        JobResult jobResult =
+                new JobResult.Builder()
+                        .applicationStatus(ApplicationStatus.UNKNOWN)
+                        .jobId(jobId)
+                        .netRuntime(Long.MAX_VALUE)
+                        .accumulatorResults(
+                                Collections.singletonMap(
+                                        "test", new SerializedValue<>(OptionalFailure.of(1.0))))
+                        .build();
+
+        jobResultStore.createDirtyResult(jobResult);
+        assertTrue(jobResultStore.hasJobResultEntry(jobId));
 
         final TestingJobManagerRunner testingJobManagerRunner =
                 jobManagerRunnerFactory.takeCreatedJobManagerRunner();
@@ -387,7 +405,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         // wait for the clearing
         clearedJobLatch.await();
 
-        assertThat(runningJobsRegistry.contains(jobId), is(false));
+        assertFalse(jobResultStore.hasJobResultEntry(jobId));
     }
 
     /**
@@ -399,7 +417,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob(1);
 
-        runningJobsRegistry.setJobRunning(jobId);
+        // TODO runningJobsRegistry.setJobRunning(jobId);
         final TestingJobManagerRunner testingJobManagerRunner =
                 jobManagerRunnerFactory.takeCreatedJobManagerRunner();
         suspendJob(testingJobManagerRunner);
@@ -538,27 +556,24 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         dispatcherTerminationFuture.get();
     }
 
-    private static final class SingleRunningJobsRegistry implements RunningJobsRegistry {
+    private static final class SingleJobResultStore implements JobResultStore {
 
         @Nonnull private final JobID expectedJobId;
 
         @Nonnull private final OneShotLatch clearedJobLatch;
 
-        private JobSchedulingStatus jobSchedulingStatus = JobSchedulingStatus.PENDING;
-
         private boolean containsJob = false;
 
-        private SingleRunningJobsRegistry(
+        private SingleJobResultStore(
                 @Nonnull JobID expectedJobId, @Nonnull OneShotLatch clearedJobLatch) {
             this.expectedJobId = expectedJobId;
             this.clearedJobLatch = clearedJobLatch;
         }
 
         @Override
-        public void setJobRunning(JobID jobID) {
-            checkJobId(jobID);
+        public void createDirtyResult(JobResult jobResult) throws IOException {
+            checkJobId(jobResult.getJobId());
             containsJob = true;
-            jobSchedulingStatus = JobSchedulingStatus.RUNNING;
         }
 
         private void checkJobId(JobID jobID) {
@@ -566,28 +581,26 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         }
 
         @Override
-        public void setJobFinished(JobID jobID) {
-            checkJobId(jobID);
-            containsJob = true;
-            jobSchedulingStatus = JobSchedulingStatus.DONE;
+        public void markResultAsClean(JobID jobId) throws IOException {
+            checkJobId(jobId);
+            containsJob = false;
+            clearedJobLatch.trigger();
         }
 
         @Override
-        public JobSchedulingStatus getJobSchedulingStatus(JobID jobID) {
-            checkJobId(jobID);
-            return jobSchedulingStatus;
-        }
-
-        public boolean contains(JobID jobId) {
+        public boolean hasJobResultEntry(JobID jobId) throws IOException {
             checkJobId(jobId);
             return containsJob;
         }
 
         @Override
-        public void clearJob(JobID jobID) {
-            checkJobId(jobID);
-            containsJob = false;
-            clearedJobLatch.trigger();
+        public JobResultEntry getJobResultEntry(JobID jobId) throws IOException {
+            return null;
+        }
+
+        @Override
+        public Collection<JobResult> getDirtyResults() throws IOException {
+            return null;
         }
     }
 

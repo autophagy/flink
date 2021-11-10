@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingContender;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -235,8 +235,7 @@ public class ZooKeeperHaServicesTest extends TestLogger {
             final LeaderElectionService jobManagerLeaderElectionService =
                     zooKeeperHaServices.getJobManagerLeaderElectionService(jobId);
 
-            final RunningJobsRegistry runningJobsRegistry =
-                    zooKeeperHaServices.getRunningJobsRegistry();
+            final JobResultStore jobResultStore = zooKeeperHaServices.getJobResultStore();
 
             final LeaderRetrievalUtils.LeaderConnectionInfoListener resourceManagerLeaderListener =
                     new LeaderRetrievalUtils.LeaderConnectionInfoListener();
@@ -253,8 +252,6 @@ public class ZooKeeperHaServicesTest extends TestLogger {
                             "unused-jobmanager-address", jobManagerLeaderElectionService));
             jobManagerLeaderRetriever.start(jobManagerLeaderListener);
 
-            runningJobsRegistry.setJobRunning(jobId);
-
             // Make sure that the respective zNodes have been properly created
             resourceManagerLeaderListener.getLeaderConnectionInfoFuture().join();
             jobManagerLeaderListener.getLeaderConnectionInfoFuture().join();
@@ -263,7 +260,6 @@ public class ZooKeeperHaServicesTest extends TestLogger {
             resourceManagerLeaderElectionService.stop();
             jobManagerLeaderRetriever.stop();
             jobManagerLeaderElectionService.stop();
-            runningJobsRegistry.clearJob(jobId);
 
             zooKeeperHaServicesConsumer.accept(zooKeeperHaServices);
         }

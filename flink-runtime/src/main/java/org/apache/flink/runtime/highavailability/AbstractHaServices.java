@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * resources.
  *
  * <p>The abstract class is also responsible for determining which component service should be
- * reused. For example, {@link #runningJobsRegistry} is created once and could be reused many times.
+ * reused. For example, {@link #jobResultStore} is created once and could be reused many times.
  */
 public abstract class AbstractHaServices implements HighAvailabilityServices {
 
@@ -63,7 +63,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     private final BlobStoreService blobStoreService;
 
     /** The distributed storage based running jobs registry. */
-    private RunningJobsRegistry runningJobsRegistry;
+    private JobResultStore jobResultStore;
 
     public AbstractHaServices(
             Configuration config, Executor ioExecutor, BlobStoreService blobStoreService) {
@@ -130,11 +130,11 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public RunningJobsRegistry getRunningJobsRegistry() {
-        if (runningJobsRegistry == null) {
-            this.runningJobsRegistry = createRunningJobsRegistry();
+    public JobResultStore getJobResultStore() throws Exception {
+        if (jobResultStore == null) {
+            this.jobResultStore = createJobResultStore();
         }
-        return runningJobsRegistry;
+        return jobResultStore;
     }
 
     @Override
@@ -244,11 +244,11 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     protected abstract JobGraphStore createJobGraphStore() throws Exception;
 
     /**
-     * Create the registry that holds information about whether jobs are currently running.
+     * Create the store that holds completed job results.
      *
-     * @return Running job registry to retrieve running jobs
+     * @return Job result store to retrieve completed jobs
      */
-    protected abstract RunningJobsRegistry createRunningJobsRegistry();
+    protected abstract JobResultStore createJobResultStore();
 
     /**
      * Closes the components which is used for external operations(e.g. Zookeeper Client, Kubernetes
