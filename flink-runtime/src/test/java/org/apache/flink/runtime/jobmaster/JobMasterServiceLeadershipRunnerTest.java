@@ -23,11 +23,12 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -88,7 +89,7 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
 
     private TestingFatalErrorHandler fatalErrorHandler;
 
-    private RunningJobsRegistry runningJobsRegistry;
+    private JobResultStore jobResultStore;
 
     @BeforeClass
     public static void setupClass() {
@@ -101,7 +102,7 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
     @Before
     public void setup() {
         leaderElectionService = new TestingLeaderElectionService();
-        runningJobsRegistry = new StandaloneRunningJobsRegistry();
+        jobResultStore = new EmbeddedJobResultStore();
         fatalErrorHandler = new TestingFatalErrorHandler();
     }
 
@@ -662,15 +663,21 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
 
     @Test
     public void testJobAlreadyDone() throws Exception {
-        JobID jobID = new JobID();
+        JobID jobId = new JobID();
+        JobResult jobResult =
+                new JobResult.Builder()
+                        .applicationStatus(ApplicationStatus.UNKNOWN)
+                        .jobId(jobId)
+                        .netRuntime(Long.MAX_VALUE)
+                        .build();
         try (JobManagerRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .setJobMasterServiceProcessFactory(
                                 TestingJobMasterServiceProcessFactory.newBuilder()
-                                        .setJobId(jobID)
+                                        .setJobId(jobId)
                                         .build())
                         .build()) {
-            runningJobsRegistry.setJobFinished(jobID);
+            jobResultStore.createDirtyResult(jobResult);
             jobManagerRunner.start();
             leaderElectionService.isLeader(UUID.randomUUID());
 
@@ -721,7 +728,7 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
             return new JobMasterServiceLeadershipRunner(
                     jobMasterServiceProcessFactory,
                     leaderElectionService,
-                    runningJobsRegistry,
+                    jobResultStore,
                     classLoaderLease,
                     fatalErrorHandler);
         }

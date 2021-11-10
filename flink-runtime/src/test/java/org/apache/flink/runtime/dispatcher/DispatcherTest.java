@@ -36,9 +36,9 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -135,7 +135,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
     private static final String CLEANUP_JOB_GRAPH_RELEASE = "job-graph-release";
     private static final String CLEANUP_JOB_MANAGER_RUNNER = "job-manager-runner";
     private static final String CLEANUP_HA_SERVICES = "ha-services";
-    private static final String CLEANUP_RUNNING_JOBS_REGISTRY = "running-jobs-registry";
+    private static final String CLEANUP_JOB_RESULT_STORE = "job-result-store";
 
     private JobGraph jobGraph;
 
@@ -207,7 +207,13 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     @Test
     public void testDuplicateJobSubmissionWithGloballyTerminatedJobId() throws Exception {
-        haServices.getRunningJobsRegistry().setJobFinished(jobGraph.getJobID());
+        JobResult jobResult =
+                new JobResult.Builder()
+                        .applicationStatus(ApplicationStatus.UNKNOWN)
+                        .jobId(jobGraph.getJobID())
+                        .netRuntime(Long.MAX_VALUE)
+                        .build();
+        haServices.getJobResultStore().createDirtyResult(jobResult);
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,
@@ -687,14 +693,14 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobGraphStore.start(null);
         haServices.setJobGraphStore(jobGraphStore);
 
-        // Track cleanup - running jobs registry
-        haServices.setRunningJobsRegistry(
-                new StandaloneRunningJobsRegistry() {
+        // Track cleanup - job result store
+        haServices.setJobResultStore(
+                new EmbeddedJobResultStore() {
 
                     @Override
-                    public void clearJob(JobID jobID) {
-                        super.clearJob(jobID);
-                        cleanUpEvents.add(CLEANUP_RUNNING_JOBS_REGISTRY);
+                    public void markResultAsClean(JobID jobID) throws IOException {
+                        cleanUpEvents.add(CLEANUP_JOB_RESULT_STORE);
+                        super.markResultAsClean(jobID);
                     }
                 });
 
@@ -718,8 +724,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     equalTo(
                             Arrays.asList(
                                     CLEANUP_JOB_GRAPH_REMOVE,
-                                    CLEANUP_RUNNING_JOBS_REGISTRY,
-                                    CLEANUP_HA_SERVICES)));
+                                    CLEANUP_HA_SERVICES,
+                                    CLEANUP_JOB_RESULT_STORE)));
         }
 
         // don't fail this time
@@ -919,14 +925,14 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobGraphStore.start(null);
         haServices.setJobGraphStore(jobGraphStore);
 
-        // Track cleanup - running jobs registry
-        haServices.setRunningJobsRegistry(
-                new StandaloneRunningJobsRegistry() {
+        // Track cleanup - job result store
+        haServices.setJobResultStore(
+                new EmbeddedJobResultStore() {
 
                     @Override
-                    public void clearJob(JobID jobID) {
-                        super.clearJob(jobID);
-                        cleanUpEvents.add(CLEANUP_RUNNING_JOBS_REGISTRY);
+                    public void markResultAsClean(JobID jobID) throws IOException {
+                        cleanUpEvents.add(CLEANUP_JOB_RESULT_STORE);
+                        super.markResultAsClean(jobID);
                     }
                 });
 
@@ -955,8 +961,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         Arrays.asList(
                                 CLEANUP_JOB_GRAPH_REMOVE,
                                 CLEANUP_JOB_MANAGER_RUNNER,
-                                CLEANUP_RUNNING_JOBS_REGISTRY,
-                                CLEANUP_HA_SERVICES)));
+                                CLEANUP_HA_SERVICES,
+                                CLEANUP_JOB_RESULT_STORE)));
     }
 
     private static class JobManagerRunnerWithBlockingJobMasterFactory
@@ -1013,7 +1019,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                     })),
                     highAvailabilityServices.getJobManagerLeaderElectionService(
                             jobGraph.getJobID()),
-                    highAvailabilityServices.getRunningJobsRegistry(),
+                    highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
                             .registerClassLoaderLease(jobGraph.getJobID()),
@@ -1065,7 +1071,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                             new TestingJobMasterServiceFactory()),
                     highAvailabilityServices.getJobManagerLeaderElectionService(
                             jobGraph.getJobID()),
-                    highAvailabilityServices.getRunningJobsRegistry(),
+                    highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
                             .registerClassLoaderLease(jobGraph.getJobID()),
@@ -1088,13 +1094,13 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 CompletableFuture<Void> future,
                 JobMasterServiceProcessFactory jobMasterServiceProcessFactory,
                 LeaderElectionService leaderElectionService,
-                RunningJobsRegistry runningJobsRegistry,
+                JobResultStore jobResultStore,
                 LibraryCacheManager.ClassLoaderLease classLoaderLease,
                 FatalErrorHandler fatalErrorHandler) {
             super(
                     jobMasterServiceProcessFactory,
                     leaderElectionService,
-                    runningJobsRegistry,
+                    jobResultStore,
                     classLoaderLease,
                     fatalErrorHandler);
             this.future = future;
