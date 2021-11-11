@@ -36,6 +36,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
@@ -1014,6 +1015,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     highAvailabilityServices.getJobManagerLeaderElectionService(
                             jobGraph.getJobID()),
                     highAvailabilityServices.getRunningJobsRegistry(),
+                    highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
                             .registerClassLoaderLease(jobGraph.getJobID()),
@@ -1066,6 +1068,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     highAvailabilityServices.getJobManagerLeaderElectionService(
                             jobGraph.getJobID()),
                     highAvailabilityServices.getRunningJobsRegistry(),
+                    highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
                             .registerClassLoaderLease(jobGraph.getJobID()),
@@ -1089,12 +1092,14 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 JobMasterServiceProcessFactory jobMasterServiceProcessFactory,
                 LeaderElectionService leaderElectionService,
                 RunningJobsRegistry runningJobsRegistry,
+                JobResultStore jobResultStore,
                 LibraryCacheManager.ClassLoaderLease classLoaderLease,
                 FatalErrorHandler fatalErrorHandler) {
             super(
                     jobMasterServiceProcessFactory,
                     leaderElectionService,
                     runningJobsRegistry,
+                    jobResultStore,
                     classLoaderLease,
                     fatalErrorHandler);
             this.future = future;

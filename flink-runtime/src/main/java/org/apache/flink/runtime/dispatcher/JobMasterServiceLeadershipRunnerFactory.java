@@ -24,6 +24,7 @@ import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.DefaultSlotPoolServiceSchedulerFactory;
@@ -66,6 +67,9 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
 
         final RunningJobsRegistry runningJobsRegistry =
                 highAvailabilityServices.getRunningJobsRegistry();
+
+        final JobResultStore jobResultStore = highAvailabilityServices.getJobResultStore();
+
         final LeaderElectionService jobManagerLeaderElectionService =
                 highAvailabilityServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
@@ -119,6 +123,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
                 jobMasterServiceProcessFactory,
                 jobManagerLeaderElectionService,
                 runningJobsRegistry,
+                jobResultStore,
                 classLoaderLease,
                 fatalErrorHandler);
     }
