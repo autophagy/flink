@@ -20,12 +20,14 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.CharacterFilter;
+import org.apache.flink.runtime.dispatcher.JobCleanup;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Special {@link org.apache.flink.metrics.MetricGroup} representing a JobManager.
@@ -33,7 +35,8 @@ import java.util.Map;
  * <p>Contains extra logic for adding jobs with tasks, and removing jobs when they do not contain
  * tasks any more
  */
-public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetricGroup> {
+public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetricGroup>
+        implements JobCleanup {
 
     private final Map<JobID, JobManagerJobMetricGroup> jobs = new HashMap<>();
 
@@ -84,9 +87,10 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
         }
     }
 
-    public void removeJob(JobID jobId) {
+    @Override
+    public CompletableFuture<Boolean> cleanupJobData(JobID jobId) throws Exception {
         if (jobId == null) {
-            return;
+            return CompletableFuture.completedFuture(true);
         }
 
         synchronized (this) {
@@ -95,6 +99,8 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
                 containedGroup.close();
             }
         }
+
+        return CompletableFuture.completedFuture(true);
     }
 
     public int numRegisteredJobMetricGroups() {

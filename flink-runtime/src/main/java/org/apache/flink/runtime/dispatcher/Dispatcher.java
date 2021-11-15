@@ -839,7 +839,15 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     private void cleanUpRemainingJobData(JobID jobId, boolean jobGraphRemoved) {
-        jobManagerMetricGroup.removeJob(jobId);
+        try {
+            jobManagerMetricGroup.cleanupJobData(jobId);
+        } catch (Exception e) {
+            log.warn(
+                    "Could not properly clean data for job {} stored in JobManager metric group",
+                    jobId,
+                    e);
+        }
+
         if (jobGraphRemoved) {
             try {
                 highAvailabilityServices.cleanupJobData(jobId);
