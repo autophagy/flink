@@ -25,6 +25,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.dispatcher.JobCleanup;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -52,6 +53,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.Timer;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -71,7 +73,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * the directory structure to store the BLOBs or temporarily cache them.
  */
 public class BlobServer extends Thread
-        implements BlobService, BlobWriter, PermanentBlobService, TransientBlobService {
+        implements BlobService, BlobWriter, PermanentBlobService, TransientBlobService, JobCleanup {
 
     /** The log object used for debugging. */
     private static final Logger LOG = LoggerFactory.getLogger(BlobServer.class);
@@ -864,6 +866,65 @@ public class BlobServer extends Thread
             final boolean deletedHA = !cleanupBlobStoreFiles || blobStore.deleteAll(jobId);
 
             return deletedLocally && deletedHA;
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Deletes locally stored artifacts for the job represented by the given {@link JobID}. This
+     * doesn't touch the job's entry in the {@link BlobStore} to enable recovering.
+     *
+     * @param jobId The {@code JobID} of the job that is subject to cleanup.
+     * @return {@code true} if the cleanup was successful; {@code false} otherwise.
+     */
+    public boolean deleteJobArtifactsFromLocalStorageDirectory(JobID jobId) {
+        checkNotNull(jobId);
+
+        final File jobDir =
+                new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId));
+
+        try {
+            FileUtils.deleteDirectory(jobDir);
+        } catch (IOException e) {
+            LOG.warn(
+                    "Failed to locally delete BLOB storage directory at "
+                            + jobDir.getAbsolutePath(),
+                    e);
+        }
+
+        return false;
+    }
+
+    private boolean deleteBlobStoreFiles(JobID jobId) {
+        checkNotNull(jobId);
+        return blobStore.deleteAll(jobId);
+    }
+
+    /**
+     * Removes all BLOBs from local and HA store belonging to the given {@link JobID}.
+     *
+     * @param jobId ID of the job this blob belongs to
+     * @return A {@code CompletableFuture} with a {@code Boolean} result which is {@code true} if
+     *     the local directory and the corresponding {@link BlobStore} entry related to the passed
+     *     {@code JobID} were successfully deleted or non-existing; {@code false} otherwise
+     */
+    @Override
+    public CompletableFuture<Boolean> cleanupJobData(JobID jobId) throws Exception {
+        checkNotNull(jobId);
+
+        readWriteLock.writeLock().lock();
+
+        try {
+            boolean deletedLocally = deleteJobArtifactsFromLocalStorageDirectory(jobId);
+            boolean deletedInBlobStore = deleteBlobStoreFiles(jobId);
+            // NOTE on why blobExpiryTimes are not cleaned up:
+            //       Instead of going through blobExpiryTimes, keep lingering entries - they
+            //       will be cleaned up by the timer task which tolerates non-existing files
+            //       If inserted again with the same IDs (via put()), the TTL will be updated
+            //       again.
+
+            return CompletableFuture.completedFuture(deletedLocally && deletedInBlobStore);
         } finally {
             readWriteLock.writeLock().unlock();
         }

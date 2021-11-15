@@ -674,8 +674,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         }
 
         @Override
-        public boolean cleanupJob(JobID jobId, boolean cleanupBlobStoreFiles) {
-            final boolean result = super.cleanupJob(jobId, cleanupBlobStoreFiles);
+        public CompletableFuture<Boolean> cleanupJobData(JobID jobId) throws Exception {
+            CompletableFuture<Boolean> result = super.cleanupJobData(jobId);
             cleanupJobFuture.complete(jobId);
             return result;
         }
