@@ -39,6 +39,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -164,8 +165,10 @@ public class KubernetesHaServices extends AbstractHaServices {
     }
 
     @Override
-    public void internalCleanupJobData(JobID jobID) throws Exception {
-        kubeClient.deleteConfigMap(getLeaderPathForJobManager(jobID)).get();
+    public CompletableFuture<Boolean> internalCleanupJobDataAsync(JobID jobID) {
+        return kubeClient
+                .deleteConfigMap(getLeaderPathForJobManager(jobID))
+                .thenApply(ignored -> true);
     }
 
     @Override

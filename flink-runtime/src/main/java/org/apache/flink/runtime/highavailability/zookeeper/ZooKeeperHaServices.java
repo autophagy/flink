@@ -39,6 +39,8 @@ import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
 import javax.annotation.Nonnull;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -156,8 +158,16 @@ public class ZooKeeperHaServices extends AbstractHaServices {
     }
 
     @Override
-    public void internalCleanupJobData(JobID jobID) throws Exception {
-        deleteZNode(ZooKeeperUtils.getLeaderPathForJob(jobID));
+    public CompletableFuture<Boolean> internalCleanupJobDataAsync(JobID jobID) {
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    try {
+                        deleteZNode(ZooKeeperUtils.getLeaderPathForJob(jobID));
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                    return true;
+                });
     }
 
     @Override

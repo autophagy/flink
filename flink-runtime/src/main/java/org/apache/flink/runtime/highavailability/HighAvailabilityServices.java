@@ -21,12 +21,14 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.dispatcher.JobCleanup;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The HighAvailabilityServices give access to all services needed for a highly-available setup. In
@@ -43,7 +45,7 @@ import java.util.UUID;
  *   <li>Naming of RPC endpoints
  * </ul>
  */
-public interface HighAvailabilityServices extends ClientHighAvailabilityServices {
+public interface HighAvailabilityServices extends ClientHighAvailabilityServices, JobCleanup {
 
     // ------------------------------------------------------------------------
     //  Constants
@@ -233,11 +235,8 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
      */
     void closeAndCleanupAllData() throws Exception;
 
-    /**
-     * Deletes all data for specified job stored by these services in external stores.
-     *
-     * @param jobID The identifier of the job to cleanup.
-     * @throws Exception Thrown, if an exception occurred while cleaning data stored by them.
-     */
-    default void cleanupJobData(JobID jobID) throws Exception {}
+    @Override
+    default CompletableFuture<Boolean> cleanupJobData(JobID jobID) throws Exception {
+        return CompletableFuture.completedFuture(true);
+    }
 }

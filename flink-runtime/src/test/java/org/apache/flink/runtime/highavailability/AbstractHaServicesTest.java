@@ -39,7 +39,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
@@ -67,7 +67,7 @@ public class AbstractHaServicesTest extends TestLogger {
                         testingBlobStoreService,
                         closeOperations,
                         () -> closeOperations.offer(CloseOperations.HA_CLEANUP),
-                        ignored -> {});
+                        ignored -> CompletableFuture.completedFuture(true));
 
         haServices.closeAndCleanupAllData();
 
@@ -99,7 +99,7 @@ public class AbstractHaServicesTest extends TestLogger {
                         () -> {
                             throw new FlinkException("test exception");
                         },
-                        ignored -> {});
+                        ignored -> CompletableFuture.completedFuture(true));
 
         try {
             haServices.closeAndCleanupAllData();
@@ -127,7 +127,10 @@ public class AbstractHaServicesTest extends TestLogger {
                         testingBlobStoreService,
                         closeOperations,
                         () -> {},
-                        jobCleanupFuture::complete);
+                        jobId -> {
+                            jobCleanupFuture.complete(jobId);
+                            return CompletableFuture.completedFuture(true);
+                        });
 
         haServices.cleanupJobData(jobID);
         JobID jobIDCleaned = jobCleanupFuture.get();
@@ -184,7 +187,7 @@ public class AbstractHaServicesTest extends TestLogger {
 
         private final Queue<? super CloseOperations> closeOperations;
         private final RunnableWithException internalCleanupRunnable;
-        private final Consumer<JobID> internalJobCleanupConsumer;
+        private final Function<JobID, CompletableFuture<Boolean>> internalJobCleanupFunction;
 
         private TestingHaServices(
                 Configuration config,
@@ -192,11 +195,11 @@ public class AbstractHaServicesTest extends TestLogger {
                 BlobStoreService blobStoreService,
                 Queue<? super CloseOperations> closeOperations,
                 RunnableWithException internalCleanupRunnable,
-                Consumer<JobID> internalJobCleanupConsumer) {
+                Function<JobID, CompletableFuture<Boolean>> internalJobCleanupFunction) {
             super(config, ioExecutor, blobStoreService);
             this.closeOperations = closeOperations;
             this.internalCleanupRunnable = internalCleanupRunnable;
-            this.internalJobCleanupConsumer = internalJobCleanupConsumer;
+            this.internalJobCleanupFunction = internalJobCleanupFunction;
         }
 
         @Override
@@ -235,8 +238,8 @@ public class AbstractHaServicesTest extends TestLogger {
         }
 
         @Override
-        protected void internalCleanupJobData(JobID jobID) throws Exception {
-            internalJobCleanupConsumer.accept(jobID);
+        protected CompletableFuture<Boolean> internalCleanupJobDataAsync(JobID jobID) {
+            return internalJobCleanupFunction.apply(jobID);
         }
 
         @Override

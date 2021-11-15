@@ -31,6 +31,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -206,10 +207,16 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public void cleanupJobData(JobID jobID) throws Exception {
+    public CompletableFuture<Boolean> cleanupJobData(JobID jobID) throws Exception {
         logger.info("Clean up the high availability data for job {}.", jobID);
-        internalCleanupJobData(jobID);
-        logger.info("Finished cleaning up the high availability data for job {}.", jobID);
+        return internalCleanupJobDataAsync(jobID)
+                .thenApply(
+                        result -> {
+                            logger.info(
+                                    "Finished cleaning up the high availability data for job {}.",
+                                    jobID);
+                            return result;
+                        });
     }
 
     /**
@@ -272,9 +279,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
      * the specified Job.
      *
      * @param jobID The identifier of the job to cleanup.
-     * @throws Exception when do the cleanup operation on external storage.
      */
-    protected abstract void internalCleanupJobData(JobID jobID) throws Exception;
+    protected abstract CompletableFuture<Boolean> internalCleanupJobDataAsync(JobID jobID);
 
     /**
      * Get the leader path for ResourceManager.

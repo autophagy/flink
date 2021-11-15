@@ -102,7 +102,7 @@ public class KubernetesHaServicesTest extends KubernetesHighAvailabilityTestBase
                             assertThat(
                                     flinkKubeClient.getConfigMap(configMapName).isPresent(),
                                     is(true));
-                            kubernetesHaServices.internalCleanupJobData(jobID);
+                            kubernetesHaServices.internalCleanupJobDataAsync(jobID);
                             assertThat(
                                     flinkKubeClient.getConfigMap(configMapName).isPresent(),
                                     is(false));

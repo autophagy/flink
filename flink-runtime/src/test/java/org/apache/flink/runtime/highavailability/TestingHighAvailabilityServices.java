@@ -286,7 +286,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     @Override
-    public void cleanupJobData(JobID jobID) {
+    public CompletableFuture<Boolean> cleanupJobData(JobID jobID) {
         Optional.ofNullable(jobCleanupFuture).ifPresent(f -> f.complete(jobID));
+        return CompletableFuture.completedFuture(true);
     }
 }
