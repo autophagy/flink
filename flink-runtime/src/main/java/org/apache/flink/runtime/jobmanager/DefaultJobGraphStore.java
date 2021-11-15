@@ -38,6 +38,8 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -238,27 +240,40 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
     }
 
     @Override
-    public void removeJobGraph(JobID jobId) throws Exception {
-        checkNotNull(jobId, "Job ID");
-        String name = jobGraphStoreUtil.jobIDToName(jobId);
+    public CompletableFuture<Boolean> cleanupJobData(JobID jobId) {
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    checkNotNull(jobId, "Job ID");
+                    String name = jobGraphStoreUtil.jobIDToName(jobId);
 
-        LOG.debug("Removing job graph {} from {}.", jobId, jobGraphStateHandleStore);
+                    LOG.debug("Removing job graph {} from {}.", jobId, jobGraphStateHandleStore);
 
-        synchronized (lock) {
-            verifyIsRunning();
-            if (addedJobGraphs.contains(jobId)) {
-                if (jobGraphStateHandleStore.releaseAndTryRemove(name)) {
-                    addedJobGraphs.remove(jobId);
-                } else {
-                    throw new FlinkException(
-                            String.format(
-                                    "Could not remove job graph with job id %s from %s.",
-                                    jobId, jobGraphStateHandleStore));
-                }
-            }
-        }
+                    synchronized (lock) {
+                        verifyIsRunning();
+                        if (addedJobGraphs.contains(jobId)) {
+                            boolean releaseAndRemovalSuccessful;
+                            try {
+                                releaseAndRemovalSuccessful =
+                                        jobGraphStateHandleStore.releaseAndTryRemove(name);
+                            } catch (Exception e) {
+                                throw new CompletionException(e);
+                            }
 
-        LOG.info("Removed job graph {} from {}.", jobId, jobGraphStateHandleStore);
+                            if (releaseAndRemovalSuccessful) {
+                                addedJobGraphs.remove(jobId);
+                            } else {
+                                throw new CompletionException(
+                                        new FlinkException(
+                                                String.format(
+                                                        "Could not remove job graph with job id %s from %s.",
+                                                        jobId, jobGraphStateHandleStore)));
+                            }
+                        }
+                    }
+
+                    LOG.info("Removed job graph {} from {}.", jobId, jobGraphStateHandleStore);
+                    return true;
+                });
     }
 
     @Override

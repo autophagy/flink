@@ -50,6 +50,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -200,7 +201,7 @@ public class DefaultJobGraphStoreTest extends TestLogger {
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
 
         jobGraphStore.putJobGraph(testingJobGraph);
-        jobGraphStore.removeJobGraph(testingJobGraph.getJobID());
+        assertTrue(jobGraphStore.cleanupJobData(testingJobGraph.getJobID()).get());
         final JobID actual = removeFuture.get(timeout, TimeUnit.MILLISECONDS);
         assertThat(actual, is(testingJobGraph.getJobID()));
     }
@@ -213,7 +214,7 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                         .build();
 
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
-        jobGraphStore.removeJobGraph(testingJobGraph.getJobID());
+        assertTrue(jobGraphStore.cleanupJobData(testingJobGraph.getJobID()).get());
 
         try {
             removeFuture.get(timeout, TimeUnit.MILLISECONDS);

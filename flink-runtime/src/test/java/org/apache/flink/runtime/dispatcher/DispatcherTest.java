@@ -692,7 +692,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 TestingJobGraphStore.newBuilder()
                         .setReleaseJobGraphConsumer(
                                 jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_RELEASE))
-                        .setRemoveJobGraphConsumer(
+                        .setCleanupJobDataFunction(
                                 jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_REMOVE))
                         .build();
         jobGraphStore.start(null);
@@ -855,7 +855,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         final TestingJobGraphStore testingJobGraphStore =
                 TestingJobGraphStore.newBuilder()
-                        .setRemoveJobGraphConsumer(removeJobGraphFuture::complete)
+                        .setCleanupJobDataFunction(removeJobGraphFuture::complete)
                         .setReleaseJobGraphConsumer(releaseJobGraphFuture::complete)
                         .build();
         testingJobGraphStore.start(null);
@@ -924,7 +924,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 TestingJobGraphStore.newBuilder()
                         .setReleaseJobGraphConsumer(
                                 jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_RELEASE))
-                        .setRemoveJobGraphConsumer(
+                        .setCleanupJobDataFunction(
                                 jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_REMOVE))
                         .build();
         jobGraphStore.start(null);

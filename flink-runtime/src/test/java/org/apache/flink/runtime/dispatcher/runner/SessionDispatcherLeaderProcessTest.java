@@ -349,7 +349,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
             dispatcherLeaderProcess.getDispatcherGateway().get();
 
             // now remove the Job from the JobGraphStore and notify the dispatcher service
-            jobGraphStore.removeJobGraph(JOB_GRAPH.getJobID());
+            assertTrue(jobGraphStore.cleanupJobData(JOB_GRAPH.getJobID()).get());
             dispatcherLeaderProcess.onRemovedJobGraph(JOB_GRAPH.getJobID());
 
             assertThat(terminateJobFuture.get(), is(JOB_GRAPH.getJobID()));

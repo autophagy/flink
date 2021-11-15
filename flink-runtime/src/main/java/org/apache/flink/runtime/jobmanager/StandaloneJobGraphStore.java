@@ -48,11 +48,6 @@ public class StandaloneJobGraphStore implements JobGraphStore {
     }
 
     @Override
-    public void removeJobGraph(JobID jobId) {
-        // Nothing to do
-    }
-
-    @Override
     public void releaseJobGraph(JobID jobId) {
         // nothing to do
     }

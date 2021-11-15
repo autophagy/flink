@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -35,6 +36,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /** In-Memory implementation of {@link JobGraphStore} for testing purposes. */
 public class TestingJobGraphStore implements JobGraphStore {
@@ -54,7 +56,7 @@ public class TestingJobGraphStore implements JobGraphStore {
 
     private final ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer;
 
-    private final ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer;
+    private final FunctionWithException<JobID, Boolean, ? extends Exception> cleanupJobDataFunction;
 
     private final ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer;
 
@@ -68,7 +70,7 @@ public class TestingJobGraphStore implements JobGraphStore {
             BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
                     recoverJobGraphFunction,
             ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer,
-            ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer,
+            FunctionWithException<JobID, Boolean, ? extends Exception> cleanupJobDataFunction,
             ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer,
             Collection<JobGraph> initialJobGraphs) {
         this.startConsumer = startConsumer;
@@ -76,7 +78,7 @@ public class TestingJobGraphStore implements JobGraphStore {
         this.jobIdsFunction = jobIdsFunction;
         this.recoverJobGraphFunction = recoverJobGraphFunction;
         this.putJobGraphConsumer = putJobGraphConsumer;
-        this.removeJobGraphConsumer = removeJobGraphConsumer;
+        this.cleanupJobDataFunction = cleanupJobDataFunction;
         this.releaseJobGraphConsumer = releaseJobGraphConsumer;
 
         for (JobGraph initialJobGraph : initialJobGraphs) {
@@ -110,10 +112,17 @@ public class TestingJobGraphStore implements JobGraphStore {
     }
 
     @Override
-    public synchronized void removeJobGraph(JobID jobId) throws Exception {
+    public synchronized CompletableFuture<Boolean> cleanupJobData(JobID jobId) {
         verifyIsStarted();
-        removeJobGraphConsumer.accept(jobId);
+        boolean cleanupSuccessful;
+        try {
+            cleanupSuccessful = cleanupJobDataFunction.apply(jobId);
+        } catch (Exception e) {
+            return FutureUtils.completedExceptionally(e);
+        }
         storedJobs.remove(jobId);
+
+        return CompletableFuture.completedFuture(cleanupSuccessful);
     }
 
     @Override
@@ -156,7 +165,8 @@ public class TestingJobGraphStore implements JobGraphStore {
 
         private ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer = ignored -> {};
 
-        private ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer = ignored -> {};
+        private FunctionWithException<JobID, Boolean, ? extends Exception> cleanupJobDataFunction =
+                ignored -> true;
 
         private ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer =
                 ignored -> {};
@@ -198,9 +208,9 @@ public class TestingJobGraphStore implements JobGraphStore {
             return this;
         }
 
-        public Builder setRemoveJobGraphConsumer(
-                ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer) {
-            this.removeJobGraphConsumer = removeJobGraphConsumer;
+        public Builder setCleanupJobDataFunction(
+                FunctionWithException<JobID, Boolean, ? extends Exception> cleanupJobDataFunction) {
+            this.cleanupJobDataFunction = cleanupJobDataFunction;
             return this;
         }
 
@@ -228,7 +238,7 @@ public class TestingJobGraphStore implements JobGraphStore {
                             jobIdsFunction,
                             recoverJobGraphFunction,
                             putJobGraphConsumer,
-                            removeJobGraphConsumer,
+                            cleanupJobDataFunction,
                             releaseJobGraphConsumer,
                             initialJobGraphs);
 

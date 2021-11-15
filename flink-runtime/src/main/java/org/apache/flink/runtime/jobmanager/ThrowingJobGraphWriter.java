@@ -31,8 +31,5 @@ public enum ThrowingJobGraphWriter implements JobGraphWriter {
     }
 
     @Override
-    public void removeJobGraph(JobID jobId) {}
-
-    @Override
     public void releaseJobGraph(JobID jobId) {}
 }

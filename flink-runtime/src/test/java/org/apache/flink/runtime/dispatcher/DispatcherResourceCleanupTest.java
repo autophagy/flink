@@ -608,7 +608,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     public void testHABlobsAreNotRemovedIfHAJobGraphRemovalFails() throws Exception {
         jobGraphWriter =
                 TestingJobGraphStore.newBuilder()
-                        .setRemoveJobGraphConsumer(
+                        .setCleanupJobDataFunction(
                                 ignored -> {
                                     throw new Exception("Failed to Remove future");
                                 })

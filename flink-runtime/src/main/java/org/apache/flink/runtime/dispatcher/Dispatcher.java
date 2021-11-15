@@ -820,7 +820,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private boolean cleanUpJobGraph(JobID jobId, boolean cleanupHA) {
         if (cleanupHA) {
             try {
-                jobGraphWriter.removeJobGraph(jobId);
+                jobGraphWriter.cleanupJobData(jobId);
                 return true;
             } catch (Exception e) {
                 log.warn(
