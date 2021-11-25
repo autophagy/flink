@@ -31,7 +31,10 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.util.concurrent.FixedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.RetryStrategy;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -41,6 +44,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -55,6 +59,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -454,6 +459,236 @@ public class FutureUtilsTest extends TestLogger {
         } catch (final ExecutionException e) {
             assertThat(e.getMessage(), containsString("should propagate"));
         }
+    }
+
+    @Test
+    public void testRetryOperationWithNoRetryDueToSuccess()
+            throws ExecutionException, InterruptedException {
+        final ScheduledExecutor retryExecutor =
+                new ScheduledExecutorServiceAdapter(TEST_EXECUTOR_RESOURCE.getExecutor());
+
+        final int expectedResult = 1337;
+        final AtomicInteger operationCallCount = new AtomicInteger();
+        final CompletableFuture<Integer> resultFuture =
+                FutureUtils.retryOperation(
+                        () -> {
+                            operationCallCount.incrementAndGet();
+                            return CompletableFuture.completedFuture(expectedResult);
+                        },
+                        retryStrategyExceedingTheExpectedRetries(0),
+                        successfulCompletionWillNotCauseRetry(),
+                        exceptionalCompletionWillNotCauseRetry(),
+                        retryExecutor);
+
+        assertEquals(expectedResult, (int) resultFuture.get());
+        assertEquals("Expects the initial call with no retry.", 1, operationCallCount.get());
+    }
+
+    @Test
+    public void testRetryOperationWithNoRetryDueWithError()
+            throws ExecutionException, InterruptedException {
+        final ScheduledExecutor retryExecutor =
+                new ScheduledExecutorServiceAdapter(TEST_EXECUTOR_RESOURCE.getExecutor());
+
+        final Throwable expectedException = new RuntimeException("Expected RuntimeException");
+        final AtomicInteger operationCallCount = new AtomicInteger();
+        final CompletableFuture<Integer> resultFuture =
+                FutureUtils.retryOperation(
+                        () -> {
+                            operationCallCount.incrementAndGet();
+                            return FutureUtils.completedExceptionally(expectedException);
+                        },
+                        retryStrategyExceedingTheExpectedRetries(0),
+                        successfulCompletionWillNotCauseRetry(),
+                        exceptionalCompletionWillNotCauseRetry(),
+                        retryExecutor);
+
+        try {
+            resultFuture.get();
+            fail("RuntimeException expected");
+        } catch (Throwable t) {
+            ExceptionUtils.assertThrowableWithMessage(t, expectedException.getMessage());
+        }
+
+        assertEquals("Expects the initial call with no retry.", 1, operationCallCount.get());
+    }
+
+    @Test
+    public void testRetryOperationWithRetriesDueToInvalidSuccess()
+            throws ExecutionException, InterruptedException {
+        final ScheduledExecutor retryExecutor =
+                new ScheduledExecutorServiceAdapter(TEST_EXECUTOR_RESOURCE.getExecutor());
+
+        final int initialValue = 1337;
+        final AtomicInteger resultValue = new AtomicInteger(initialValue);
+
+        final AtomicInteger operationCallCount = new AtomicInteger();
+        final int expectedRetries = 4;
+        final CompletableFuture<Integer> resultFuture =
+                FutureUtils.retryOperation(
+                        () -> {
+                            operationCallCount.incrementAndGet();
+                            return CompletableFuture.completedFuture(resultValue.getAndIncrement());
+                        },
+                        retryStrategyExceedingTheExpectedRetries(expectedRetries),
+                        // initial value should trigger a retry
+                        value -> value < initialValue + expectedRetries ? null : value,
+                        exceptionalCompletionWillNotCauseRetry(),
+                        retryExecutor);
+
+        assertEquals(initialValue + expectedRetries, (int) resultFuture.get());
+        assertEquals(
+                "Expects the initial call and one retry.",
+                expectedRetries + 1,
+                operationCallCount.get());
+    }
+
+    @Test
+    public void testRetryOperationWithRetriesDueToWrongException() {
+        final ScheduledExecutor retryExecutor =
+                new ScheduledExecutorServiceAdapter(TEST_EXECUTOR_RESOURCE.getExecutor());
+
+        final AtomicInteger operationCallCount = new AtomicInteger();
+        final Throwable retryableException = new RuntimeException("Expected retryable exception");
+        final Throwable nonRetryableException =
+                new FlinkException("Expected non-retryable exception");
+
+        final int expectedRetries = 4;
+        final CompletableFuture<Integer> resultFuture =
+                FutureUtils.retryOperation(
+                        () ->
+                                FutureUtils.completedExceptionally(
+                                        operationCallCount.getAndIncrement() < expectedRetries
+                                                ? retryableException
+                                                : nonRetryableException),
+                        retryStrategyExceedingTheExpectedRetries(expectedRetries),
+                        successfulCompletionWillNotCauseRetry(),
+                        // retry if the throwable is not a FlinkException
+                        throwable -> !throwable.getClass().equals(FlinkException.class),
+                        retryExecutor);
+
+        try {
+            resultFuture.get();
+            fail("FlinkException expected");
+        } catch (Throwable t) {
+            assertFalse(
+                    "No RetryException is expected to be thrown",
+                    ExceptionUtils.findThrowable(t, FutureUtils.RetryException.class).isPresent());
+            assertEquals(
+                    "Expects the FlinkException to be thrown.",
+                    nonRetryableException,
+                    ExceptionUtils.findThrowable(t, FlinkException.class).get());
+        }
+
+        assertEquals(
+                "Expects the initial call and the number of retries.",
+                expectedRetries + 1,
+                operationCallCount.get());
+    }
+
+    @Test
+    public void testRetryOperationWithMultipleRetriesDueToWrongValue()
+            throws ExecutionException, InterruptedException {
+        final ScheduledExecutor retryExecutor =
+                new ScheduledExecutorServiceAdapter(TEST_EXECUTOR_RESOURCE.getExecutor());
+
+        final int invalidValue = 1337;
+
+        final AtomicInteger operationCallCount = new AtomicInteger();
+        final int expectedRetries = 5;
+        final CompletableFuture<Integer> resultFuture =
+                FutureUtils.retryOperation(
+                        () -> {
+                            operationCallCount.incrementAndGet();
+                            return CompletableFuture.completedFuture(invalidValue);
+                        },
+                        new FixedRetryStrategy(expectedRetries, Duration.ZERO),
+                        // invalid value should trigger retry
+                        value -> value == invalidValue ? null : value,
+                        exceptionalCompletionWillNotCauseRetry(),
+                        retryExecutor);
+
+        try {
+            resultFuture.get();
+            fail("RetryException caused by RuntimeException expected");
+        } catch (Throwable t) {
+            Optional<FutureUtils.RetryException> retryExceptionOptional =
+                    ExceptionUtils.findThrowable(t, FutureUtils.RetryException.class);
+            assertTrue(
+                    "Expects a RetryException to be thrown.", retryExceptionOptional.isPresent());
+            assertTrue(
+                    "Expects the invalid value being mentioned in the error message.",
+                    retryExceptionOptional
+                            .get()
+                            .getMessage()
+                            .contains(String.valueOf(invalidValue)));
+            assertNull(
+                    "Expects no cause for RetryException.",
+                    retryExceptionOptional.get().getCause());
+        }
+
+        assertEquals(
+                "Expects the initial call and the number of retries.",
+                expectedRetries + 1,
+                operationCallCount.get());
+    }
+
+    @Test
+    public void testRetryOperationWithMultipleRetriesDueToError()
+            throws ExecutionException, InterruptedException {
+        final ScheduledExecutor retryExecutor =
+                new ScheduledExecutorServiceAdapter(TEST_EXECUTOR_RESOURCE.getExecutor());
+
+        final Throwable expectedException = new RuntimeException("Expected RuntimeException");
+
+        final AtomicInteger operationCallCount = new AtomicInteger();
+        final int expectedRetries = 5;
+        final CompletableFuture<Integer> resultFuture =
+                FutureUtils.retryOperation(
+                        () -> {
+                            operationCallCount.incrementAndGet();
+                            return FutureUtils.completedExceptionally(expectedException);
+                        },
+                        new FixedRetryStrategy(expectedRetries, Duration.ZERO),
+                        successfulCompletionWillNotCauseRetry(),
+                        // any throwable will trigger a retry
+                        throwable -> true,
+                        retryExecutor);
+
+        try {
+            resultFuture.get();
+            fail("RetryException caused by RuntimeException expected");
+        } catch (Throwable t) {
+            Optional<FutureUtils.RetryException> retryExceptionOptional =
+                    ExceptionUtils.findThrowable(t, FutureUtils.RetryException.class);
+            assertTrue(
+                    "Expects a RetryException to be thrown.", retryExceptionOptional.isPresent());
+            assertEquals(
+                    "Expects the RuntimeException to be the cause of the RetryException.",
+                    retryExceptionOptional.get().getCause(),
+                    expectedException);
+        }
+
+        assertEquals(
+                "Expects the initial call and the number of retries.",
+                expectedRetries + 1,
+                operationCallCount.get());
+    }
+
+    private static RetryStrategy retryStrategyExceedingTheExpectedRetries(int expectedRetries) {
+        // 2 is added instead of 1 to work around to explicitly differentiate it from the operation
+        // call count which consists of the operation call and the expected retries
+        return new FixedRetryStrategy(expectedRetries + 2, Duration.ZERO);
+    }
+
+    private static Predicate<Throwable> exceptionalCompletionWillNotCauseRetry() {
+        return ignored -> false;
+    }
+
+    private static <T>
+            FunctionWithException<T, T, ? extends Throwable>
+                    successfulCompletionWillNotCauseRetry() {
+        return value -> value;
     }
 
     @Test
