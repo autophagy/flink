@@ -140,7 +140,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 jobGraph,
                 ioExecutor,
                 jobMasterConfiguration,
-                userCodeLoader,
                 checkpointRecoveryFactory,
                 jobManagerJobMetricGroup,
                 executionVertexVersioner,
