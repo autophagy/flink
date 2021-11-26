@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.RetryStrategy;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -37,4 +40,30 @@ public interface JobCleanup {
      * @throws Exception if cleaning up failed.
      */
     CompletableFuture<Boolean> cleanupJobData(JobID jobId) throws Exception;
+
+    /**
+     * Calls {@link #cleanupJobData(JobID)} in a retryable fashion.
+     *
+     * @param jobId The ID of the job for which the data shall be cleaned up.
+     * @param retryStrategy The {@link RetryStrategy} that shall be applied.
+     * @param scheduledExecutor The {@link ScheduledExecutor} that is used to execute the retries.
+     * @return A {@code CompletableFuture} referring to the final result of the cleanup operation.
+     */
+    default CompletableFuture<Boolean> cleanupJobDataWithRetry(
+            JobID jobId, RetryStrategy retryStrategy, ScheduledExecutor scheduledExecutor) {
+        return FutureUtils.retryOperation(
+                () -> {
+                    try {
+                        return cleanupJobData(jobId);
+                    } catch (Exception e) {
+                        return FutureUtils.completedExceptionally(e);
+                    }
+                },
+                retryStrategy,
+                // trigger retry in case false is returned by the cleanup
+                cleanupSuccessful -> cleanupSuccessful ? true : null,
+                // always retry on failure
+                throwable -> true,
+                scheduledExecutor);
+    }
 }
