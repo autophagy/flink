@@ -211,6 +211,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                         rpcService,
                         DispatcherId.generate(),
                         Collections.emptyList(),
+                        Collections.emptyList(),
                         (dispatcher, scheduledExecutor, errorHandler) ->
                                 new NoOpDispatcherBootstrap(),
                         new DispatcherServices(
