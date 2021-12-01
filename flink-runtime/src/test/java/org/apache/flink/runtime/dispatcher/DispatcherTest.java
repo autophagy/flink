@@ -698,7 +698,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 new EmbeddedJobResultStore() {
 
                     @Override
-                    public void markResultAsClean(JobID jobID) throws IOException {
+                    public void markResultAsClean(JobID jobID) {
                         cleanUpEvents.add(CLEANUP_JOB_RESULT_STORE);
                         super.markResultAsClean(jobID);
                     }
@@ -930,7 +930,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 new EmbeddedJobResultStore() {
 
                     @Override
-                    public void markResultAsClean(JobID jobID) throws IOException {
+                    public void markResultAsClean(JobID jobID) {
                         cleanUpEvents.add(CLEANUP_JOB_RESULT_STORE);
                         super.markResultAsClean(jobID);
                     }

@@ -23,8 +23,8 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * An entry in a {@link JobResultStore} that couples a completed {@link JobResult} to a state that
- * represents whether the resources of that JobResult have been finalized (CLEAN) or have yet to be
- * finalized (DIRTY).
+ * represents whether the resources of that JobResult have been finalized ({@link
+ * JobResultState#CLEAN}) or have yet to be finalized ({@link JobResultState#DIRTY}).
  */
 public class JobResultEntry {
 

@@ -24,7 +24,6 @@ import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -38,33 +37,26 @@ public class EmbeddedJobResultStoreTest extends TestLogger {
 
     private EmbeddedJobResultStore embeddedJobResultStore;
 
-    private JobResult jobResult;
+    static final JobResult JOB_RESULT =
+            new JobResult.Builder()
+                    .applicationStatus(ApplicationStatus.UNKNOWN)
+                    .jobId(new JobID())
+                    .netRuntime(Long.MAX_VALUE)
+                    .build();
 
     @Before
     public void setupTest() {
         embeddedJobResultStore = new EmbeddedJobResultStore();
-        jobResult =
-                new JobResult.Builder()
-                        .applicationStatus(ApplicationStatus.UNKNOWN)
-                        .jobId(new JobID())
-                        .netRuntime(Long.MAX_VALUE)
-                        .build();
-    }
-
-    @After
-    public void teardownTest() {
-        embeddedJobResultStore = null;
-        jobResult = null;
     }
 
     /** Tests that adding a JobResult to the JobResultStore results in a Dirty JobResultEntry. */
     @Test
     public void testStoreDirtyJobResult() throws Exception {
-        embeddedJobResultStore.createDirtyResult(jobResult);
-        assertTrue(embeddedJobResultStore.hasJobResultEntry(jobResult.getJobId()));
+        embeddedJobResultStore.createDirtyResult(JOB_RESULT);
+        assertTrue(embeddedJobResultStore.hasJobResultEntry(JOB_RESULT.getJobId()));
 
         JobResultEntry jobResultEntry =
-                embeddedJobResultStore.getJobResultEntry(jobResult.getJobId());
+                embeddedJobResultStore.getJobResultEntry(JOB_RESULT.getJobId());
 
         assertEquals(jobResultEntry.getState(), JobResultEntry.JobResultState.DIRTY);
     }
@@ -75,17 +67,17 @@ public class EmbeddedJobResultStoreTest extends TestLogger {
      */
     @Test
     public void testCleanDirtyJobResult() throws Exception {
-        embeddedJobResultStore.createDirtyResult(jobResult);
-        embeddedJobResultStore.markResultAsClean(jobResult.getJobId());
+        embeddedJobResultStore.createDirtyResult(JOB_RESULT);
+        embeddedJobResultStore.markResultAsClean(JOB_RESULT.getJobId());
 
         JobResultEntry jobResultEntry =
-                embeddedJobResultStore.getJobResultEntry(jobResult.getJobId());
+                embeddedJobResultStore.getJobResultEntry(JOB_RESULT.getJobId());
         assertEquals(jobResultEntry.getState(), JobResultEntry.JobResultState.CLEAN);
     }
 
     /** Tests that attempting to clean a nonexistent job result produces an exception. */
     @Test(expected = NoSuchElementException.class)
     public void testCleanNonexistentJobResult() throws Exception {
-        embeddedJobResultStore.markResultAsClean(jobResult.getJobId());
+        embeddedJobResultStore.markResultAsClean(JOB_RESULT.getJobId());
     }
 }

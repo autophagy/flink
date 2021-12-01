@@ -18,33 +18,32 @@
 
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 /**
- * An implementation of the {@link JobResultStore} which only persists the store to an in memory
- * map.
+ * An implementation of the {@link JobResultStore} which only persists the data to an in-memory map.
  */
 public class EmbeddedJobResultStore implements JobResultStore {
 
     private final HashMap<JobID, JobResultEntry> inMemoryMap = new HashMap<>();
 
     @Override
-    public void createDirtyResult(JobResult jobResult) throws IOException {
+    public void createDirtyResult(JobResult jobResult) {
         final JobResultEntry jobResultEntry = JobResultEntry.createDirtyJobResultEntry(jobResult);
         inMemoryMap.put(jobResult.getJobId(), jobResultEntry);
     }
 
     @Override
-    public void markResultAsClean(JobID jobId) throws IOException, NoSuchElementException {
+    public void markResultAsClean(JobID jobId) throws NoSuchElementException {
         JobResultEntry entry = inMemoryMap.get(jobId);
         if (entry != null) {
             inMemoryMap.get(jobId).markAsClean();
@@ -54,20 +53,12 @@ public class EmbeddedJobResultStore implements JobResultStore {
     }
 
     @Override
-    public boolean hasJobResultEntry(JobID jobId) throws IOException {
+    public boolean hasJobResultEntry(JobID jobId) {
         return inMemoryMap.containsKey(jobId);
     }
 
-    /**
-     * Get a {@link JobResult} for a given {@link JobID}.
-     *
-     * @param jobId Ident of the job we wish to retrieve the JobResult for.
-     * @return A JobResult obtained from the store.
-     * @throws IOException
-     */
-    @Override
-    public JobResultEntry getJobResultEntry(JobID jobId)
-            throws IOException, NoSuchElementException {
+    @VisibleForTesting
+    protected JobResultEntry getJobResultEntry(JobID jobId) throws NoSuchElementException {
         JobResultEntry entry = inMemoryMap.get(jobId);
         if (entry != null) {
             return inMemoryMap.get(jobId);
@@ -77,7 +68,7 @@ public class EmbeddedJobResultStore implements JobResultStore {
     }
 
     @Override
-    public Collection<JobResult> getDirtyResults() throws IOException {
+    public Collection<JobResult> getDirtyResults() {
         return inMemoryMap.values().stream()
                 .filter(a -> a.getState().equals(JobResultEntry.JobResultState.DIRTY))
                 .map(JobResultEntry::getJobResult)
