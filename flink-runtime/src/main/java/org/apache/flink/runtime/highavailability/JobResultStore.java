@@ -27,18 +27,17 @@ import java.util.NoSuchElementException;
 
 /**
  * A persistent storage mechanism for the results of successfully and unsuccessfully completed jobs.
- * This storage should outlive the concrete jobs themselves, in order for solve possible recovery
- * scenarios in multi-master setups.
  */
 public interface JobResultStore {
 
     /**
      * Create a job result of a completed job. The initial state of a job result is always marked as
      * DIRTY, which indicates that clean-up operations still need to be performed. Once the job
-     * resources have been finalized, we can "commit" the job result as a CLEAN result using {@link
-     * #markResultAsClean(JobID)}.
+     * resource cleanup has been finalized, we can "commit" the job result as a CLEAN result using
+     * {@link #markResultAsClean(JobID)}.
      *
      * @param jobResult The job result we wish to persist.
+     * @throws IOException if the creation of the dirty result failed for IO reasons.
      */
     void createDirtyResult(JobResult jobResult) throws IOException;
 
@@ -47,6 +46,9 @@ public interface JobResultStore {
      * need to be performed.
      *
      * @param jobId Ident of the job we wish to mark as clean.
+     * @throws IOException if marking the dirty result as cleaned failed for IO reasons.
+     * @throws NoSuchElementException if there is no corresponding dirty job present in the store
+     *     for the given JobID.
      */
     void markResultAsClean(JobID jobId) throws IOException, NoSuchElementException;
 
@@ -56,22 +58,17 @@ public interface JobResultStore {
      * @param jobId Ident of the job we wish to check the store for.
      * @return A boolean for whether the job result store contains an entry for the given {@link
      *     JobID}
+     * @throws IOException if determining whether a job entry is present in the store failed for IO
+     *     reasons.
      */
     boolean hasJobResultEntry(JobID jobId) throws IOException;
-
-    /**
-     * Get a {@link JobResult} for a given {@link JobID}.
-     *
-     * @param jobId Ident of the job we wish to retrieve the JobResult for.
-     * @return A JobResult obtained from the store.
-     */
-    JobResultEntry getJobResultEntry(JobID jobId) throws IOException, NoSuchElementException;
 
     /**
      * Get all persisted {@link JobResult job results} that are marked as dirty. This is useful for
      * recovery of finalization steps.
      *
      * @return A collection of dirty JobResults from the store.
+     * @throws IOException if collecting the set of dirty results failed for IO reasons.
      */
     Collection<JobResult> getDirtyResults() throws IOException;
 }

@@ -670,6 +670,7 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
                         .jobId(jobId)
                         .netRuntime(Long.MAX_VALUE)
                         .build();
+        jobResultStore.createDirtyResult(jobResult);
         try (JobManagerRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .setJobMasterServiceProcessFactory(
@@ -677,7 +678,6 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
                                         .setJobId(jobId)
                                         .build())
                         .build()) {
-            jobResultStore.createDirtyResult(jobResult);
             jobManagerRunner.start();
             leaderElectionService.isLeader(UUID.randomUUID());
 

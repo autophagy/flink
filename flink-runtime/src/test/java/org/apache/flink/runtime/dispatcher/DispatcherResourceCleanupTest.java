@@ -37,7 +37,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -585,11 +584,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         public boolean hasJobResultEntry(JobID jobId) throws IOException {
             checkJobId(jobId);
             return containsJob;
-        }
-
-        @Override
-        public JobResultEntry getJobResultEntry(JobID jobId) throws IOException {
-            return null;
         }
 
         @Override

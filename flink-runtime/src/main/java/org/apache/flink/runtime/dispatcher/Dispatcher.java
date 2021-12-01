@@ -86,7 +86,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -850,10 +849,13 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             }
         }
         blobServer.cleanupJob(jobId, jobGraphRemoved);
-        try {
-            jobResultStore.markResultAsClean(jobId);
-        } catch (IOException | NoSuchElementException e) {
-            log.warn("Could not properly mark job {} result as clean.", jobId, e);
+
+        if (jobGraphRemoved) {
+            try {
+                jobResultStore.markResultAsClean(jobId);
+            } catch (IOException e) {
+                log.warn("Could not properly mark job {} result as clean.", jobId, e);
+            }
         }
     }
 

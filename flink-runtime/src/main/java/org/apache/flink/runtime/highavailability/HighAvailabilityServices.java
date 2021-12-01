@@ -168,6 +168,12 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
      */
     JobGraphStore getJobGraphStore() throws Exception;
 
+    /**
+     * Gets the store that holds information about the state of finished jobs.
+     *
+     * @return Store of finished job results
+     * @throws Exception if job result store could not be created
+     */
     JobResultStore getJobResultStore() throws Exception;
 
     /**
