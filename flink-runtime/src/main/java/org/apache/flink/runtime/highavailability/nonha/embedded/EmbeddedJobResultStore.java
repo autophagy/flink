@@ -48,7 +48,10 @@ public class EmbeddedJobResultStore implements JobResultStore {
         if (entry != null) {
             inMemoryMap.get(jobId).markAsClean();
         } else {
-            throw new NoSuchElementException();
+            throw new NoSuchElementException(
+                    String.format(
+                            "Could not mark job %s as clean as it is not present in the job result store.",
+                            jobId));
         }
     }
 
@@ -63,7 +66,10 @@ public class EmbeddedJobResultStore implements JobResultStore {
         if (entry != null) {
             return inMemoryMap.get(jobId);
         } else {
-            throw new NoSuchElementException();
+            throw new NoSuchElementException(
+                    String.format(
+                            "Could not get job result entry %s as it is not present in the job result store.",
+                            jobId));
         }
     }
 
