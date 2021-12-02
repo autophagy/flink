@@ -62,7 +62,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     /** Store for arbitrary blobs. */
     private final BlobStoreService blobStoreService;
 
-    /** The distributed storage based running jobs registry. */
+    /** The distributed storage based job result store. */
     private JobResultStore jobResultStore;
 
     public AbstractHaServices(
