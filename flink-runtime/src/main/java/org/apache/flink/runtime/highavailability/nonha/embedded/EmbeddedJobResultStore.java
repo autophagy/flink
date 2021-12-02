@@ -25,8 +25,8 @@ import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  */
 public class EmbeddedJobResultStore implements JobResultStore {
 
-    private final HashMap<JobID, JobResultEntry> inMemoryMap = new HashMap<>();
+    private final ConcurrentHashMap<JobID, JobResultEntry> inMemoryMap = new ConcurrentHashMap<>();
 
     @Override
     public void createDirtyResult(JobResult jobResult) {
