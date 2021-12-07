@@ -23,11 +23,13 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 /** Testing implementation of the {@link JobManagerRunner}. */
@@ -47,6 +49,8 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
     private final CompletableFuture<JobManagerRunnerResult> resultFuture;
 
+    private final JobResultStore jobResultStore;
+
     private final OneShotLatch closeAsyncCalledLatch = new OneShotLatch();
 
     private JobStatus jobStatus = JobStatus.INITIALIZING;
@@ -55,22 +59,40 @@ public class TestingJobManagerRunner implements JobManagerRunner {
             JobID jobId,
             boolean blockingTermination,
             CompletableFuture<JobMasterGateway> jobMasterGatewayFuture,
-            CompletableFuture<JobManagerRunnerResult> resultFuture) {
+            CompletableFuture<JobManagerRunnerResult> resultFuture,
+            JobResultStore jobResultStore) {
         this.jobId = jobId;
         this.blockingTermination = blockingTermination;
         this.jobMasterGatewayFuture = jobMasterGatewayFuture;
         this.resultFuture = resultFuture;
         this.terminationFuture = new CompletableFuture<>();
+        this.jobResultStore = jobResultStore;
 
         final ExecutionGraphInfo suspendedExecutionGraphInfo =
                 new ExecutionGraphInfo(
                         ArchivedExecutionGraph.createFromInitializingJob(
                                 jobId, "TestJob", JobStatus.SUSPENDED, null, null, 0L),
                         null);
+
+        forwardResultFuture(this.resultFuture);
         terminationFuture.whenComplete(
                 (ignored, ignoredThrowable) ->
                         resultFuture.complete(
                                 JobManagerRunnerResult.forSuccess(suspendedExecutionGraphInfo)));
+    }
+
+    private void forwardResultFuture(CompletableFuture<JobManagerRunnerResult> resultFuture) {
+        resultFuture.whenComplete(
+                (result, throwable) -> {
+                    try {
+                        jobResultStore.createDirtyResult(
+                                JobResult.createFrom(
+                                        result.getExecutionGraphInfo()
+                                                .getArchivedExecutionGraph()));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
     }
 
     @Override
@@ -166,6 +188,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         private CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
                 new CompletableFuture<>();
         private CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
+        private JobResultStore jobResultStore;
 
         private Builder() {
             // No-op.
@@ -194,10 +217,20 @@ public class TestingJobManagerRunner implements JobManagerRunner {
             return this;
         }
 
+        public Builder setJobResultStore(JobResultStore jobResultStore) {
+            Preconditions.checkNotNull(jobResultStore);
+            this.jobResultStore = jobResultStore;
+            return this;
+        }
+
         public TestingJobManagerRunner build() {
             Preconditions.checkNotNull(jobId);
             return new TestingJobManagerRunner(
-                    jobId, blockingTermination, jobMasterGatewayFuture, resultFuture);
+                    jobId,
+                    blockingTermination,
+                    jobMasterGatewayFuture,
+                    resultFuture,
+                    jobResultStore);
         }
     }
 }

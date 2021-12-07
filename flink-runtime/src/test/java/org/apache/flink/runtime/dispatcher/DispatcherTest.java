@@ -666,15 +666,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final FlinkException testException = new FlinkException("Test exception.");
         final ArrayBlockingQueue<Optional<Exception>> queue = new ArrayBlockingQueue<>(2);
 
-        final BlockingJobManagerRunnerFactory blockingJobManagerRunnerFactory =
-                new BlockingJobManagerRunnerFactory(
-                        () -> {
-                            final Optional<Exception> maybeException = queue.take();
-                            if (maybeException.isPresent()) {
-                                throw maybeException.get();
-                            }
-                        });
-
         final BlockingQueue<String> cleanUpEvents = new LinkedBlockingQueue<>();
 
         // Track cleanup - ha-services
@@ -700,9 +691,17 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     @Override
                     public void markResultAsClean(JobID jobID) {
                         cleanUpEvents.add(CLEANUP_JOB_RESULT_STORE);
-                        super.markResultAsClean(jobID);
                     }
                 });
+
+        final BlockingJobManagerRunnerFactory blockingJobManagerRunnerFactory =
+                new BlockingJobManagerRunnerFactory(
+                        () -> {
+                            final Optional<Exception> maybeException = queue.take();
+                            if (maybeException.isPresent()) {
+                                throw maybeException.get();
+                            }
+                        });
 
         dispatcher =
                 createAndStartDispatcher(
@@ -932,7 +931,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     @Override
                     public void markResultAsClean(JobID jobID) {
                         cleanUpEvents.add(CLEANUP_JOB_RESULT_STORE);
-                        super.markResultAsClean(jobID);
                     }
                 });
 
@@ -950,7 +948,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
         resultFuture.complete(
                 JobManagerRunnerResult.forSuccess(
                         new ExecutionGraphInfo(
-                                new ArchivedExecutionGraphBuilder().setState(jobStatus).build())));
+                                new ArchivedExecutionGraphBuilder()
+                                        .setState(jobStatus)
+                                        .setFailureCause(
+                                                new ErrorInfo(new RuntimeException("expected"), 1L))
+                                        .build())));
 
         // Wait for job to terminate.
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
@@ -1139,7 +1141,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 FatalErrorHandler fatalErrorHandler,
                 long initializationTimestamp)
                 throws Exception {
-            jobManagerRunnerCreationLatch.run();
 
             this.testingRunner =
                     super.createJobManagerRunner(
@@ -1152,6 +1153,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                             jobManagerJobMetricGroupFactory,
                             fatalErrorHandler,
                             initializationTimestamp);
+
+            jobManagerRunnerCreationLatch.run();
 
             TestingJobMasterGateway testingJobMasterGateway =
                     new TestingJobMasterGatewayBuilder()
@@ -1199,9 +1202,13 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 JobManagerSharedServices jobManagerServices,
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
-                long initializationTimestamp) {
+                long initializationTimestamp)
+                throws Exception {
             initializationTimestampQueue.offer(initializationTimestamp);
-            return TestingJobManagerRunner.newBuilder().setJobId(jobGraph.getJobID()).build();
+            return TestingJobManagerRunner.newBuilder()
+                    .setJobId(jobGraph.getJobID())
+                    .setJobResultStore(highAvailabilityServices.getJobResultStore())
+                    .build();
         }
     }
 
@@ -1288,6 +1295,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     TestingJobManagerRunner.newBuilder()
                             .setJobId(jobGraph.getJobID())
                             .setResultFuture(resultFuture)
+                            .setJobResultStore(highAvailabilityServices.getJobResultStore())
                             .build();
             runner.getTerminationFuture().thenRun(onClose::run);
             return runner;

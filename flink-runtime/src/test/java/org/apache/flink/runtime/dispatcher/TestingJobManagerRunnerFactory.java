@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
@@ -67,7 +68,8 @@ public class TestingJobManagerRunnerFactory implements JobManagerRunnerFactory {
             long initializationTimestamp)
             throws Exception {
         final TestingJobManagerRunner testingJobManagerRunner =
-                createTestingJobManagerRunner(jobGraph);
+                createTestingJobManagerRunner(
+                        jobGraph, highAvailabilityServices.getJobResultStore());
         Preconditions.checkState(
                 createdJobManagerRunner.offer(testingJobManagerRunner),
                 "Unable to persist created the new runner.");
@@ -75,11 +77,13 @@ public class TestingJobManagerRunnerFactory implements JobManagerRunnerFactory {
     }
 
     @Nonnull
-    private TestingJobManagerRunner createTestingJobManagerRunner(JobGraph jobGraph) {
+    private TestingJobManagerRunner createTestingJobManagerRunner(
+            JobGraph jobGraph, JobResultStore jobResultStore) {
         final boolean blockingTermination = numBlockingJobManagerRunners.getAndDecrement() > 0;
         return TestingJobManagerRunner.newBuilder()
                 .setJobId(jobGraph.getJobID())
                 .setBlockingTermination(blockingTermination)
+                .setJobResultStore(jobResultStore)
                 .build();
     }
 
