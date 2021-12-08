@@ -24,7 +24,6 @@ import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -38,6 +37,7 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.After;
@@ -214,7 +214,7 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         for (JobID jobId : haServices.getJobGraphStore().getJobIds()) {
             jobGraphs.add(haServices.getJobGraphStore().recoverJobGraph(jobId));
         }
-        haServices.setJobResultStore(new EmbeddedJobResultStore());
+        haServices.setJobResultStore(TestingJobResultStore.builder().build());
         final TestingDispatcher dispatcher =
                 new TestingDispatcherBuilder()
                         .setJobManagerRunnerFactory(

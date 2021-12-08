@@ -39,6 +39,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
@@ -107,6 +108,7 @@ public class AbstractDispatcherTest extends TestLogger {
         haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
         haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
         haServices.setJobGraphStore(new StandaloneJobGraphStore());
+        haServices.setJobResultStore(TestingJobResultStore.builder().build());
 
         configuration = new Configuration();
         configuration.setString(

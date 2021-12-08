@@ -77,6 +77,7 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -213,6 +214,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         .jobId(jobGraph.getJobID())
                         .netRuntime(Long.MAX_VALUE)
                         .build();
+        haServices.setJobResultStore(new EmbeddedJobResultStore());
         haServices.getJobResultStore().createDirtyResult(jobResult);
         dispatcher =
                 createAndStartDispatcher(
@@ -695,14 +697,12 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         // Track cleanup - job result store
         haServices.setJobResultStore(
-                new EmbeddedJobResultStore() {
-
-                    @Override
-                    public void markResultAsClean(JobID jobID) {
-                        cleanUpEvents.add(CLEANUP_JOB_RESULT_STORE);
-                        super.markResultAsClean(jobID);
-                    }
-                });
+                TestingJobResultStore.builder()
+                        .withMarkResultAsCleanConsumer(
+                                (jobID -> {
+                                    cleanUpEvents.add(CLEANUP_JOB_RESULT_STORE);
+                                }))
+                        .build());
 
         dispatcher =
                 createAndStartDispatcher(
@@ -927,14 +927,12 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         // Track cleanup - job result store
         haServices.setJobResultStore(
-                new EmbeddedJobResultStore() {
-
-                    @Override
-                    public void markResultAsClean(JobID jobID) {
-                        cleanUpEvents.add(CLEANUP_JOB_RESULT_STORE);
-                        super.markResultAsClean(jobID);
-                    }
-                });
+                TestingJobResultStore.builder()
+                        .withMarkResultAsCleanConsumer(
+                                (jobID -> {
+                                    cleanUpEvents.add(CLEANUP_JOB_RESULT_STORE);
+                                }))
+                        .build());
 
         final CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
         dispatcher =
@@ -950,7 +948,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
         resultFuture.complete(
                 JobManagerRunnerResult.forSuccess(
                         new ExecutionGraphInfo(
-                                new ArchivedExecutionGraphBuilder().setState(jobStatus).build())));
+                                new ArchivedExecutionGraphBuilder()
+                                        .setState(jobStatus)
+                                        .setFailureCause(
+                                                new ErrorInfo(new RuntimeException("expected"), 1L))
+                                        .build())));
 
         // Wait for job to terminate.
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
