@@ -365,21 +365,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                             "Could not retrieve JobMasterGateway because the JobMaster failed.",
                             throwable));
         } else {
-            if (jobManagerRunnerResult.isSuccess()) {
-                try {
-                    jobResultStore.createDirtyResult(
-                            JobResult.createFrom(
-                                    jobManagerRunnerResult
-                                            .getExecutionGraphInfo()
-                                            .getArchivedExecutionGraph()));
-                } catch (IOException e) {
-                    LOG.error(
-                            "Could not un-register from high-availability services job {}."
-                                    + "Other JobManager's may attempt to recover it and re-execute it.",
-                            getJobID(),
-                            e);
-                }
-            } else {
+            if (!jobManagerRunnerResult.isSuccess()) {
                 jobMasterGatewayFuture.completeExceptionally(
                         new FlinkException(
                                 "Could not retrieve JobMasterGateway because the JobMaster initialization failed.",

@@ -804,7 +804,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 .thenCompose(
                         jobGraphRemoved -> job.closeAsync().thenApply(ignored -> jobGraphRemoved))
                 .thenAcceptAsync(
-                        jobGraphRemoved -> cleanUpRemainingJobData(jobId, jobGraphRemoved),
+                        jobGraphRemoved -> {
+                            cleanUpRemainingJobData(jobId, jobGraphRemoved);
+                            cleanUpJobResult(jobId, jobGraphRemoved);
+                        },
                         ioExecutor);
     }
 
@@ -849,7 +852,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             }
         }
         blobServer.cleanupJob(jobId, jobGraphRemoved);
+    }
 
+    private void cleanUpJobResult(JobID jobId, boolean jobGraphRemoved) {
         if (jobGraphRemoved) {
             try {
                 jobResultStore.markResultAsClean(jobId);
@@ -925,6 +930,19 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         }
 
         archiveExecutionGraph(executionGraphInfo);
+
+        if (terminalJobStatus.isGloballyTerminalState()) {
+            try {
+                jobResultStore.createDirtyResult(
+                        JobResult.createFrom(executionGraphInfo.getArchivedExecutionGraph()));
+            } catch (IOException e) {
+                log.error(
+                        "Could not un-register from high-availability services job {}."
+                                + "Other JobManager's may attempt to recover it and re-execute it.",
+                        executionGraphInfo.getJobId(),
+                        e);
+            }
+        }
 
         return terminalJobStatus.isGloballyTerminalState()
                 ? CleanupJobState.GLOBAL
