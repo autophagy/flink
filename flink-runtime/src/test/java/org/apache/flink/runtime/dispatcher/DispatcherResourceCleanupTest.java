@@ -406,6 +406,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
      * Tests that the previous JobManager needs to be completely terminated before a new job with
      * the same {@link JobID} is started.
      */
+    @Test
     public void testJobSubmissionUnderSameJobId() throws Exception {
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob(1);

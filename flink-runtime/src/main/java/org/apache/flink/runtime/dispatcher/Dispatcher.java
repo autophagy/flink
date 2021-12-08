@@ -926,15 +926,17 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         archiveExecutionGraph(executionGraphInfo);
 
-        try {
-            jobResultStore.createDirtyResult(
-                    JobResult.createFrom(executionGraphInfo.getArchivedExecutionGraph()));
-        } catch (IOException e) {
-            log.error(
-                    "Could not un-register from high-availability services job {}."
-                            + "Other JobManager's may attempt to recover it and re-execute it.",
-                    executionGraphInfo.getJobId(),
-                    e);
+        if (terminalJobStatus.isGloballyTerminalState()) {
+            try {
+                jobResultStore.createDirtyResult(
+                        JobResult.createFrom(executionGraphInfo.getArchivedExecutionGraph()));
+            } catch (IOException e) {
+                log.error(
+                        "Could not un-register from high-availability services job {}."
+                                + "Other JobManager's may attempt to recover it and re-execute it.",
+                        executionGraphInfo.getJobId(),
+                        e);
+            }
         }
 
         return terminalJobStatus.isGloballyTerminalState()
