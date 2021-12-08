@@ -804,7 +804,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 .thenCompose(
                         jobGraphRemoved -> job.closeAsync().thenApply(ignored -> jobGraphRemoved))
                 .thenAcceptAsync(
-                        jobGraphRemoved -> cleanUpRemainingJobData(jobId, jobGraphRemoved),
+                        jobGraphRemoved -> {
+                            cleanUpRemainingJobData(jobId, jobGraphRemoved);
+                            cleanUpJobResult(jobId, jobGraphRemoved);
+                        },
                         ioExecutor);
     }
 
@@ -849,7 +852,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             }
         }
         blobServer.cleanupJob(jobId, jobGraphRemoved);
+    }
 
+    private void cleanUpJobResult(JobID jobId, boolean jobGraphRemoved) {
         if (jobGraphRemoved) {
             try {
                 jobResultStore.markResultAsClean(jobId);

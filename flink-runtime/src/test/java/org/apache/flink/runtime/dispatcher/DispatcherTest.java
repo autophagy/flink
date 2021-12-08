@@ -721,11 +721,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
             // make sure we've cleaned up in correct order (including HA)
             assertThat(
                     new ArrayList<>(cleanUpEvents),
-                    equalTo(
-                            Arrays.asList(
-                                    CLEANUP_JOB_GRAPH_REMOVE,
-                                    CLEANUP_HA_SERVICES,
-                                    CLEANUP_JOB_RESULT_STORE)));
+                    equalTo(Arrays.asList(CLEANUP_JOB_GRAPH_REMOVE, CLEANUP_HA_SERVICES)));
         }
 
         // don't fail this time
