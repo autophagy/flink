@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
@@ -38,13 +39,15 @@ public enum JobDispatcherFactory implements DispatcherFactory {
             RpcService rpcService,
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> globallyTerminatedJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
-            PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore)
+            PartialDispatcherServicesWithJobPersistenceComponents
+                    partialDispatcherServicesWithJobPersistenceComponents)
             throws Exception {
         final JobGraph jobGraph = Iterables.getOnlyElement(recoveredJobs);
 
         final Configuration configuration =
-                partialDispatcherServicesWithJobGraphStore.getConfiguration();
+                partialDispatcherServicesWithJobPersistenceComponents.getConfiguration();
         final String executionModeValue = configuration.getString(INTERNAL_CLUSTER_EXECUTION_MODE);
         final ClusterEntrypoint.ExecutionMode executionMode =
                 ClusterEntrypoint.ExecutionMode.valueOf(executionModeValue);
@@ -53,7 +56,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
                 rpcService,
                 fencingToken,
                 DispatcherServices.from(
-                        partialDispatcherServicesWithJobGraphStore,
+                        partialDispatcherServicesWithJobPersistenceComponents,
                         JobMasterServiceLeadershipRunnerFactory.INSTANCE),
                 jobGraph,
                 dispatcherBootstrapFactory,

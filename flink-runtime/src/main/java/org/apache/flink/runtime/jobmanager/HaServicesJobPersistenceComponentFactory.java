@@ -19,28 +19,40 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.function.SupplierWithException;
 
 /**
- * {@link JobGraphStoreFactory} implementation which creates a {@link JobGraphStore} using the
- * provided {@link HighAvailabilityServices}.
+ * {@link JobPersistenceComponentFactory} implementation which creates a {@link JobGraphStore} using
+ * the provided {@link HighAvailabilityServices}.
  */
-public class HaServicesJobGraphStoreFactory implements JobGraphStoreFactory {
+public class HaServicesJobPersistenceComponentFactory implements JobPersistenceComponentFactory {
     private final HighAvailabilityServices highAvailabilityServices;
 
-    public HaServicesJobGraphStoreFactory(HighAvailabilityServices highAvailabilityServices) {
+    public HaServicesJobPersistenceComponentFactory(
+            HighAvailabilityServices highAvailabilityServices) {
         this.highAvailabilityServices = highAvailabilityServices;
     }
 
     @Override
-    public JobGraphStore create() {
+    public JobGraphStore createJobGraphStore() {
+        return create(highAvailabilityServices::getJobGraphStore, JobGraphStore.class);
+    }
+
+    @Override
+    public JobResultStore createJobResultStore() {
+        return create(highAvailabilityServices::getJobResultStore, JobResultStore.class);
+    }
+
+    private <T> T create(SupplierWithException<T, ? extends Exception> supplier, Class<T> clazz) {
         try {
-            return highAvailabilityServices.getJobGraphStore();
+            return supplier.get();
         } catch (Exception e) {
             throw new FlinkRuntimeException(
                     String.format(
                             "Could not create %s from %s.",
-                            JobGraphStore.class.getSimpleName(),
+                            clazz.getSimpleName(),
                             highAvailabilityServices.getClass().getSimpleName()),
                     e);
         }

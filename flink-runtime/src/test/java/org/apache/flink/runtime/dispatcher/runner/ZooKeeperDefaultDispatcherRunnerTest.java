@@ -35,6 +35,7 @@ import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.VoidHistoryServerArchivist;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
@@ -42,7 +43,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
+import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -179,7 +180,17 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                     createDispatcherRunner(
                             rpcService,
                             dispatcherLeaderElectionService,
-                            () -> createZooKeeperJobGraphStore(client),
+                            new JobPersistenceComponentFactory() {
+                                @Override
+                                public JobGraphStore createJobGraphStore() {
+                                    return createZooKeeperJobGraphStore(client);
+                                }
+
+                                @Override
+                                public JobResultStore createJobResultStore() {
+                                    return new EmbeddedJobResultStore();
+                                }
+                            },
                             partialDispatcherServices,
                             defaultDispatcherRunnerFactory)) {
 
@@ -226,14 +237,14 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
     private DispatcherRunner createDispatcherRunner(
             TestingRpcService rpcService,
             TestingLeaderElectionService dispatcherLeaderElectionService,
-            JobGraphStoreFactory jobGraphStoreFactory,
+            JobPersistenceComponentFactory jobPersistenceComponentFactory,
             PartialDispatcherServices partialDispatcherServices,
             DispatcherRunnerFactory dispatcherRunnerFactory)
             throws Exception {
         return dispatcherRunnerFactory.createDispatcherRunner(
                 dispatcherLeaderElectionService,
                 fatalErrorHandler,
-                jobGraphStoreFactory,
+                jobPersistenceComponentFactory,
                 TestingUtils.defaultExecutor(),
                 rpcService,
                 partialDispatcherServices);

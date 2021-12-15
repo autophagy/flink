@@ -20,6 +20,9 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.api.common.JobStatus;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.BiMap;
+import org.apache.flink.shaded.guava30.com.google.common.collect.HashBiMap;
+
 /** The status of an application. */
 public enum ApplicationStatus {
 
@@ -36,6 +39,16 @@ public enum ApplicationStatus {
     UNKNOWN(1445);
 
     // ------------------------------------------------------------------------
+
+    private static final BiMap<JobStatus, ApplicationStatus> JOB_STATUS_APPLICATION_STATUS_BI_MAP =
+            HashBiMap.create();
+
+    static {
+        // only globally-terminated JobStatus have a corresponding ApplicationStatus
+        JOB_STATUS_APPLICATION_STATUS_BI_MAP.put(JobStatus.FAILED, ApplicationStatus.FAILED);
+        JOB_STATUS_APPLICATION_STATUS_BI_MAP.put(JobStatus.CANCELED, ApplicationStatus.CANCELED);
+        JOB_STATUS_APPLICATION_STATUS_BI_MAP.put(JobStatus.FINISHED, ApplicationStatus.SUCCEEDED);
+    }
 
     /** The associated process exit code */
     private final int processExitCode;
@@ -59,20 +72,25 @@ public enum ApplicationStatus {
      * #UNKNOWN}.
      */
     public static ApplicationStatus fromJobStatus(JobStatus jobStatus) {
-        if (jobStatus == null) {
+        if (jobStatus == null || !JOB_STATUS_APPLICATION_STATUS_BI_MAP.containsKey(jobStatus)) {
             return UNKNOWN;
-        } else {
-            switch (jobStatus) {
-                case FAILED:
-                    return FAILED;
-                case CANCELED:
-                    return CANCELED;
-                case FINISHED:
-                    return SUCCEEDED;
-
-                default:
-                    return UNKNOWN;
-            }
         }
+
+        return JOB_STATUS_APPLICATION_STATUS_BI_MAP.get(jobStatus);
+    }
+
+    /**
+     * Derives the {@link JobStatus} from the {@code ApplicationStatus}.
+     *
+     * @return The corresponding {@code JobStatus}.
+     * @throws UnsupportedOperationException for {@link #UNKNOWN}.
+     */
+    public JobStatus deriveJobStatus() {
+        if (JOB_STATUS_APPLICATION_STATUS_BI_MAP.inverse().containsKey(this)) {
+            throw new UnsupportedOperationException(
+                    this.name() + " cannot be mapped to a JobStatus.");
+        }
+
+        return JOB_STATUS_APPLICATION_STATUS_BI_MAP.inverse().get(this);
     }
 }

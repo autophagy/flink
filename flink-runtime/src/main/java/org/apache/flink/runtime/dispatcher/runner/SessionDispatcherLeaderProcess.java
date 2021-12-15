@@ -23,8 +23,10 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -33,14 +35,17 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 /**
  * Process which encapsulates the job recovery logic and life cycle management of a {@link
@@ -53,6 +58,8 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
     private final JobGraphStore jobGraphStore;
 
+    private final JobResultStore jobResultStore;
+
     private final Executor ioExecutor;
 
     private CompletableFuture<Void> onGoingRecoveryOperation = FutureUtils.completedVoidFuture();
@@ -61,12 +68,14 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
             UUID leaderSessionId,
             DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
             JobGraphStore jobGraphStore,
+            JobResultStore jobResultStore,
             Executor ioExecutor,
             FatalErrorHandler fatalErrorHandler) {
         super(leaderSessionId, fatalErrorHandler);
 
         this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
         this.jobGraphStore = jobGraphStore;
+        this.jobResultStore = jobResultStore;
         this.ioExecutor = ioExecutor;
     }
 
@@ -75,9 +84,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
         startServices();
 
         onGoingRecoveryOperation =
-                recoverJobsAsync()
-                        .thenAccept(this::createDispatcherIfRunning)
-                        .handle(this::onErrorIfRunning);
+                createDispatcherBasedOnRecoveredJobGraphsAndGloballyTerminatedJobs();
     }
 
     private void startServices() {
@@ -92,34 +99,61 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
         }
     }
 
-    private void createDispatcherIfRunning(Collection<JobGraph> jobGraphs) {
-        runIfStateIs(State.RUNNING, () -> createDispatcher(jobGraphs));
+    private void createDispatcherIfRunning(
+            Collection<JobGraph> jobGraphs, Collection<JobResult> globallyTerminatedJobs) {
+        runIfStateIs(State.RUNNING, () -> createDispatcher(jobGraphs, globallyTerminatedJobs));
     }
 
-    private void createDispatcher(Collection<JobGraph> jobGraphs) {
+    private void createDispatcher(
+            Collection<JobGraph> jobGraphs, Collection<JobResult> globallyTerminatedJobs) {
 
         final DispatcherGatewayService dispatcherService =
                 dispatcherGatewayServiceFactory.create(
-                        DispatcherId.fromUuid(getLeaderSessionId()), jobGraphs, jobGraphStore);
+                        DispatcherId.fromUuid(getLeaderSessionId()),
+                        jobGraphs,
+                        globallyTerminatedJobs,
+                        jobGraphStore,
+                        jobResultStore);
 
         completeDispatcherSetup(dispatcherService);
     }
 
-    private CompletableFuture<Collection<JobGraph>> recoverJobsAsync() {
-        return CompletableFuture.supplyAsync(this::recoverJobsIfRunning, ioExecutor);
+    private CompletableFuture<Void>
+            createDispatcherBasedOnRecoveredJobGraphsAndGloballyTerminatedJobs() {
+        return CompletableFuture.supplyAsync(
+                        this::getGloballyCompletedJobResultsIfRunning, ioExecutor)
+                .thenCompose(
+                        globallyTerminatedJobs ->
+                                CompletableFuture.supplyAsync(
+                                                () ->
+                                                        this.recoverJobsIfRunning(
+                                                                globallyTerminatedJobs.stream()
+                                                                        .map(JobResult::getJobId)
+                                                                        .collect(
+                                                                                Collectors
+                                                                                        .toSet())),
+                                                ioExecutor)
+                                        .thenAccept(
+                                                jobGraphs ->
+                                                        createDispatcherIfRunning(
+                                                                jobGraphs, globallyTerminatedJobs))
+                                        .handle(this::onErrorIfRunning));
     }
 
-    private Collection<JobGraph> recoverJobsIfRunning() {
-        return supplyUnsynchronizedIfRunning(this::recoverJobs).orElse(Collections.emptyList());
+    private Collection<JobGraph> recoverJobsIfRunning(Set<JobID> globallyTerminatedJobs) {
+        return supplyUnsynchronizedIfRunning(() -> recoverJobs(globallyTerminatedJobs))
+                .orElse(Collections.emptyList());
     }
 
-    private Collection<JobGraph> recoverJobs() {
+    private Collection<JobGraph> recoverJobs(Set<JobID> globallyTerminatedJobs) {
         log.info("Recover all persisted job graphs.");
         final Collection<JobID> jobIds = getJobIds();
         final Collection<JobGraph> recoveredJobGraphs = new ArrayList<>();
 
         for (JobID jobId : jobIds) {
-            recoveredJobGraphs.add(recoverJob(jobId));
+            if (!globallyTerminatedJobs.contains(jobId)) {
+                recoveredJobGraphs.add(recoverJob(jobId));
+            }
         }
 
         log.info("Successfully recovered {} persisted job graphs.", recoveredJobGraphs.size());
@@ -142,6 +176,21 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
         } catch (Exception e) {
             throw new FlinkRuntimeException(
                     String.format("Could not recover job with job id %s.", jobId), e);
+        }
+    }
+
+    private Collection<JobResult> getGloballyCompletedJobResultsIfRunning() {
+        return supplyUnsynchronizedIfRunning(this::getGloballyCompletedJobResults)
+                .orElse(Collections.emptyList());
+    }
+
+    private Collection<JobResult> getGloballyCompletedJobResults() {
+        try {
+            return jobResultStore.getDirtyResults();
+        } catch (IOException e) {
+            throw new FlinkRuntimeException(
+                    "Could not retrieve JobResults of globally-terminated jobs from JobResultStore",
+                    e);
         }
     }
 
@@ -261,9 +310,15 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
             UUID leaderSessionId,
             DispatcherGatewayServiceFactory dispatcherFactory,
             JobGraphStore jobGraphStore,
+            JobResultStore jobResultStore,
             Executor ioExecutor,
             FatalErrorHandler fatalErrorHandler) {
         return new SessionDispatcherLeaderProcess(
-                leaderSessionId, dispatcherFactory, jobGraphStore, ioExecutor, fatalErrorHandler);
+                leaderSessionId,
+                dispatcherFactory,
+                jobGraphStore,
+                jobResultStore,
+                ioExecutor,
+                fatalErrorHandler);
     }
 }

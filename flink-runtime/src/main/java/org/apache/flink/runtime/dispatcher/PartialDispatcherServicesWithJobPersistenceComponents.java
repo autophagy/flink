@@ -22,35 +22,38 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
 
 /** {@link DispatcherFactory} services container. */
-public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatcherServices {
+public class PartialDispatcherServicesWithJobPersistenceComponents
+        extends PartialDispatcherServices {
 
-    @Nonnull private final JobGraphWriter jobGraphWriter;
+    private final JobGraphWriter jobGraphWriter;
+    private final JobResultStore jobResultStore;
 
-    private PartialDispatcherServicesWithJobGraphStore(
-            @Nonnull Configuration configuration,
-            @Nonnull HighAvailabilityServices highAvailabilityServices,
-            @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            @Nonnull BlobServer blobServer,
-            @Nonnull HeartbeatServices heartbeatServices,
-            @Nonnull JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
-            @Nonnull ExecutionGraphInfoStore executionGraphInfoStore,
-            @Nonnull FatalErrorHandler fatalErrorHandler,
-            @Nonnull HistoryServerArchivist historyServerArchivist,
+    private PartialDispatcherServicesWithJobPersistenceComponents(
+            Configuration configuration,
+            HighAvailabilityServices highAvailabilityServices,
+            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            BlobServer blobServer,
+            HeartbeatServices heartbeatServices,
+            JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
+            ExecutionGraphInfoStore executionGraphInfoStore,
+            FatalErrorHandler fatalErrorHandler,
+            HistoryServerArchivist historyServerArchivist,
             @Nullable String metricQueryServiceAddress,
-            @Nonnull Executor ioExecutor,
-            @Nonnull DispatcherOperationCaches operationCaches,
-            @Nonnull JobGraphWriter jobGraphWriter) {
+            Executor ioExecutor,
+            DispatcherOperationCaches operationCaches,
+            JobGraphWriter jobGraphWriter,
+            JobResultStore jobResultStore) {
         super(
                 configuration,
                 highAvailabilityServices,
@@ -65,16 +68,22 @@ public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatche
                 ioExecutor,
                 operationCaches);
         this.jobGraphWriter = jobGraphWriter;
+        this.jobResultStore = jobResultStore;
     }
 
-    @Nonnull
     public JobGraphWriter getJobGraphWriter() {
         return jobGraphWriter;
     }
 
-    public static PartialDispatcherServicesWithJobGraphStore from(
-            PartialDispatcherServices partialDispatcherServices, JobGraphWriter jobGraphWriter) {
-        return new PartialDispatcherServicesWithJobGraphStore(
+    public JobResultStore getJobResultStore() {
+        return jobResultStore;
+    }
+
+    public static PartialDispatcherServicesWithJobPersistenceComponents from(
+            PartialDispatcherServices partialDispatcherServices,
+            JobGraphWriter jobGraphWriter,
+            JobResultStore jobResultStore) {
+        return new PartialDispatcherServicesWithJobPersistenceComponents(
                 partialDispatcherServices.getConfiguration(),
                 partialDispatcherServices.getHighAvailabilityServices(),
                 partialDispatcherServices.getResourceManagerGatewayRetriever(),
@@ -87,6 +96,7 @@ public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatche
                 partialDispatcherServices.getMetricQueryServiceAddress(),
                 partialDispatcherServices.getIoExecutor(),
                 partialDispatcherServices.getOperationCaches(),
-                jobGraphWriter);
+                jobGraphWriter,
+                jobResultStore);
     }
 }

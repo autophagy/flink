@@ -28,6 +28,7 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
@@ -144,6 +145,8 @@ public class AbstractDispatcherTest extends TestLogger {
 
         private JobGraphWriter jobGraphWriter = NoOpJobGraphWriter.INSTANCE;
 
+        private JobResultStore jobResultStore = TestingJobResultStore.builder().build();
+
         private FatalErrorHandler fatalErrorHandler =
                 testingFatalErrorHandlerResource.getFatalErrorHandler();
 
@@ -173,6 +176,11 @@ public class AbstractDispatcherTest extends TestLogger {
             return this;
         }
 
+        TestingDispatcherBuilder setJobResultStore(JobResultStore jobResultStore) {
+            this.jobResultStore = jobResultStore;
+            return this;
+        }
+
         public TestingDispatcherBuilder setFatalErrorHandler(FatalErrorHandler fatalErrorHandler) {
             this.fatalErrorHandler = fatalErrorHandler;
             return this;
@@ -189,6 +197,7 @@ public class AbstractDispatcherTest extends TestLogger {
                     rpcService,
                     DispatcherId.generate(),
                     initialJobGraphs,
+                    Collections.emptyList(),
                     dispatcherBootstrapFactory,
                     new DispatcherServices(
                             configuration,
@@ -203,6 +212,7 @@ public class AbstractDispatcherTest extends TestLogger {
                             new DispatcherOperationCaches(),
                             UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
                             jobGraphWriter,
+                            jobResultStore,
                             jobManagerRunnerFactory,
                             ForkJoinPool.commonPool()));
         }

@@ -16,15 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.util.function;
 
-/** Factory for {@link JobGraphStore}. */
-public interface JobGraphStoreFactory {
+import org.apache.flink.annotation.PublicEvolving;
+
+/**
+ * Function which takes three arguments.
+ *
+ * @param <S> type of the first argument
+ * @param <T> type of the second argument
+ * @param <U> type of the third argument
+ * @param <V> type of the fourth argument
+ * @param <W> type of the fifth argument
+ * @param <R> type of the return value
+ */
+@PublicEvolving
+@FunctionalInterface
+public interface QuintFunction<S, T, U, V, W, R> {
 
     /**
-     * Creates a {@link JobGraphStore}.
+     * Applies this function to the given arguments.
      *
-     * @return a {@link JobGraphStore} instance
+     * @param s the first function argument
+     * @param t the second function argument
+     * @param u the third function argument
+     * @param v the fourth function argument
+     * @param w the fifth function argument
+     * @return the function result
      */
-    JobGraphStore create();
+    R apply(S s, T t, U u, V v, W w);
 }

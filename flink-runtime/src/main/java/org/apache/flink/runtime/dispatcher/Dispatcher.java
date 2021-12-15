@@ -122,6 +122,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private final Collection<JobGraph> recoveredJobs;
 
+    private final Collection<JobResult> globallyTerminatedJobs;
+
     private final DispatcherBootstrapFactory dispatcherBootstrapFactory;
 
     private final ExecutionGraphInfoStore executionGraphInfoStore;
@@ -154,6 +156,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             RpcService rpcService,
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> globallyTerminatedJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices)
             throws Exception {
@@ -168,6 +171,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.blobServer = dispatcherServices.getBlobServer();
         this.fatalErrorHandler = dispatcherServices.getFatalErrorHandler();
         this.jobGraphWriter = dispatcherServices.getJobGraphWriter();
+        this.jobResultStore = dispatcherServices.getJobResultStore();
         this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
         this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
         this.ioExecutor = dispatcherServices.getIoExecutor();
@@ -175,8 +179,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.jobManagerSharedServices =
                 JobManagerSharedServices.fromConfiguration(
                         configuration, blobServer, fatalErrorHandler);
-
-        this.jobResultStore = highAvailabilityServices.getJobResultStore();
 
         runningJobs = new HashMap<>(16);
 
@@ -193,6 +195,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         this.dispatcherBootstrapFactory = checkNotNull(dispatcherBootstrapFactory);
 
         this.recoveredJobs = new HashSet<>(recoveredJobs);
+
+        this.globallyTerminatedJobs = new HashSet<>(globallyTerminatedJobs);
 
         this.dispatcherCachedOperationsHandler =
                 new DispatcherCachedOperationsHandler(

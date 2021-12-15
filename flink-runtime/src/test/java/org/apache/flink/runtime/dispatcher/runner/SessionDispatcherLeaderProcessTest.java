@@ -22,11 +22,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.ExceptionUtils;
@@ -34,8 +36,8 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.QuintFunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
-import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -73,6 +75,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
     private TestingFatalErrorHandler fatalErrorHandler;
 
     private JobGraphStore jobGraphStore;
+    private JobResultStore jobResultStore;
 
     private TestingDispatcherServiceFactory dispatcherServiceFactory;
 
@@ -85,6 +88,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
     public void setup() {
         fatalErrorHandler = new TestingFatalErrorHandler();
         jobGraphStore = TestingJobGraphStore.newBuilder().build();
+        jobResultStore = TestingJobResultStore.builder().build();
         dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder().build();
     }
 
@@ -128,7 +132,11 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
         dispatcherServiceFactory =
                 TestingDispatcherServiceFactory.newBuilder()
                         .setCreateFunction(
-                                (fencingToken, recoveredJobGraphs, jobGraphStore) -> {
+                                (fencingToken,
+                                        recoveredJobGraphs,
+                                        jobResults,
+                                        jobGraphStore,
+                                        jobResultStore) -> {
                                     recoveredJobGraphsFuture.complete(recoveredJobGraphs);
                                     return TestingDispatcherGatewayService.newBuilder().build();
                                 })
@@ -160,7 +168,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
         dispatcherServiceFactory =
                 TestingDispatcherServiceFactory.newBuilder()
                         .setCreateFunction(
-                                (ignoredA, ignoredB, ignoredC) ->
+                                (ignoredA, ignoredB, ignoredC, ignoredD, ignoredE) ->
                                         TestingDispatcherGatewayService.newBuilder()
                                                 .setTerminationFuture(
                                                         dispatcherServiceTerminationFuture)
@@ -196,7 +204,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
         dispatcherServiceFactory =
                 TestingDispatcherServiceFactory.newBuilder()
                         .setCreateFunction(
-                                (ignoredA, ignoredB, ignoredC) ->
+                                (ignoredA, ignoredB, ignoredC, ignoredD, ignoredE) ->
                                         TestingDispatcherGatewayService.newBuilder()
                                                 .setTerminationFuture(terminationFuture)
                                                 .build())
@@ -221,7 +229,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
         dispatcherServiceFactory =
                 TestingDispatcherServiceFactory.newBuilder()
                         .setCreateFunction(
-                                (ignoredA, ignoredB, ignoredC) ->
+                                (ignoredA, ignoredB, ignoredC, ignoredD, ignoredE) ->
                                         TestingDispatcherGatewayService.newBuilder()
                                                 .setTerminationFuture(terminationFuture)
                                                 .withManualTerminationFutureCompletion()
@@ -250,8 +258,8 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
         dispatcherServiceFactory =
                 TestingDispatcherServiceFactory.newBuilder()
                         .setCreateFunction(
-                                TriFunctionWithException.unchecked(
-                                        (ignoredA, ignoredB, ignoredC) -> {
+                                QuintFunctionWithException.unchecked(
+                                        (ignoredA, ignoredB, ignoredC, ignoredD, ignoredE) -> {
                                             createDispatcherServiceLatch.await();
                                             return TestingDispatcherGatewayService.newBuilder()
                                                     .setDispatcherGateway(dispatcherGateway)
@@ -293,7 +301,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
         this.dispatcherServiceFactory =
                 TestingDispatcherServiceFactory.newBuilder()
                         .setCreateFunction(
-                                (ignoredA, ignoredB, ignoredC) -> {
+                                (ignoredA, ignoredB, ignoredC, ignoredD, ignoredE) -> {
                                     createDispatcherServiceLatch.trigger();
                                     return TestingDispatcherGatewayService.newBuilder().build();
                                 })
@@ -337,8 +345,11 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
         dispatcherServiceFactory =
                 TestingDispatcherServiceFactory.newBuilder()
                         .setCreateFunction(
-                                (dispatcherId, jobGraphs, jobGraphWriter) ->
-                                        testingDispatcherService)
+                                (dispatcherId,
+                                        jobGraphs,
+                                        globallyTerminatedJobs,
+                                        jobGraphWriter,
+                                        jobResultStore) -> testingDispatcherService)
                         .build();
 
         try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess =
@@ -369,8 +380,11 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
         dispatcherServiceFactory =
                 TestingDispatcherServiceFactory.newBuilder()
                         .setCreateFunction(
-                                (dispatcherId, jobGraphs, jobGraphWriter) ->
-                                        testingDispatcherService)
+                                (dispatcherId,
+                                        jobGraphs,
+                                        globallyTerminatedJobs,
+                                        jobGraphWriter,
+                                        jobResultStore) -> testingDispatcherService)
                         .build();
 
         try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess =
@@ -588,7 +602,11 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
         dispatcherServiceFactory =
                 TestingDispatcherServiceFactory.newBuilder()
                         .setCreateFunction(
-                                (dispatcherId, jobGraphs, jobGraphWriter) -> {
+                                (dispatcherId,
+                                        jobGraphs,
+                                        globallyTerminatedJobs,
+                                        jobGraphWriter,
+                                        jobResultStore) -> {
                                     assertThat(jobGraphs, containsInAnyOrder(JOB_GRAPH));
 
                                     return TestingDispatcherGatewayService.newBuilder()
@@ -623,7 +641,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
             TestingDispatcherGateway testingDispatcherGateway) {
         return TestingDispatcherServiceFactory.newBuilder()
                 .setCreateFunction(
-                        (ignoredA, ignoredB, ignoredC) ->
+                        (ignoredA, ignoredB, ignoredC, ignoredD, ignoredE) ->
                                 TestingDispatcherGatewayService.newBuilder()
                                         .setDispatcherGateway(testingDispatcherGateway)
                                         .build())
@@ -635,6 +653,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
                 leaderSessionId,
                 dispatcherServiceFactory,
                 jobGraphStore,
+                jobResultStore,
                 ioExecutor,
                 fatalErrorHandler);
     }
