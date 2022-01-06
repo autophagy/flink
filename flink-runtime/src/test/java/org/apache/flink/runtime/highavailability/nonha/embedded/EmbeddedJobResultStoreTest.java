@@ -27,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.IOException;
 import java.util.NoSuchElementException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,7 +60,7 @@ public class EmbeddedJobResultStoreTest {
     }
 
     @Test
-    public void testStoreDirtyJobResultTwice() {
+    public void testStoreDirtyJobResultTwice() throws IOException {
         embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
 
         assertThatThrownBy(() -> embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY))
@@ -67,7 +68,7 @@ public class EmbeddedJobResultStoreTest {
     }
 
     @Test
-    public void testStoreDirtyJobResultForCleanJobEntry() {
+    public void testStoreDirtyJobResultForCleanJobEntry() throws IOException {
         embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
         embeddedJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
 
@@ -86,7 +87,7 @@ public class EmbeddedJobResultStoreTest {
     }
 
     @Test
-    public void testCleanDirtyJobResultTwice() {
+    public void testCleanDirtyJobResultTwice() throws IOException {
         final JobID jobId = DUMMY_JOB_RESULT_ENTRY.getJobId();
         embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
         embeddedJobResultStore.markResultAsClean(jobId);
@@ -106,12 +107,12 @@ public class EmbeddedJobResultStoreTest {
     }
 
     @Test
-    public void testHasJobResultEntryWithNoEntry() {
+    public void testHasJobResultEntryWithNoEntry() throws IOException {
         assertThat(embeddedJobResultStore.hasJobResultEntry(new JobID())).isFalse();
     }
 
     @Test
-    public void testHasJobResultEntryWithDirtyEntry() {
+    public void testHasJobResultEntryWithDirtyEntry() throws IOException {
         embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
 
         assertThat(embeddedJobResultStore.hasJobResultEntry(DUMMY_JOB_RESULT_ENTRY.getJobId()))
@@ -119,7 +120,7 @@ public class EmbeddedJobResultStoreTest {
     }
 
     @Test
-    public void testHasJobResultEntryWithCleanEntry() {
+    public void testHasJobResultEntryWithCleanEntry() throws IOException {
         embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
         embeddedJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
 
@@ -128,12 +129,12 @@ public class EmbeddedJobResultStoreTest {
     }
 
     @Test
-    public void testHasDirtyJobResultEntryWithNoDirtyEntry() {
+    public void testHasDirtyJobResultEntryWithNoDirtyEntry() throws IOException {
         assertThat(embeddedJobResultStore.hasDirtyJobResultEntry(new JobID())).isFalse();
     }
 
     @Test
-    public void testHasDirtyJobResultEntryWithDirtyEntry() {
+    public void testHasDirtyJobResultEntryWithDirtyEntry() throws IOException {
         embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
 
         assertThat(embeddedJobResultStore.hasDirtyJobResultEntry(DUMMY_JOB_RESULT_ENTRY.getJobId()))
@@ -141,7 +142,7 @@ public class EmbeddedJobResultStoreTest {
     }
 
     @Test
-    public void testHasDirtyJobResultEntryWithCleanEntry() {
+    public void testHasDirtyJobResultEntryWithCleanEntry() throws IOException {
         embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
         embeddedJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
 
@@ -150,19 +151,19 @@ public class EmbeddedJobResultStoreTest {
     }
 
     @Test
-    public void testHasCleanJobResultEntryWithNoEntry() {
+    public void testHasCleanJobResultEntryWithNoEntry() throws IOException {
         assertThat(embeddedJobResultStore.hasCleanJobResultEntry(new JobID())).isFalse();
     }
 
     @Test
-    public void testHasCleanJobResultEntryWithDirtyEntry() {
+    public void testHasCleanJobResultEntryWithDirtyEntry() throws IOException {
         embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
         assertThat(embeddedJobResultStore.hasCleanJobResultEntry(DUMMY_JOB_RESULT_ENTRY.getJobId()))
                 .isFalse();
     }
 
     @Test
-    public void testHasCleanJobResultEntryWithCleanEntry() {
+    public void testHasCleanJobResultEntryWithCleanEntry() throws IOException {
         embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
         embeddedJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
 
@@ -171,12 +172,12 @@ public class EmbeddedJobResultStoreTest {
     }
 
     @Test
-    public void testGetDirtyResultsWithNoEntry() {
+    public void testGetDirtyResultsWithNoEntry() throws IOException {
         assertThat(embeddedJobResultStore.getDirtyResults()).isEmpty();
     }
 
     @Test
-    public void testGetDirtyResultsWithDirtyEntry() {
+    public void testGetDirtyResultsWithDirtyEntry() throws IOException {
         embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
 
         assertThat(embeddedJobResultStore.getDirtyResults())
@@ -184,7 +185,7 @@ public class EmbeddedJobResultStoreTest {
     }
 
     @Test
-    public void testGetDirtyResultsWithDirtyAndCleanEntry() {
+    public void testGetDirtyResultsWithDirtyAndCleanEntry() throws IOException {
         embeddedJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
         embeddedJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
 

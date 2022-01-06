@@ -25,7 +25,7 @@ import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
+import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -38,6 +38,7 @@ import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -107,8 +108,13 @@ public class ZooKeeperHaServices extends AbstractHaServices {
             CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper,
             Executor executor,
             Configuration configuration,
-            BlobStoreService blobStoreService) {
-        super(configuration, executor, blobStoreService, new EmbeddedJobResultStore());
+            BlobStoreService blobStoreService)
+            throws IOException {
+        super(
+                configuration,
+                executor,
+                blobStoreService,
+                FileSystemJobResultStore.fromConfiguration(configuration));
         this.curatorFrameworkWrapper = checkNotNull(curatorFrameworkWrapper);
     }
 
