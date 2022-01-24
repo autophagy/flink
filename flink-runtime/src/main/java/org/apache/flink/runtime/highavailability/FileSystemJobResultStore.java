@@ -62,6 +62,7 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
     private final boolean deleteOnCommit;
 
+    @VisibleForTesting
     FileSystemJobResultStore(FileSystem fileSystem, Path basePath, boolean deleteOnCommit)
             throws IOException {
         this.fileSystem = fileSystem;

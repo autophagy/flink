@@ -46,18 +46,30 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 @ExtendWith(TestLoggerExtension.class)
 public class FileSystemJobResultStoreTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     private static final JobResultEntry DUMMY_JOB_RESULT_ENTRY = createDummyJobResultEntry();
 
     private FileSystemJobResultStore fileSystemJobResultStore;
 
     @TempDir File temporaryFolder;
 
-    private static final ObjectMapper mapper = new ObjectMapper();
-
     @BeforeEach
     public void setupTest() throws IOException {
         Path path = new Path(temporaryFolder.toURI());
         fileSystemJobResultStore = new FileSystemJobResultStore(path.getFileSystem(), path, false);
+    }
+
+    /** Tests that the base directory is created on Filesystem Job Result Store initialization. */
+    @Test
+    public void testBaseDirectoryCreationOnResultStoreInitialization() throws Exception {
+        final File tempDir = new File(temporaryFolder.getPath() + "/new-temp-dir");
+        final Path tempPath = new Path(tempDir.getPath());
+        assertThat(tempDir).doesNotExist();
+
+        fileSystemJobResultStore =
+                new FileSystemJobResultStore(tempPath.getFileSystem(), tempPath, false);
+        assertThat(tempDir).exists().isDirectory();
     }
 
     /** Tests that adding a JobResult to the JobResultStore results in a Dirty JobResultEntry. */
@@ -70,15 +82,15 @@ public class FileSystemJobResultStoreTest {
         Set<JobResult> dirtyResults = fileSystemJobResultStore.getDirtyResults();
         assertThat(dirtyResults.stream().map(JobResult::getJobId).collect(Collectors.toList()))
                 .containsExactlyInAnyOrder(DUMMY_JOB_RESULT_ENTRY.getJobId());
-        assertThat(getCleanResultIds()).isEmpty();
+        assertThat(getCleanResultIdsFromFileSystem()).isEmpty();
 
-        Path path = expectedDirtyPath(DUMMY_JOB_RESULT_ENTRY);
-        assertThat(new File(path.getPath())).exists().isFile().isNotEmpty();
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
     }
 
     @Test
     public void testStoreDirtyJobResultTwice() throws IOException {
         fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
 
         assertThatThrownBy(() -> fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY))
                 .isInstanceOf(IllegalStateException.class);
@@ -87,7 +99,11 @@ public class FileSystemJobResultStoreTest {
     @Test
     public void testStoreDirtyJobResultAfterClean() throws IOException {
         fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
+
         fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).doesNotExist();
+        assertThat(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
 
         assertThatThrownBy(() -> fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY))
                 .isInstanceOf(IllegalStateException.class);
@@ -100,26 +116,35 @@ public class FileSystemJobResultStoreTest {
     @Test
     public void testCleanDirtyJobResult() throws Exception {
         fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
+
         fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).doesNotExist();
+        assertThat(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
 
         assertThat(fileSystemJobResultStore.getDirtyResults()).isEmpty();
-        assertThat(getCleanResultIds())
+        assertThat(getCleanResultIdsFromFileSystem())
                 .containsExactlyInAnyOrder(DUMMY_JOB_RESULT_ENTRY.getJobId());
-
-        Path path = expectedCleanPath(DUMMY_JOB_RESULT_ENTRY);
-        assertThat(new File(path.getPath())).exists().isFile().isNotEmpty();
     }
 
     /**
-     * Tests that adding a JobResult to the JobResultsStore and then marking it as clean puts it
-     * into a clean state.
+     * Tests that adding a JobResult to the JobResultsStore and marking it as clean twice does not
+     * produce an error, and does not produce any duplicate entries.
      */
     @Test
     public void testCleanDirtyJobResultTwice() throws Exception {
         fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
-        fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
 
-        assertThat(getCleanResultIds())
+        fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).doesNotExist();
+        assertThat(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
+
+        fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).doesNotExist();
+        assertThat(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
+
+        assertThat(getCleanResultIdsFromFileSystem())
                 .containsExactlyInAnyOrder(DUMMY_JOB_RESULT_ENTRY.getJobId());
     }
 
@@ -138,6 +163,7 @@ public class FileSystemJobResultStoreTest {
     @Test
     public void testHasJobResultEntryWithDirtyEntry() throws IOException {
         fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
 
         assertThat(fileSystemJobResultStore.hasJobResultEntry(DUMMY_JOB_RESULT_ENTRY.getJobId()))
                 .isTrue();
@@ -146,7 +172,11 @@ public class FileSystemJobResultStoreTest {
     @Test
     public void testHasJobResultEntryWithCleanEntry() throws IOException {
         fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
+
         fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).doesNotExist();
+        assertThat(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
 
         assertThat(fileSystemJobResultStore.hasJobResultEntry(DUMMY_JOB_RESULT_ENTRY.getJobId()))
                 .isTrue();
@@ -160,6 +190,7 @@ public class FileSystemJobResultStoreTest {
     @Test
     public void testGetDirtyResultsWithDirtyEntry() throws IOException {
         fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
 
         assertThat(
                         fileSystemJobResultStore.getDirtyResults().stream()
@@ -171,13 +202,18 @@ public class FileSystemJobResultStoreTest {
     @Test
     public void testGetDirtyResultsWithDirtyAndCleanEntry() throws IOException {
         fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
+
         fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).doesNotExist();
+        assertThat(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
 
         final JobResultEntry dirtyJobResultEntry = createDummyJobResultEntry();
         fileSystemJobResultStore.createDirtyResult(dirtyJobResultEntry);
+        assertThat(expectedDirtyFile(dirtyJobResultEntry)).exists().isFile().isNotEmpty();
 
         assertThat(fileSystemJobResultStore.getDirtyResults()).hasSize(1);
-        assertThat(getCleanResultIds()).hasSize(1);
+        assertThat(getCleanResultIdsFromFileSystem()).hasSize(1);
 
         assertThat(
                         fileSystemJobResultStore.getDirtyResults().stream()
@@ -192,15 +228,11 @@ public class FileSystemJobResultStoreTest {
         fileSystemJobResultStore = new FileSystemJobResultStore(path.getFileSystem(), path, true);
 
         fileSystemJobResultStore.createDirtyResult(DUMMY_JOB_RESULT_ENTRY);
-
-        File dirtyFile = new File(expectedDirtyPath(DUMMY_JOB_RESULT_ENTRY).getPath());
-        File cleanFile = new File(expectedCleanPath(DUMMY_JOB_RESULT_ENTRY).getPath());
-
-        assertThat(dirtyFile).exists().isFile().isNotEmpty();
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).exists().isFile().isNotEmpty();
 
         fileSystemJobResultStore.markResultAsClean(DUMMY_JOB_RESULT_ENTRY.getJobId());
-        assertThat(dirtyFile).doesNotExist();
-        assertThat(cleanFile).doesNotExist();
+        assertThat(expectedDirtyFile(DUMMY_JOB_RESULT_ENTRY)).doesNotExist();
+        assertThat(expectedCleanFile(DUMMY_JOB_RESULT_ENTRY)).doesNotExist();
     }
 
     private static JobResultEntry createDummyJobResultEntry() {
@@ -212,14 +244,14 @@ public class FileSystemJobResultStoreTest {
                         .build());
     }
 
-    private List<JobID> getCleanResultIds() throws IOException {
+    private List<JobID> getCleanResultIdsFromFileSystem() throws IOException {
         final List<JobID> cleanResults = new ArrayList<>();
 
         final File[] cleanFiles =
                 temporaryFolder.listFiles((dir, name) -> !name.endsWith("_DIRTY.json"));
         for (File cleanFile : cleanFiles) {
             final FileSystemJobResultStore.JsonJobResultEntry entry =
-                    mapper.readValue(cleanFile, FileSystemJobResultStore.JsonJobResultEntry.class);
+                    MAPPER.readValue(cleanFile, FileSystemJobResultStore.JsonJobResultEntry.class);
             cleanResults.add(entry.getJobResult().getJobId());
         }
 
@@ -230,10 +262,10 @@ public class FileSystemJobResultStoreTest {
      * Generates the expected path for a dirty entry given a job entry.
      *
      * @param entry The job ID to construct the expected dirty path from.
-     * @return The expected dirty path.
+     * @return The expected dirty file.
      */
-    private Path expectedDirtyPath(JobResultEntry entry) {
-        return new Path(
+    private File expectedDirtyFile(JobResultEntry entry) {
+        return new File(
                 temporaryFolder.toURI().getPath()
                         + "/"
                         + entry.getJobId().toString()
@@ -244,10 +276,10 @@ public class FileSystemJobResultStoreTest {
      * Generates the expected path for a clean entry given a job entry.
      *
      * @param entry The job entry to construct the expected clean path from.
-     * @return The expected clean path.
+     * @return The expected clean file.
      */
-    private Path expectedCleanPath(JobResultEntry entry) {
-        return new Path(
+    private File expectedCleanFile(JobResultEntry entry) {
+        return new File(
                 temporaryFolder.toURI().getPath() + "/" + entry.getJobId().toString() + ".json");
     }
 }
