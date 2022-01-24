@@ -25,11 +25,6 @@ import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.concurrent.GuardedBy;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,29 +35,17 @@ import java.util.stream.Collectors;
 /** A thread-safe in-memory implementation of the {@link JobResultStore}. */
 public class EmbeddedJobResultStore extends AbstractThreadsafeJobResultStore {
 
-    private static final Logger LOG = LoggerFactory.getLogger(EmbeddedJobResultStore.class);
+    @VisibleForTesting final Map<JobID, JobResultEntry> dirtyJobResults = new HashMap<>();
 
-    @GuardedBy("readWriteLock")
-    @VisibleForTesting
-    final Map<JobID, JobResultEntry> dirtyJobResults = new HashMap<>();
-
-    @GuardedBy("readWriteLock")
-    @VisibleForTesting
-    final Map<JobID, JobResultEntry> cleanJobResults = new HashMap<>();
+    @VisibleForTesting final Map<JobID, JobResultEntry> cleanJobResults = new HashMap<>();
 
     @Override
-    public void createDirtyResultInternal(JobResultEntry jobResultEntry) throws IOException {
+    public void createDirtyResultInternal(JobResultEntry jobResultEntry) {
         dirtyJobResults.put(jobResultEntry.getJobId(), jobResultEntry);
     }
 
     @Override
     public void markResultAsCleanInternal(JobID jobId) throws IOException, NoSuchElementException {
-        if (hasCleanJobResultEntry(jobId)) {
-            LOG.debug("The job {} is already marked as clean. No action required.", jobId);
-
-            return;
-        }
-
         final JobResultEntry jobResultEntry = dirtyJobResults.remove(jobId);
         if (jobResultEntry != null) {
             cleanJobResults.put(jobId, jobResultEntry);

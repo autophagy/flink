@@ -29,8 +29,6 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import javax.annotation.concurrent.GuardedBy;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashSet;
@@ -49,7 +47,6 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    @GuardedBy("readWriteLock")
     private final FileSystem fileSystem;
 
     private final Path basePath;

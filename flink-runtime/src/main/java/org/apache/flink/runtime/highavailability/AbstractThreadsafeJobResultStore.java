@@ -22,6 +22,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.GuardedBy;
+
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -30,6 +35,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /** An abstract class for threadsafe implementations of the {@link JobResultStore}. */
 public abstract class AbstractThreadsafeJobResultStore implements JobResultStore {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AbstractThreadsafeJobResultStore.class);
 
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
@@ -48,11 +56,17 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
         }
     }
 
+    @GuardedBy("readWriteLock")
     public abstract void createDirtyResultInternal(JobResultEntry jobResultEntry)
             throws IOException;
 
     @Override
     public void markResultAsClean(JobID jobId) throws IOException, NoSuchElementException {
+        if (hasCleanJobResultEntry(jobId)) {
+            LOG.debug("The job {} is already marked as clean. No action required.", jobId);
+            return;
+        }
+
         readWriteLock.writeLock().lock();
         try {
             markResultAsCleanInternal(jobId);
@@ -61,6 +75,7 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
         }
     }
 
+    @GuardedBy("readWriteLock")
     public abstract void markResultAsCleanInternal(JobID jobId)
             throws IOException, NoSuchElementException;
 
@@ -84,6 +99,7 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
         }
     }
 
+    @GuardedBy("readWriteLock")
     public abstract boolean hasDirtyJobResultEntryInternal(JobID jobId) throws IOException;
 
     @Override
@@ -96,6 +112,7 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
         }
     }
 
+    @GuardedBy("readWriteLock")
     public abstract boolean hasCleanJobResultEntryInternal(JobID jobId) throws IOException;
 
     @Override
@@ -108,5 +125,6 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
         }
     }
 
+    @GuardedBy("readWriteLock")
     public abstract Set<JobResult> getDirtyResultsInternal() throws IOException;
 }
