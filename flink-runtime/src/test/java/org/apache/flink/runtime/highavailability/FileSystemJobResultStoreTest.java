@@ -218,8 +218,8 @@ public class FileSystemJobResultStoreTest {
         final File[] cleanFiles =
                 temporaryFolder.listFiles((dir, name) -> !name.endsWith("_DIRTY.json"));
         for (File cleanFile : cleanFiles) {
-            final JobResultEntry.JsonJobResultEntry entry =
-                    mapper.readValue(cleanFile, JobResultEntry.JsonJobResultEntry.class);
+            final FileSystemJobResultStore.JsonJobResultEntry entry =
+                    mapper.readValue(cleanFile, FileSystemJobResultStore.JsonJobResultEntry.class);
             cleanResults.add(entry.getJobResult().getJobId());
         }
 
