@@ -16,9 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.configuration;
+package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 
 /** The set of configuration options relating to the Job Result Store. */
 public class JobResultStoreOptions {
@@ -28,10 +33,17 @@ public class JobResultStoreOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Defines where job results should be stored. This should be an "
-                                    + "underlying file-system that provides read-after-write consistency. By "
-                                    + "default, uses a combination of high-availability.storageDir and "
-                                    + "high-availability.cluster-id to determine the path.");
+                            Description.builder()
+                                    .text(
+                                            "Defines where job results should be stored. This should be an "
+                                                    + "underlying file-system that provides read-after-write consistency. By "
+                                                    + "default, uses a combination of %s and %s to "
+                                                    + "determine the path.",
+                                            TextElement.code(
+                                                    HighAvailabilityOptions.HA_STORAGE_PATH.key()),
+                                            TextElement.code(
+                                                    HighAvailabilityOptions.HA_CLUSTER_ID.key()))
+                                    .build());
 
     @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY_JOB_RESULT_STORE)
     public static final ConfigOption<Boolean> DELETE_ON_COMMIT =
