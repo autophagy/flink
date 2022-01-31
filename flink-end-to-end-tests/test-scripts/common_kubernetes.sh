@@ -225,4 +225,9 @@ function get_host_machine_address {
     fi
 }
 
+function set_config_for_kubernetes {
+    set_config_key "rest.address" "0.0.0.0"
+    set_config_key "rest.bind-address" "0.0.0.0"
+}
+
 on_exit cleanup

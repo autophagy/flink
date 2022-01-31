@@ -66,6 +66,8 @@ mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
 # Enable dummy fs for Flink client
 [[ $INPUT_TYPE = 'dummy-fs' ]] && dummy_fs_setup
 
+set_config_for_kubernetes
+
 # Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
 "$FLINK_DIR"/bin/kubernetes-session.sh -Dkubernetes.cluster-id=${CLUSTER_ID} \
     -Dkubernetes.container.image=${FLINK_IMAGE_NAME} \
