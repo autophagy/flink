@@ -21,8 +21,6 @@ source "$(dirname "$0")"/common_kubernetes.sh
 
 start_kubernetes
 
-set_config_for_kubernetes
-
 # Set the ITCASE_KUBECONFIG environment since it is required to run the ITCases
 export ITCASE_KUBECONFIG=~/.kube/config
 

@@ -37,8 +37,6 @@ function internal_cleanup {
 
 start_kubernetes
 
-set_config_for_kubernetes
-
 mkdir -p $OUTPUT_VOLUME
 
 if ! retry_times $IMAGE_BUILD_RETRIES $IMAGE_BUILD_BACKOFF "build_image ${FLINK_IMAGE_NAME} $(get_host_machine_address)"; then
