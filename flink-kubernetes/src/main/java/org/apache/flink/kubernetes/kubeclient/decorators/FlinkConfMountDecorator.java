@@ -158,7 +158,6 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
         clusterSideConfig.removeConfig(KubernetesConfigOptions.KUBE_CONFIG_FILE);
         clusterSideConfig.removeConfig(DeploymentOptionsInternal.CONF_DIR);
         clusterSideConfig.removeConfig(RestOptions.BIND_ADDRESS);
-        clusterSideConfig.removeConfig(RestOptions.ADDRESS);
         return clusterSideConfig.toMap();
     }
 
