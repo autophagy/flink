@@ -25,6 +25,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.Preconditions;
@@ -64,6 +65,8 @@ public class YarnEntrypointUtils {
                 ApplicationConstants.Environment.NM_HOST.key());
 
         configuration.setString(JobManagerOptions.ADDRESS, hostname);
+        configuration.setString(JobManagerOptions.BIND_HOST, hostname);
+        configuration.removeConfig(TaskManagerOptions.BIND_HOST);
         configuration.setString(RestOptions.ADDRESS, hostname);
 
         // if a web monitor shall be started, set the port to random binding
