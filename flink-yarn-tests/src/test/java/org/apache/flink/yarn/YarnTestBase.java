@@ -23,7 +23,6 @@ import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -274,8 +273,6 @@ public abstract class YarnTestBase extends TestLogger {
         }
 
         flinkConfiguration = new org.apache.flink.configuration.Configuration(globalConfiguration);
-        flinkConfiguration.setString(JobManagerOptions.BIND_HOST, "0.0.0.0");
-        flinkConfiguration.setString(TaskManagerOptions.BIND_HOST, "0.0.0.0");
     }
 
     /** Sleep a bit between the tests (we are re-using the YARN cluster for the tests). */
