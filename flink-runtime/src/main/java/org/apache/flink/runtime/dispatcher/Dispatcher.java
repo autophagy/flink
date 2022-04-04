@@ -105,7 +105,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -168,7 +168,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private final ResourceCleaner localResourceCleaner;
     private final ResourceCleaner globalResourceCleaner;
 
-    private final AtomicBoolean shutDown = new AtomicBoolean(false);
+    private volatile boolean isShutDown = false;
 
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
@@ -434,7 +434,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         log.info(
                 "Received JobGraph submission '{}' ({}).", jobGraph.getName(), jobGraph.getJobID());
 
-        if (shutDown.get()) {
+        if (isShutDown) {
             return FutureUtils.completedExceptionally(
                     new JobSubmissionException(
                             jobGraph.getJobID(),
@@ -951,7 +951,11 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     @Override
     public CompletableFuture<Acknowledge> shutDownCluster(
             final ApplicationStatus applicationStatus) {
-        shutDown.set(true);
+        isShutDown = true;
+        FutureUtils.orTimeout(
+                FutureUtils.combineAll(jobManagerRunnerTerminationFutures.values()),
+                0,
+                TimeUnit.SECONDS);
         shutDownFuture.complete(applicationStatus);
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
