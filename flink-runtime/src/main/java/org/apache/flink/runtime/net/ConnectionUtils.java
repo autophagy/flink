@@ -58,7 +58,6 @@ public class ConnectionUtils {
      * state failed to determine the address.
      */
     private enum AddressDetectionState {
-        LOOPBACK(100),
         /** Connect from interface returned by InetAddress.getLocalHost(). * */
         LOCAL_HOST(200),
         /** Detect own IP address based on the target IP address. Look for common prefix */
@@ -67,6 +66,7 @@ public class ConnectionUtils {
         FAST_CONNECT(50),
         /** Try to connect on all Interfaces and all their addresses with a long timeout. */
         SLOW_CONNECT(1000),
+        LOOPBACK(100),
         /** Choose any non-loopback address. */
         HEURISTIC(0);
 
@@ -116,11 +116,11 @@ public class ConnectionUtils {
         final List<AddressDetectionState> strategies =
                 Collections.unmodifiableList(
                         Arrays.asList(
-                                AddressDetectionState.LOOPBACK,
                                 AddressDetectionState.LOCAL_HOST,
                                 AddressDetectionState.ADDRESS,
                                 AddressDetectionState.FAST_CONNECT,
-                                AddressDetectionState.SLOW_CONNECT));
+                                AddressDetectionState.SLOW_CONNECT,
+                                AddressDetectionState.LOOPBACK));
 
         // loop while there is time left
         while (elapsedTimeMillis < maxWaitMillis) {
@@ -227,17 +227,6 @@ public class ConnectionUtils {
     private static InetAddress findAddressUsingStrategy(
             AddressDetectionState strategy, InetSocketAddress targetAddress, boolean logging)
             throws IOException {
-        if (strategy == AddressDetectionState.LOOPBACK) {
-            InetAddress loopback = InetAddress.getLoopbackAddress();
-
-            if (tryToConnect(loopback, targetAddress, strategy.getTimeout(), logging)) {
-                LOG.debug(
-                        "Using InetAddress.getLoopbackAddress() immediately for connecting address");
-                return loopback;
-            } else {
-                return null;
-            }
-        }
 
         // try LOCAL_HOST strategy independent of the network interfaces
         if (strategy == AddressDetectionState.LOCAL_HOST) {
@@ -255,6 +244,18 @@ public class ConnectionUtils {
                 // Here, we are not calling tryLocalHostBeforeReturning() because it is the
                 // LOCAL_HOST strategy
                 return localhostName;
+            } else {
+                return null;
+            }
+        }
+
+        if (strategy == AddressDetectionState.LOOPBACK) {
+            InetAddress loopback = InetAddress.getLoopbackAddress();
+
+            if (tryToConnect(loopback, targetAddress, strategy.getTimeout(), logging)) {
+                LOG.debug(
+                        "Using InetAddress.getLoopbackAddress() immediately for connecting address");
+                return loopback;
             } else {
                 return null;
             }
@@ -446,7 +447,7 @@ public class ConnectionUtils {
                     }
 
                     if (targetAddress != null) {
-                        AddressDetectionState strategy = AddressDetectionState.LOOPBACK;
+                        AddressDetectionState strategy = AddressDetectionState.LOCAL_HOST;
 
                         boolean logging = elapsedTimeMillis >= startLoggingAfter.toMillis();
                         if (logging) {
@@ -463,9 +464,6 @@ public class ConnectionUtils {
 
                             // pick the next strategy
                             switch (strategy) {
-                                case LOOPBACK:
-                                    strategy = AddressDetectionState.LOCAL_HOST;
-                                    break;
                                 case LOCAL_HOST:
                                     strategy = AddressDetectionState.ADDRESS;
                                     break;
@@ -476,6 +474,9 @@ public class ConnectionUtils {
                                     strategy = AddressDetectionState.SLOW_CONNECT;
                                     break;
                                 case SLOW_CONNECT:
+                                    strategy = AddressDetectionState.LOOPBACK;
+                                    break;
+                                case LOOPBACK:
                                     strategy = null;
                                     break;
                                 default:
