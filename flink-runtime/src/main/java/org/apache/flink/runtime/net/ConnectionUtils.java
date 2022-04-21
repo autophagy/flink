@@ -66,7 +66,6 @@ public class ConnectionUtils {
         FAST_CONNECT(50),
         /** Try to connect on all Interfaces and all their addresses with a long timeout. */
         SLOW_CONNECT(1000),
-        LOOPBACK(100),
         /** Choose any non-loopback address. */
         HEURISTIC(0);
 
@@ -119,8 +118,7 @@ public class ConnectionUtils {
                                 AddressDetectionState.LOCAL_HOST,
                                 AddressDetectionState.ADDRESS,
                                 AddressDetectionState.FAST_CONNECT,
-                                AddressDetectionState.SLOW_CONNECT,
-                                AddressDetectionState.LOOPBACK));
+                                AddressDetectionState.SLOW_CONNECT));
 
         // loop while there is time left
         while (elapsedTimeMillis < maxWaitMillis) {
@@ -244,18 +242,6 @@ public class ConnectionUtils {
                 // Here, we are not calling tryLocalHostBeforeReturning() because it is the
                 // LOCAL_HOST strategy
                 return localhostName;
-            } else {
-                return null;
-            }
-        }
-
-        if (strategy == AddressDetectionState.LOOPBACK) {
-            InetAddress loopback = InetAddress.getLoopbackAddress();
-
-            if (tryToConnect(loopback, targetAddress, strategy.getTimeout(), logging)) {
-                LOG.debug(
-                        "Using InetAddress.getLoopbackAddress() immediately for connecting address");
-                return loopback;
             } else {
                 return null;
             }
@@ -474,9 +460,6 @@ public class ConnectionUtils {
                                     strategy = AddressDetectionState.SLOW_CONNECT;
                                     break;
                                 case SLOW_CONNECT:
-                                    strategy = AddressDetectionState.LOOPBACK;
-                                    break;
-                                case LOOPBACK:
                                     strategy = null;
                                     break;
                                 default:
