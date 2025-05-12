@@ -18,27 +18,28 @@
 ################################################################################
 
 function test_module() {
-    module="$FLINK_PYTHON_DIR/pyflink/$1"
-    echo "test module $module"
-    pytest -n auto --durations=20 ${module} $2
+    # Create array to hold all module paths
+    local module_paths=()
+
+    # Iterate through all arguments
+    for module in "$@"; do
+        module_path="$FLINK_PYTHON_DIR/pyflink/$module"
+        echo "Adding module $module_path to test"
+        module_paths+=("${module_path}")
+    done
+
+    # Run pytest on all modules at once
+    echo "Testing modules: ${module_paths[*]}"
+    pytest -n auto --durations=20 "${module_paths[@]}"
+
     if [[ $? -ne 0 ]]; then
-        echo "test module $module failed"
+        echo "Testing modules failed"
         exit 1
     fi
 }
 
 function test_all_modules() {
-    # test common module
-    test_module "common"
-
-    # test datastream module
-    test_module "datastream"
-
-    # test fn_execution module
-    test_module "fn_execution"
-
-    # test table module
-    test_module "table"
+    test_module "common" "datastream" "fn_execution" "table"
 }
 
 # CURRENT_DIR is "flink/flink-python/dev/"
