@@ -258,7 +258,7 @@ function install_py_env() {
 function install_tox() {
     source $ENV_HOME/bin/activate
     if [ -f "$TOX_PATH" ]; then
-        $UV_PATH pip uninstall tox -q 2>&1 >/dev/null
+        $UV_PATH pip uninstall --group tox -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "uv pip uninstall tox failed \
             please try to exec the script again.\
@@ -267,7 +267,7 @@ function install_tox() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q tox==3.14.0 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q --group tox 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "uv pip install tox failed \
         please try to exec the script again.\
@@ -291,7 +291,7 @@ function install_flake8() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q flake8==4.0.1 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q --group flake8 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "uv pip install flake8 failed \
         please try to exec the script again.\
@@ -315,7 +315,7 @@ function install_sphinx() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q Sphinx==4.5.0 importlib-metadata==4.4.0 Docutils==0.17.1 pydata_sphinx_theme==0.11.0 sphinx_mdinclude==0.5.3 "Jinja2<3.1.0" "sphinxcontrib-applehelp<1.0.8" "sphinxcontrib.devhelp<1.0.6" "sphinxcontrib.htmlhelp<2.0.5" "sphinxcontrib-serializinghtml<1.1.10" "sphinxcontrib-qthelp<1.0.7" 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q --group sphinx 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "uv pip install sphinx failed \
         please try to exec the script again.\
@@ -339,7 +339,7 @@ function install_mypy() {
             exit 1
         fi
     fi
-    ${CURRENT_DIR}/install_command.sh -q mypy==1.5.1 types-pytz types-python-dateutil 2>&1 >/dev/null
+    ${CURRENT_DIR}/install_command.sh -q --group mypy 2>&1 >/dev/null
     if [[ $? -ne 0 ]]; then
         echo "uv pip install mypy failed \
         please try to exec the script again.\
