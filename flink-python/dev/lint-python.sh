@@ -731,7 +731,7 @@ create_dir $LOG_DIR
 echo >$LOG_FILE
 
 # static version of uv that we use across all envs
-UV_VERSION=0.5.23
+UV_VERSION=0.7.3
 
 # location of uv installation script
 UV_INSTALL_SH=$CURRENT_DIR/download/uv.sh
