@@ -267,7 +267,7 @@ function install_tox() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q --group $(PYPROJECT_PATH):tox 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q --group "${PYPROJECT_PATH}:tox" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "uv pip install tox failed \
         please try to exec the script again.\
@@ -291,7 +291,7 @@ function install_flake8() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q --group $(PYPROJECT_PATH):flake8 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q --group "${PYPROJECT_PATH}:flake8" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "uv pip install flake8 failed \
         please try to exec the script again.\
@@ -315,7 +315,7 @@ function install_sphinx() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q --group $(PYPROJECT_PATH):sphinx 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q --group "${PYPROJECT_PATH}:sphinx" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "uv pip install sphinx failed \
         please try to exec the script again.\
@@ -339,7 +339,7 @@ function install_mypy() {
             exit 1
         fi
     fi
-    ${CURRENT_DIR}/install_command.sh -q --group $(PYPROJECT_PATH):mypy 2>&1 >/dev/null
+    ${CURRENT_DIR}/install_command.sh -q --group "${PYPROJECT_PATH}:mypy" 2>&1 >/dev/null
     if [[ $? -ne 0 ]]; then
         echo "uv pip install mypy failed \
         please try to exec the script again.\
