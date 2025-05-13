@@ -34,3 +34,4 @@ protobuf>=3.19.0
 pytest~=7.0
 pytest-xdist>=3.6.1
 ruamel.yaml>=0.18.4
+pytest-sugar
