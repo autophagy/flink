@@ -20,7 +20,7 @@ from py4j.protocol import Py4JJavaError
 
 from pyflink.util.exceptions import convert_py4j_exception
 
-__all__ = ['CompletableFuture']
+__all__ = ["CompletableFuture"]
 
 
 class CompletableFuture(object):

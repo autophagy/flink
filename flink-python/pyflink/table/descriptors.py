@@ -26,10 +26,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataType, _to_java_data_type
 
-__all__ = [
-    'Rowtime',
-    'Schema'
-]
+__all__ = ["Rowtime", "Schema"]
 
 
 class Descriptor(object, metaclass=ABCMeta):
@@ -79,7 +76,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.timestampsFromField(field_name)
         return self
 
-    def timestamps_from_source(self) -> 'Rowtime':
+    def timestamps_from_source(self) -> "Rowtime":
         """
         Sets a built-in timestamp extractor that converts the assigned timestamps from a DataStream
         API record into the rowtime attribute and thus preserves the assigned timestamps from the
@@ -94,7 +91,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.timestampsFromSource()
         return self
 
-    def timestamps_from_extractor(self, extractor: str) -> 'Rowtime':
+    def timestamps_from_extractor(self, extractor: str) -> "Rowtime":
         """
         Sets a custom timestamp extractor to be used for the rowtime attribute.
 
@@ -106,11 +103,14 @@ class Rowtime(Descriptor):
         """
         gateway = get_gateway()
         self._j_rowtime = self._j_rowtime.timestampsFromExtractor(
-            gateway.jvm.Thread.currentThread().getContextClassLoader().loadClass(extractor)
-                   .newInstance())
+            gateway.jvm.Thread.currentThread()
+            .getContextClassLoader()
+            .loadClass(extractor)
+            .newInstance()
+        )
         return self
 
-    def watermarks_periodic_ascending(self) -> 'Rowtime':
+    def watermarks_periodic_ascending(self) -> "Rowtime":
         """
         Sets a built-in watermark strategy for ascending rowtime attributes.
 
@@ -122,7 +122,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.watermarksPeriodicAscending()
         return self
 
-    def watermarks_periodic_bounded(self, delay: int) -> 'Rowtime':
+    def watermarks_periodic_bounded(self, delay: int) -> "Rowtime":
         """
         Sets a built-in watermark strategy for rowtime attributes which are out-of-order by a
         bounded time interval.
@@ -135,7 +135,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.watermarksPeriodicBounded(delay)
         return self
 
-    def watermarks_from_source(self) -> 'Rowtime':
+    def watermarks_from_source(self) -> "Rowtime":
         """
         Sets a built-in watermark strategy which indicates the watermarks should be preserved from
         the underlying DataStream API and thus preserves the assigned watermarks from the source.
@@ -145,7 +145,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.watermarksFromSource()
         return self
 
-    def watermarks_from_strategy(self, strategy: str) -> 'Rowtime':
+    def watermarks_from_strategy(self, strategy: str) -> "Rowtime":
         """
         Sets a custom watermark strategy to be used for the rowtime attribute.
 
@@ -156,8 +156,11 @@ class Rowtime(Descriptor):
         """
         gateway = get_gateway()
         self._j_rowtime = self._j_rowtime.watermarksFromStrategy(
-            gateway.jvm.Thread.currentThread().getContextClassLoader().loadClass(strategy)
-                   .newInstance())
+            gateway.jvm.Thread.currentThread()
+            .getContextClassLoader()
+            .loadClass(strategy)
+            .newInstance()
+        )
         return self
 
 
@@ -192,7 +195,7 @@ class Schema(Descriptor):
         if rowtime is not None:
             self.rowtime(rowtime)
 
-    def schema(self, table_schema: 'TableSchema') -> 'Schema':
+    def schema(self, table_schema: "TableSchema") -> "Schema":
         """
         Sets the schema with field names and the types. Required.
 
@@ -205,7 +208,7 @@ class Schema(Descriptor):
         self._j_schema = self._j_schema.schema(table_schema._j_table_schema)
         return self
 
-    def field(self, field_name: str, field_type: Union[DataType, str]) -> 'Schema':
+    def field(self, field_name: str, field_type: Union[DataType, str]) -> "Schema":
         """
         Adds a field with the field name and the data type or type string. Required.
         This method can be called multiple times. The call order of this method defines
@@ -222,7 +225,7 @@ class Schema(Descriptor):
             self._j_schema = self._j_schema.field(field_name, _to_java_data_type(field_type))
         return self
 
-    def fields(self, fields: Dict[str, Union[DataType, str]]) -> 'Schema':
+    def fields(self, fields: Dict[str, Union[DataType, str]]) -> "Schema":
         """
         Adds a set of fields with the field name and the data type or type string stored in a
         list.
@@ -235,8 +238,10 @@ class Schema(Descriptor):
         .. versionadded:: 1.11.0
         """
         if sys.version_info[:2] <= (3, 5) and not isinstance(fields, OrderedDict):
-            raise TypeError("Must use OrderedDict type in python3.5 or older version to key the "
-                            "schema in insert order.")
+            raise TypeError(
+                "Must use OrderedDict type in python3.5 or older version to key the "
+                "schema in insert order."
+            )
         elif sys.version_info[:2] > (3, 5) and not isinstance(fields, (OrderedDict, dict)):
             raise TypeError("fields must be stored in a dict or OrderedDict")
 
@@ -244,7 +249,7 @@ class Schema(Descriptor):
             self.field(field_name=field_name, field_type=field_type)
         return self
 
-    def from_origin_field(self, origin_field_name: str) -> 'Schema':
+    def from_origin_field(self, origin_field_name: str) -> "Schema":
         """
         Specifies the origin of the previously defined field. The origin field is defined by a
         connector or format.
@@ -261,7 +266,7 @@ class Schema(Descriptor):
         self._j_schema = get_method(self._j_schema, "from")(origin_field_name)
         return self
 
-    def proctime(self) -> 'Schema':
+    def proctime(self) -> "Schema":
         """
         Specifies the previously defined field as a processing-time attribute.
 
@@ -272,7 +277,7 @@ class Schema(Descriptor):
         self._j_schema = self._j_schema.proctime()
         return self
 
-    def rowtime(self, rowtime: Rowtime) -> 'Schema':
+    def rowtime(self, rowtime: Rowtime) -> "Schema":
         """
         Specifies the previously defined field as an event-time attribute.
 

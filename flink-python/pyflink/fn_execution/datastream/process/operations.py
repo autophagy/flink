@@ -140,7 +140,7 @@ class StatefulOperation(Operation):
 
 
 def extract_stateless_function(
-        user_defined_function_proto, runtime_context: RuntimeContext, operator_state_store
+    user_defined_function_proto, runtime_context: RuntimeContext, operator_state_store
 ):
     """
     Extracts user-defined-function from the proto representation of a
@@ -237,13 +237,11 @@ def extract_stateless_function(
                 timestamp = value[0]
                 watermark = value[1]
                 broadcast_ctx.set_timestamp(timestamp)
-                cast(
-                    TimerServiceImpl, broadcast_ctx.timer_service()
-                ).advance_watermark(watermark)
+                cast(TimerServiceImpl, broadcast_ctx.timer_service()).advance_watermark(watermark)
                 read_only_broadcast_ctx.set_timestamp(timestamp)
-                cast(
-                    TimerServiceImpl, read_only_broadcast_ctx.timer_service()
-                ).advance_watermark(watermark)
+                cast(TimerServiceImpl, read_only_broadcast_ctx.timer_service()).advance_watermark(
+                    watermark
+                )
 
                 data = value[2]
                 if data[0]:
@@ -261,8 +259,10 @@ def extract_stateless_function(
 
 
 def extract_stateful_function(
-        user_defined_function_proto, runtime_context: RuntimeContext, keyed_state_backend,
-        operator_state_store
+    user_defined_function_proto,
+    runtime_context: RuntimeContext,
+    keyed_state_backend,
+    operator_state_store,
 ):
     from pyflink.fn_execution import flink_fn_execution_pb2
 
@@ -282,8 +282,8 @@ def extract_stateful_function(
 
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
     if func_type in (
-            UserDefinedDataStreamFunction.KEYED_PROCESS,
-            UserDefinedDataStreamFunction.KEYED_CO_PROCESS,
+        UserDefinedDataStreamFunction.KEYED_PROCESS,
+        UserDefinedDataStreamFunction.KEYED_CO_PROCESS,
     ):
         timer_service = TimerServiceImpl(internal_timer_service)
         ctx = InternalKeyedProcessFunctionContext(timer_service)
@@ -322,9 +322,7 @@ def extract_stateful_function(
                 ctx.set_timestamp(timestamp)
                 ctx.set_current_key(user_key_selector(normal_data))
                 keyed_state_backend.set_current_key(state_key_selector(normal_data))
-                return process_function.process_element(
-                    input_selector(normal_data), ctx
-                )
+                return process_function.process_element(input_selector(normal_data), ctx)
 
         elif func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:
 
@@ -342,25 +340,22 @@ def extract_stateful_function(
                 keyed_state_backend.set_current_key(state_key_selector(user_input))
 
                 if is_left:
-                    return process_function.process_element1(
-                        input_selector(user_input), ctx
-                    )
+                    return process_function.process_element1(input_selector(user_input), ctx)
                 else:
-                    return process_function.process_element2(
-                        input_selector(user_input), ctx
-                    )
+                    return process_function.process_element2(input_selector(user_input), ctx)
 
         else:
             raise Exception("Unsupported func_type: " + str(func_type))
 
     elif func_type == UserDefinedDataStreamFunction.KEYED_CO_BROADCAST_PROCESS:
-
         timer_service = TimerServiceImpl(internal_timer_service)
         ctx = InternalKeyedBroadcastProcessFunctionContext(timer_service, operator_state_store)
-        read_only_ctx = InternalKeyedBroadcastProcessFunctionReadOnlyContext(timer_service,
-                                                                             operator_state_store)
-        on_timer_ctx = InternalKeyedBroadcastProcessFunctionOnTimerContext(timer_service,
-                                                                           operator_state_store)
+        read_only_ctx = InternalKeyedBroadcastProcessFunctionReadOnlyContext(
+            timer_service, operator_state_store
+        )
+        on_timer_ctx = InternalKeyedBroadcastProcessFunctionOnTimerContext(
+            timer_service, operator_state_store
+        )
         internal_timer_service.set_namespace_serializer(VoidNamespaceSerializer())
 
         def open_func():
@@ -401,9 +396,7 @@ def extract_stateful_function(
                 return user_defined_func.process_broadcast_element(normal_data[2], ctx)
 
     elif func_type == UserDefinedDataStreamFunction.WINDOW:
-        window_operation_descriptor: WindowOperationDescriptor = (
-            user_defined_func
-        )
+        window_operation_descriptor: WindowOperationDescriptor = user_defined_func
         window_assigner = window_operation_descriptor.assigner
         window_trigger = window_operation_descriptor.trigger
         allowed_lateness = window_operation_descriptor.allowed_lateness
@@ -434,9 +427,7 @@ def extract_stateful_function(
 
         def process_element(normal_data, timestamp: int):
             keyed_state_backend.set_current_key(state_key_selector(normal_data))
-            return window_operator.process_element(
-                input_selector(normal_data), timestamp
-            )
+            return window_operator.process_element(input_selector(normal_data), timestamp)
 
         def on_event_time(timestamp: int, key, namespace):
             keyed_state_backend.set_current_key(key)
@@ -457,13 +448,8 @@ def extract_stateful_function(
         on_event_time,
         on_processing_time,
         keyed_state_backend._namespace_coder_impl,
-        has_side_output
+        has_side_output,
     )
     process_timer_func = timer_handler.process_timer
 
-    return (
-        open_func,
-        close_func,
-        process_element_func,
-        process_timer_func,
-        internal_timer_service)
+    return (open_func, close_func, process_element_func, process_timer_func, internal_timer_service)

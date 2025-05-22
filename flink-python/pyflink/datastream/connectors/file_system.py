@@ -34,23 +34,24 @@ from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import to_jarray, is_instance_of
 
 __all__ = [
-    'FileCompactor',
-    'FileCompactStrategy',
-    'OutputFileConfig',
-    'FileSource',
-    'FileSourceBuilder',
-    'FileSink',
-    'StreamingFileSink',
-    'StreamFormat',
-    'BulkFormat',
-    'FileEnumeratorProvider',
-    'FileSplitAssignerProvider',
-    'RollingPolicy',
-    'BucketAssigner'
+    "FileCompactor",
+    "FileCompactStrategy",
+    "OutputFileConfig",
+    "FileSource",
+    "FileSourceBuilder",
+    "FileSink",
+    "StreamingFileSink",
+    "StreamFormat",
+    "BulkFormat",
+    "FileEnumeratorProvider",
+    "FileSplitAssignerProvider",
+    "RollingPolicy",
+    "BucketAssigner",
 ]
 
 
 # ---- FileSource ----
+
 
 class FileEnumeratorProvider(object):
     """
@@ -64,7 +65,7 @@ class FileEnumeratorProvider(object):
         self._j_file_enumerator_provider = j_file_enumerator_provider
 
     @staticmethod
-    def default_splittable_file_enumerator() -> 'FileEnumeratorProvider':
+    def default_splittable_file_enumerator() -> "FileEnumeratorProvider":
         """
         The default file enumerator used for splittable formats. The enumerator recursively
         enumerates files, split files that consist of multiple distributed storage blocks into
@@ -76,7 +77,7 @@ class FileEnumeratorProvider(object):
         return FileEnumeratorProvider(JFileSource.DEFAULT_SPLITTABLE_FILE_ENUMERATOR)
 
     @staticmethod
-    def default_non_splittable_file_enumerator() -> 'FileEnumeratorProvider':
+    def default_non_splittable_file_enumerator() -> "FileEnumeratorProvider":
         """
         The default file enumerator used for non-splittable formats. The enumerator recursively
         enumerates files, creates one split for the file, and filters hidden files
@@ -96,7 +97,7 @@ class FileSplitAssignerProvider(object):
         self._j_file_split_assigner = j_file_split_assigner
 
     @staticmethod
-    def locality_aware_split_assigner() -> 'FileSplitAssignerProvider':
+    def locality_aware_split_assigner() -> "FileSplitAssignerProvider":
         """
         A FileSplitAssigner that assigns to each host preferably splits that are local, before
         assigning splits that are not local.
@@ -126,7 +127,7 @@ class StreamFormat(object):
         self._j_stream_format = j_stream_format
 
     @staticmethod
-    def text_line_format(charset_name: str = "UTF-8") -> 'StreamFormat':
+    def text_line_format(charset_name: str = "UTF-8") -> "StreamFormat":
         """
         Creates a reader format that text lines from a file.
 
@@ -141,8 +142,11 @@ class StreamFormat(object):
 
         :param charset_name: The charset to decode the byte stream.
         """
-        j_stream_format = get_gateway().jvm.org.apache.flink.connector.file.src.reader. \
-            TextLineInputFormat(charset_name)
+        j_stream_format = (
+            get_gateway().jvm.org.apache.flink.connector.file.src.reader.TextLineInputFormat(
+                charset_name
+            )
+        )
         return StreamFormat(j_stream_format)
 
 
@@ -177,9 +181,7 @@ class FileSourceBuilder(object):
     def __init__(self, j_file_source_builder):
         self._j_file_source_builder = j_file_source_builder
 
-    def monitor_continuously(
-            self,
-            discovery_interval: Duration) -> 'FileSourceBuilder':
+    def monitor_continuously(self, discovery_interval: Duration) -> "FileSourceBuilder":
         """
         Sets this source to streaming ("continuous monitoring") mode.
 
@@ -194,7 +196,7 @@ class FileSourceBuilder(object):
         self._j_file_source_builder.monitorContinuously(discovery_interval._j_duration)
         return self
 
-    def process_static_file_set(self) -> 'FileSourceBuilder':
+    def process_static_file_set(self) -> "FileSourceBuilder":
         """
         Sets this source to bounded (batch) mode.
 
@@ -207,22 +209,19 @@ class FileSourceBuilder(object):
         self._j_file_source_builder.processStaticFileSet()
         return self
 
-    def set_file_enumerator(
-            self,
-            file_enumerator: 'FileEnumeratorProvider') -> 'FileSourceBuilder':
+    def set_file_enumerator(self, file_enumerator: "FileEnumeratorProvider") -> "FileSourceBuilder":
         """
         Configures the FileEnumerator for the source. The File Enumerator is responsible
         for selecting from the input path the set of files that should be processed (and which
         to filter out). Furthermore, the File Enumerator may split the files further into
         sub-regions, to enable parallelization beyond the number of files.
         """
-        self._j_file_source_builder.setFileEnumerator(
-            file_enumerator._j_file_enumerator_provider)
+        self._j_file_source_builder.setFileEnumerator(file_enumerator._j_file_enumerator_provider)
         return self
 
     def set_split_assigner(
-            self,
-            split_assigner: 'FileSplitAssignerProvider') -> 'FileSourceBuilder':
+        self, split_assigner: "FileSplitAssignerProvider"
+    ) -> "FileSourceBuilder":
         """
         Configures the FileSplitAssigner for the source. The File Split Assigner
         determines which parallel reader instance gets which {@link FileSourceSplit}, and in
@@ -231,7 +230,7 @@ class FileSourceBuilder(object):
         self._j_file_source_builder.setSplitAssigner(split_assigner._j_file_split_assigner)
         return self
 
-    def build(self) -> 'FileSource':
+    def build(self) -> "FileSource":
         """
         Creates the file source with the settings applied to this builder.
         """
@@ -306,15 +305,15 @@ class FileSource(Source):
         JFileSource = get_gateway().jvm.org.apache.flink.connector.file.src.FileSource
         j_paths = to_jarray(JPath, [JPath(p) for p in paths])
         return FileSourceBuilder(
-            JFileSource.forRecordStreamFormat(stream_format._j_stream_format, j_paths))
+            JFileSource.forRecordStreamFormat(stream_format._j_stream_format, j_paths)
+        )
 
     @staticmethod
     def for_bulk_file_format(bulk_format: BulkFormat, *paths: str) -> FileSourceBuilder:
         JPath = get_gateway().jvm.org.apache.flink.core.fs.Path
         JFileSource = get_gateway().jvm.org.apache.flink.connector.file.src.FileSource
         j_paths = to_jarray(JPath, [JPath(p) for p in paths])
-        return FileSourceBuilder(
-            JFileSource.forBulkFileFormat(bulk_format._j_bulk_format, j_paths))
+        return FileSourceBuilder(JFileSource.forBulkFileFormat(bulk_format._j_bulk_format, j_paths))
 
 
 # ---- FileSink ----
@@ -335,13 +334,14 @@ class BucketAssigner(JavaObjectWrapper):
         super().__init__(j_bucket_assigner)
 
     @staticmethod
-    def base_path_bucket_assigner() -> 'BucketAssigner':
+    def base_path_bucket_assigner() -> "BucketAssigner":
         """
         Creates a BucketAssigner that does not perform any bucketing of files. All files are
         written to the base path.
         """
-        return BucketAssigner(get_gateway().jvm.org.apache.flink.streaming.api.functions.sink.
-                              filesystem.bucketassigners.BasePathBucketAssigner())
+        return BucketAssigner(
+            get_gateway().jvm.org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner()
+        )
 
     @staticmethod
     def date_time_bucket_assigner(format_str: str = "yyyy-MM-dd--HH", timezone_id: str = None):
@@ -367,8 +367,10 @@ class BucketAssigner(JavaObjectWrapper):
         else:
             j_timezone = get_gateway().jvm.java.time.ZoneId.systemDefault()
         return BucketAssigner(
-            get_gateway().jvm.org.apache.flink.streaming.api.functions.sink.
-            filesystem.bucketassigners.DateTimeBucketAssigner(format_str, j_timezone))
+            get_gateway().jvm.org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner(
+                format_str, j_timezone
+            )
+        )
 
 
 class RollingPolicy(JavaObjectWrapper):
@@ -382,9 +384,10 @@ class RollingPolicy(JavaObjectWrapper):
 
     @staticmethod
     def default_rolling_policy(
-            part_size: int = 1024 * 1024 * 128,
-            rollover_interval: int = 60 * 1000,
-            inactivity_interval: int = 60 * 1000) -> 'DefaultRollingPolicy':
+        part_size: int = 1024 * 1024 * 128,
+        rollover_interval: int = 60 * 1000,
+        inactivity_interval: int = 60 * 1000,
+    ) -> "DefaultRollingPolicy":
         """
         Returns the default implementation of the RollingPolicy.
 
@@ -402,22 +405,22 @@ class RollingPolicy(JavaObjectWrapper):
         :param inactivity_interval: The time duration of allowed inactivity after which a part file
                                     will have to roll.
         """
-        JDefaultRollingPolicy = get_gateway().jvm.org.apache.flink.streaming.api.functions.\
-            sink.filesystem.rollingpolicies.DefaultRollingPolicy
-        j_rolling_policy = JDefaultRollingPolicy.builder()\
-            .withMaxPartSize(part_size) \
-            .withRolloverInterval(rollover_interval) \
-            .withInactivityInterval(inactivity_interval) \
+        JDefaultRollingPolicy = get_gateway().jvm.org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy
+        j_rolling_policy = (
+            JDefaultRollingPolicy.builder()
+            .withMaxPartSize(part_size)
+            .withRolloverInterval(rollover_interval)
+            .withInactivityInterval(inactivity_interval)
             .build()
+        )
         return DefaultRollingPolicy(j_rolling_policy)
 
     @staticmethod
-    def on_checkpoint_rolling_policy() -> 'OnCheckpointRollingPolicy':
+    def on_checkpoint_rolling_policy() -> "OnCheckpointRollingPolicy":
         """
         Returns a RollingPolicy which rolls (ONLY) on every checkpoint.
         """
-        JOnCheckpointRollingPolicy = get_gateway().jvm.org.apache.flink.streaming.api.functions. \
-            sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy
+        JOnCheckpointRollingPolicy = get_gateway().jvm.org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy
         return OnCheckpointRollingPolicy(JOnCheckpointRollingPolicy.build())
 
 
@@ -483,15 +486,15 @@ class OutputFileConfig(JavaObjectWrapper):
             self.part_prefix = "part"
             self.part_suffix = ""
 
-        def with_part_prefix(self, prefix) -> 'OutputFileConfig.OutputFileConfigBuilder':
+        def with_part_prefix(self, prefix) -> "OutputFileConfig.OutputFileConfigBuilder":
             self.part_prefix = prefix
             return self
 
-        def with_part_suffix(self, suffix) -> 'OutputFileConfig.OutputFileConfigBuilder':
+        def with_part_suffix(self, suffix) -> "OutputFileConfig.OutputFileConfigBuilder":
             self.part_suffix = suffix
             return self
 
-        def build(self) -> 'OutputFileConfig':
+        def build(self) -> "OutputFileConfig":
             return OutputFileConfig(self.part_prefix, self.part_suffix)
 
 
@@ -506,21 +509,22 @@ class FileCompactStrategy(JavaObjectWrapper):
         super().__init__(j_file_compact_strategy)
 
     @staticmethod
-    def builder() -> 'FileCompactStrategy.Builder':
+    def builder() -> "FileCompactStrategy.Builder":
         return FileCompactStrategy.Builder()
 
     class Builder(object):
-
         def __init__(self):
-            JFileCompactStrategy = get_gateway().jvm.org.apache.flink.connector.file.sink.\
-                compactor.FileCompactStrategy
+            JFileCompactStrategy = (
+                get_gateway().jvm.org.apache.flink.connector.file.sink.compactor.FileCompactStrategy
+            )
             self._j_builder = JFileCompactStrategy.Builder.newBuilder()
 
-        def build(self) -> 'FileCompactStrategy':
+        def build(self) -> "FileCompactStrategy":
             return FileCompactStrategy(self._j_builder.build())
 
-        def enable_compaction_on_checkpoint(self, num_checkpoints_before_compaction: int) \
-                -> 'FileCompactStrategy.Builder':
+        def enable_compaction_on_checkpoint(
+            self, num_checkpoints_before_compaction: int
+        ) -> "FileCompactStrategy.Builder":
             """
             Optional, compaction will be triggered when N checkpoints passed since the last
             triggering, -1 by default indicating no compaction on checkpoint.
@@ -528,7 +532,7 @@ class FileCompactStrategy(JavaObjectWrapper):
             self._j_builder.enableCompactionOnCheckpoint(num_checkpoints_before_compaction)
             return self
 
-        def set_size_threshold(self, size_threshold: int) -> 'FileCompactStrategy.Builder':
+        def set_size_threshold(self, size_threshold: int) -> "FileCompactStrategy.Builder":
             """
             Optional, compaction will be triggered when the total size of compacting files reaches
             the threshold. -1 by default, indicating the size is unlimited.
@@ -536,8 +540,9 @@ class FileCompactStrategy(JavaObjectWrapper):
             self._j_builder.setSizeThreshold(size_threshold)
             return self
 
-        def set_num_compact_threads(self, num_compact_threads: int) \
-                -> 'FileCompactStrategy.Builder':
+        def set_num_compact_threads(
+            self, num_compact_threads: int
+        ) -> "FileCompactStrategy.Builder":
             """
             Optional, the count of compacting threads in a compactor operator, 1 by default.
             """
@@ -561,8 +566,9 @@ class FileCompactor(JavaObjectWrapper):
         Returns a file compactor that simply concat the compacting files. The file_delimiter will be
         added between neighbouring files if provided.
         """
-        JConcatFileCompactor = get_gateway().jvm.org.apache.flink.connector.file.sink.compactor.\
-            ConcatFileCompactor
+        JConcatFileCompactor = (
+            get_gateway().jvm.org.apache.flink.connector.file.sink.compactor.ConcatFileCompactor
+        )
         if file_delimiter:
             return FileCompactor(JConcatFileCompactor(file_delimiter))
         else:
@@ -574,8 +580,9 @@ class FileCompactor(JavaObjectWrapper):
         Returns a file compactor that directly copy the content of the only input file to the
         output.
         """
-        JIdenticalFileCompactor = get_gateway().jvm.org.apache.flink.connector.file.sink.compactor.\
-            IdenticalFileCompactor
+        JIdenticalFileCompactor = (
+            get_gateway().jvm.org.apache.flink.connector.file.sink.compactor.IdenticalFileCompactor
+        )
         return FileCompactor(JIdenticalFileCompactor())
 
 
@@ -634,7 +641,6 @@ class FileSink(Sink, SupportsPreprocessing):
         return self._transformer
 
     class BaseBuilder(object):
-
         def __init__(self, j_builder):
             self._j_builder = j_builder
 
@@ -684,12 +690,13 @@ class FileSink(Sink, SupportsPreprocessing):
             return self
 
     @staticmethod
-    def for_row_format(base_path: str, encoder: Encoder) -> 'FileSink.RowFormatBuilder':
+    def for_row_format(base_path: str, encoder: Encoder) -> "FileSink.RowFormatBuilder":
         JPath = get_gateway().jvm.org.apache.flink.core.fs.Path
         JFileSink = get_gateway().jvm.org.apache.flink.connector.file.sink.FileSink
 
         return FileSink.RowFormatBuilder(
-            JFileSink.forRowFormat(JPath(base_path), encoder._j_encoder))
+            JFileSink.forRowFormat(JPath(base_path), encoder._j_encoder)
+        )
 
     class BulkFormatBuilder(BaseBuilder):
         """
@@ -704,46 +711,47 @@ class FileSink(Sink, SupportsPreprocessing):
 
         def with_rolling_policy(self, rolling_policy: OnCheckpointRollingPolicy):
             if not isinstance(rolling_policy, OnCheckpointRollingPolicy):
-                raise ValueError('rolling_policy must be OnCheckpointRollingPolicy for bulk format')
+                raise ValueError("rolling_policy must be OnCheckpointRollingPolicy for bulk format")
             return self
 
-        def _with_row_type(self, row_type: 'RowType') -> 'FileSink.BulkFormatBuilder':
+        def _with_row_type(self, row_type: "RowType") -> "FileSink.BulkFormatBuilder":
             from pyflink.datastream.data_stream import DataStream
             from pyflink.table.types import _to_java_data_type
 
             def _check_if_row_data_type(ds) -> bool:
                 j_type_info = ds._j_data_stream.getType()
                 if not is_instance_of(
-                    j_type_info,
-                    'org.apache.flink.table.runtime.typeutils.InternalTypeInfo'
+                    j_type_info, "org.apache.flink.table.runtime.typeutils.InternalTypeInfo"
                 ):
                     return False
                 return is_instance_of(
-                    j_type_info.toLogicalType(),
-                    'org.apache.flink.table.types.logical.RowType'
+                    j_type_info.toLogicalType(), "org.apache.flink.table.types.logical.RowType"
                 )
 
             class RowRowTransformer(StreamTransformer):
-
                 def apply(self, ds):
                     jvm = get_gateway().jvm
 
                     if _check_if_row_data_type(ds):
                         return ds
 
-                    j_map_function = jvm.org.apache.flink.python.util.PythonConnectorUtils \
-                        .RowRowMapper(_to_java_data_type(row_type))
+                    j_map_function = (
+                        jvm.org.apache.flink.python.util.PythonConnectorUtils.RowRowMapper(
+                            _to_java_data_type(row_type)
+                        )
+                    )
                     return DataStream(ds._j_data_stream.process(j_map_function))
 
             self._transformer = RowRowTransformer()
             return self
 
-        def build(self) -> 'FileSink':
+        def build(self) -> "FileSink":
             return FileSink(self._j_builder.build(), self._transformer)
 
     @staticmethod
-    def for_bulk_format(base_path: str, writer_factory: BulkWriterFactory) \
-            -> 'FileSink.BulkFormatBuilder':
+    def for_bulk_format(
+        base_path: str, writer_factory: BulkWriterFactory
+    ) -> "FileSink.BulkFormatBuilder":
         jvm = get_gateway().jvm
         j_path = jvm.org.apache.flink.core.fs.Path(base_path)
         JFileSink = jvm.org.apache.flink.connector.file.sink.FileSink
@@ -777,7 +785,6 @@ class StreamingFileSink(SinkFunction):
         super(StreamingFileSink, self).__init__(j_obj)
 
     class BaseBuilder(object):
-
         def __init__(self, j_builder):
             self._j_builder = j_builder
 
@@ -797,7 +804,7 @@ class StreamingFileSink(SinkFunction):
             self._j_builder.withOutputFileConfig(output_file_config.get_java_object())
             return self
 
-        def build(self) -> 'StreamingFileSink':
+        def build(self) -> "StreamingFileSink":
             j_stream_file_sink = self._j_builder.build()
             return StreamingFileSink(j_stream_file_sink)
 
@@ -814,15 +821,14 @@ class StreamingFileSink(SinkFunction):
             return self
 
     @staticmethod
-    def for_row_format(base_path: str, encoder: Encoder) -> 'DefaultRowFormatBuilder':
+    def for_row_format(base_path: str, encoder: Encoder) -> "DefaultRowFormatBuilder":
         j_path = get_gateway().jvm.org.apache.flink.core.fs.Path(base_path)
-        j_default_row_format_builder = get_gateway().jvm.org.apache.flink.streaming.api.\
-            functions.sink.filesystem.legacy.StreamingFileSink.\
-            forRowFormat(j_path, encoder._j_encoder)
+        j_default_row_format_builder = get_gateway().jvm.org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink.forRowFormat(
+            j_path, encoder._j_encoder
+        )
         return StreamingFileSink.DefaultRowFormatBuilder(j_default_row_format_builder)
 
     class DefaultBulkFormatBuilder(BaseBuilder):
-
         def __init__(self, j_default_bulk_format_builder):
             super().__init__(j_default_bulk_format_builder)
 
@@ -834,7 +840,7 @@ class StreamingFileSink(SinkFunction):
     def for_bulk_format(base_path: str, writer_factory: BulkWriterFactory):
         jvm = get_gateway().jvm
         j_path = jvm.org.apache.flink.core.fs.Path(base_path)
-        j_default_bulk_format_builder = jvm.org.apache.flink.streaming.api.functions.sink \
-            .filesystem.legacy.StreamingFileSink.\
-            forBulkFormat(j_path, writer_factory.get_java_object())
+        j_default_bulk_format_builder = jvm.org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink.forBulkFormat(
+            j_path, writer_factory.get_java_object()
+        )
         return StreamingFileSink.DefaultBulkFormatBuilder(j_default_bulk_format_builder)

@@ -25,7 +25,6 @@ W = TypeVar("W")
 
 
 class MergeResultsCallback(MergingWindowAssigner.MergeCallback):
-
     def __init__(self, merge_results: dict):
         self._merge_results = merge_results
 
@@ -34,15 +33,15 @@ class MergeResultsCallback(MergingWindowAssigner.MergeCallback):
 
 
 class MergingWindowSet(Generic[W]):
-
     class MergeFunction(ABC, Generic[W]):
-
         @abstractmethod
-        def merge(self,
-                  merge_result: W,
-                  merged_windows: Collection[W],
-                  state_window_result: W,
-                  merged_state_windows: Collection[W]):
+        def merge(
+            self,
+            merge_result: W,
+            merged_windows: Collection[W],
+            state_window_result: W,
+            merged_state_windows: Collection[W],
+        ):
             pass
 
     def __init__(self, assigner: MergingWindowAssigner, state: MapState[W, W]):
@@ -74,7 +73,6 @@ class MergingWindowSet(Generic[W]):
             raise Exception("Window %s is not in in-flight window set." % window)
 
     def add_window(self, new_window: W, merge_function: MergeFunction[W]):
-
         windows = []
         windows.extend(self._mapping.keys())
         windows.append(new_window)
@@ -104,10 +102,8 @@ class MergingWindowSet(Generic[W]):
 
             if merge_result not in merged_windows or len(merged_windows) != 1:
                 merge_function.merge(
-                    merge_result,
-                    merged_windows,
-                    self._mapping[merge_result],
-                    merged_state_windows)
+                    merge_result, merged_windows, self._mapping[merge_result], merged_state_windows
+                )
 
         if len(merge_results) == 0 or (result_window == new_window and not merged_new_window):
             self._mapping[result_window] = result_window

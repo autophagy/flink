@@ -20,8 +20,12 @@ from typing import List, Dict, Iterable
 
 from pyflink.common import Row, RowKind
 from pyflink.fn_execution.coders import PickleCoder
-from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
-    PerKeyStateDataViewStore
+from pyflink.fn_execution.table.state_data_view import (
+    DataViewSpec,
+    ListViewSpec,
+    MapViewSpec,
+    PerKeyStateDataViewStore,
+)
 from pyflink.table import AggregateFunction, FunctionContext, TableAggregateFunction
 from pyflink.table.udf import ImperativeAggregateFunction
 
@@ -31,7 +35,6 @@ def join_row(left: List, right: List):
 
 
 class DistinctViewDescriptor(object):
-
     def __init__(self, input_extractor, filter_args):
         self._input_extractor = input_extractor
         self._filter_args = filter_args
@@ -180,13 +183,15 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
     A simple AggsHandleFunctionBase implementation which provides the basic functionality.
     """
 
-    def __init__(self,
-                 udfs: List[ImperativeAggregateFunction],
-                 input_extractors: List,
-                 udf_data_view_specs: List[List[DataViewSpec]],
-                 filter_args: List[int],
-                 distinct_indexes: List[int],
-                 distinct_view_descriptors: Dict[int, DistinctViewDescriptor]):
+    def __init__(
+        self,
+        udfs: List[ImperativeAggregateFunction],
+        input_extractors: List,
+        udf_data_view_specs: List[List[DataViewSpec]],
+        filter_args: List[int],
+        distinct_indexes: List[int],
+        distinct_view_descriptors: Dict[int, DistinctViewDescriptor],
+    ):
         self._udfs = udfs
         self._input_extractors = input_extractors
         self._accumulators: List = None
@@ -205,22 +210,24 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
             data_views = {}
             for data_view_spec in data_view_specs:
                 if isinstance(data_view_spec, ListViewSpec):
-                    data_views[data_view_spec.field_index] = \
+                    data_views[data_view_spec.field_index] = (
                         state_data_view_store.get_state_list_view(
-                            data_view_spec.state_id,
-                            data_view_spec.element_coder)
+                            data_view_spec.state_id, data_view_spec.element_coder
+                        )
+                    )
                 elif isinstance(data_view_spec, MapViewSpec):
-                    data_views[data_view_spec.field_index] = \
+                    data_views[data_view_spec.field_index] = (
                         state_data_view_store.get_state_map_view(
                             data_view_spec.state_id,
                             data_view_spec.key_coder,
-                            data_view_spec.value_coder)
+                            data_view_spec.value_coder,
+                        )
+                    )
             self._udf_data_views.append(data_views)
         for key in self._distinct_view_descriptors.keys():
             self._distinct_data_views[key] = state_data_view_store.get_state_map_view(
-                "agg%ddistinct" % key,
-                PickleCoder(),
-                PickleCoder())
+                "agg%ddistinct" % key, PickleCoder(), PickleCoder()
+            )
 
     def accumulate(self, input_data: Row):
         for i in range(len(self._udfs)):
@@ -250,7 +257,8 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                         continue
                 else:
                     raise Exception(
-                        "The args are not in the distinct data view, this should not happen.")
+                        "The args are not in the distinct data view, this should not happen."
+                    )
             self._udfs[i].accumulate(self._accumulators[i], *args)
 
     def retract(self, input_data: Row):
@@ -275,8 +283,10 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                 continue
             input_extractor = self._input_extractors[i]
             args = input_extractor(input_data)
-            if self._distinct_indexes[i] >= 0 and \
-                    args in self._distinct_data_views[self._distinct_indexes[i]]:
+            if (
+                self._distinct_indexes[i] >= 0
+                and args in self._distinct_data_views[self._distinct_indexes[i]]
+            ):
                 continue
             self._udfs[i].retract(self._accumulators[i], *args)
 
@@ -312,18 +322,25 @@ class SimpleAggsHandleFunction(SimpleAggsHandleFunctionBase, AggsHandleFunction)
     A simple AggsHandleFunction implementation which provides the basic functionality.
     """
 
-    def __init__(self,
-                 udfs: List[AggregateFunction],
-                 input_extractors: List,
-                 index_of_count_star: int,
-                 count_star_inserted: bool,
-                 udf_data_view_specs: List[List[DataViewSpec]],
-                 filter_args: List[int],
-                 distinct_indexes: List[int],
-                 distinct_view_descriptors: Dict[int, DistinctViewDescriptor]):
+    def __init__(
+        self,
+        udfs: List[AggregateFunction],
+        input_extractors: List,
+        index_of_count_star: int,
+        count_star_inserted: bool,
+        udf_data_view_specs: List[List[DataViewSpec]],
+        filter_args: List[int],
+        distinct_indexes: List[int],
+        distinct_view_descriptors: Dict[int, DistinctViewDescriptor],
+    ):
         super(SimpleAggsHandleFunction, self).__init__(
-            udfs, input_extractors, udf_data_view_specs, filter_args, distinct_indexes,
-            distinct_view_descriptors)
+            udfs,
+            input_extractors,
+            udf_data_view_specs,
+            filter_args,
+            distinct_indexes,
+            distinct_view_descriptors,
+        )
         self._get_value_indexes = [i for i in range(len(udfs))]
         if index_of_count_star >= 0 and count_star_inserted:
             # The record count is used internally, should be ignored by the get_value method.
@@ -338,16 +355,23 @@ class SimpleTableAggsHandleFunction(SimpleAggsHandleFunctionBase, TableAggsHandl
     A simple TableAggsHandleFunction implementation which provides the basic functionality.
     """
 
-    def __init__(self,
-                 udfs: List[TableAggregateFunction],
-                 input_extractors: List,
-                 udf_data_view_specs: List[List[DataViewSpec]],
-                 filter_args: List[int],
-                 distinct_indexes: List[int],
-                 distinct_view_descriptors: Dict[int, DistinctViewDescriptor]):
+    def __init__(
+        self,
+        udfs: List[TableAggregateFunction],
+        input_extractors: List,
+        udf_data_view_specs: List[List[DataViewSpec]],
+        filter_args: List[int],
+        distinct_indexes: List[int],
+        distinct_view_descriptors: Dict[int, DistinctViewDescriptor],
+    ):
         super(SimpleTableAggsHandleFunction, self).__init__(
-            udfs, input_extractors, udf_data_view_specs, filter_args, distinct_indexes,
-            distinct_view_descriptors)
+            udfs,
+            input_extractors,
+            udf_data_view_specs,
+            filter_args,
+            distinct_indexes,
+            distinct_view_descriptors,
+        )
 
     def emit_value(self, current_key: List, is_retract: bool):
         udf: TableAggregateFunction = self._udfs[0]
@@ -387,14 +411,12 @@ class RecordCounter(ABC):
 
 
 class AccumulationRecordCounter(RecordCounter):
-
     def record_count_is_zero(self, acc):
         # when all the inputs are accumulations, the count will never be zero
         return acc is None
 
 
 class RetractionRecordCounter(RecordCounter):
-
     def __init__(self, index_of_count_star):
         self._index_of_count_star = index_of_count_star
 
@@ -404,15 +426,16 @@ class RetractionRecordCounter(RecordCounter):
 
 
 class GroupAggFunctionBase(object):
-
-    def __init__(self,
-                 aggs_handle: AggsHandleFunctionBase,
-                 key_selector: RowKeySelector,
-                 state_backend,
-                 state_value_coder,
-                 generate_update_before: bool,
-                 state_cleaning_enabled: bool,
-                 index_of_count_star: int):
+    def __init__(
+        self,
+        aggs_handle: AggsHandleFunctionBase,
+        key_selector: RowKeySelector,
+        state_backend,
+        state_value_coder,
+        generate_update_before: bool,
+        state_cleaning_enabled: bool,
+        index_of_count_star: int,
+    ):
         self.aggs_handle = aggs_handle
         self.generate_update_before = generate_update_before
         self.state_cleaning_enabled = state_cleaning_enabled
@@ -440,7 +463,8 @@ class GroupAggFunctionBase(object):
         if self.state_cleaning_enabled:
             self.state_backend.set_current_key(list(key._values))
             accumulator_state = self.state_backend.get_value_state(
-                "accumulators", self.state_value_coder)
+                "accumulators", self.state_value_coder
+            )
             accumulator_state.clear()
             self.aggs_handle.cleanup()
 
@@ -450,18 +474,25 @@ class GroupAggFunctionBase(object):
 
 
 class GroupAggFunction(GroupAggFunctionBase):
-
-    def __init__(self,
-                 aggs_handle: AggsHandleFunction,
-                 key_selector: RowKeySelector,
-                 state_backend,
-                 state_value_coder,
-                 generate_update_before: bool,
-                 state_cleaning_enabled: bool,
-                 index_of_count_star: int):
+    def __init__(
+        self,
+        aggs_handle: AggsHandleFunction,
+        key_selector: RowKeySelector,
+        state_backend,
+        state_value_coder,
+        generate_update_before: bool,
+        state_cleaning_enabled: bool,
+        index_of_count_star: int,
+    ):
         super(GroupAggFunction, self).__init__(
-            aggs_handle, key_selector, state_backend, state_value_coder, generate_update_before,
-            state_cleaning_enabled, index_of_count_star)
+            aggs_handle,
+            key_selector,
+            state_backend,
+            state_value_coder,
+            generate_update_before,
+            state_cleaning_enabled,
+            index_of_count_star,
+        )
 
     def finish_bundle(self):
         for current_key, input_rows in self.buffer.items():
@@ -470,7 +501,8 @@ class GroupAggFunction(GroupAggFunctionBase):
             self.state_backend.set_current_key(current_key)
             self.state_backend.clear_cached_iterators()
             accumulator_state = self.state_backend.get_value_state(
-                "accumulators", self.state_value_coder)
+                "accumulators", self.state_value_coder
+            )
             accumulators: List = accumulator_state.value()
             start_index = 0
             if accumulators is None:
@@ -546,17 +578,25 @@ class GroupAggFunction(GroupAggFunctionBase):
 
 
 class GroupTableAggFunction(GroupAggFunctionBase):
-    def __init__(self,
-                 aggs_handle: TableAggsHandleFunction,
-                 key_selector: RowKeySelector,
-                 state_backend,
-                 state_value_coder,
-                 generate_update_before: bool,
-                 state_cleaning_enabled: bool,
-                 index_of_count_star: int):
+    def __init__(
+        self,
+        aggs_handle: TableAggsHandleFunction,
+        key_selector: RowKeySelector,
+        state_backend,
+        state_value_coder,
+        generate_update_before: bool,
+        state_cleaning_enabled: bool,
+        index_of_count_star: int,
+    ):
         super(GroupTableAggFunction, self).__init__(
-            aggs_handle, key_selector, state_backend, state_value_coder, generate_update_before,
-            state_cleaning_enabled, index_of_count_star)
+            aggs_handle,
+            key_selector,
+            state_backend,
+            state_value_coder,
+            generate_update_before,
+            state_cleaning_enabled,
+            index_of_count_star,
+        )
 
     def finish_bundle(self):
         for current_key, input_rows in self.buffer.items():
@@ -565,7 +605,8 @@ class GroupTableAggFunction(GroupAggFunctionBase):
             self.state_backend.set_current_key(current_key)
             self.state_backend.clear_cached_iterators()
             accumulator_state = self.state_backend.get_value_state(
-                "accumulators", self.state_value_coder)
+                "accumulators", self.state_value_coder
+            )
             accumulators = accumulator_state.value()
             start_index = 0
             if accumulators is None:

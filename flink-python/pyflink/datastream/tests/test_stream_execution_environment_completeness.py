@@ -20,9 +20,7 @@ from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 
 
-class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
-                                                  PyFlinkTestCase):
-
+class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
     @classmethod
     def python_class(cls):
         return StreamExecutionEnvironment
@@ -39,29 +37,62 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
         # Currently only the methods for configuration is added.
         # 'isForceCheckpointing', 'getNumberOfExecutionRetries', 'setNumberOfExecutionRetries'
         # is deprecated, exclude them.
-        return {'getLastJobExecutionResult', 'getId', 'getIdString',
-                'createCollectionsEnvironment', 'createLocalEnvironment',
-                'createRemoteEnvironment', 'addOperator', 'fromElements', 'fromData',
-                'resetContextEnvironment', 'getCachedFiles', 'generateSequence',
-                'getNumberOfExecutionRetries', 'getStreamGraph', 'fromParallelCollection',
-                'readFileStream', 'isForceCheckpointing', 'readFile', 'clean',
-                'createInput', 'createLocalEnvironmentWithWebUI', 'fromCollection',
-                'socketTextStream', 'initializeContextEnvironment', 'readTextFile',
-                'setNumberOfExecutionRetries', 'executeAsync', 'registerJobListener',
-                'clearJobListeners', 'getJobListeners', 'fromSequence', 'getConfiguration',
-                'generateStreamGraph', 'getTransformations', 'areExplicitEnvironmentsAllowed',
-                'registerCollectIterator', 'listCompletedClusterDatasets',
-                'invalidateClusterDataset', 'registerCacheTransformation', 'close',
-                'registerType', 'registerTypeWithKryoSerializer', 'setStateBackend',
-                'getStateBackend', 'addDefaultKryoSerializer'}
+        return {
+            "getLastJobExecutionResult",
+            "getId",
+            "getIdString",
+            "createCollectionsEnvironment",
+            "createLocalEnvironment",
+            "createRemoteEnvironment",
+            "addOperator",
+            "fromElements",
+            "fromData",
+            "resetContextEnvironment",
+            "getCachedFiles",
+            "generateSequence",
+            "getNumberOfExecutionRetries",
+            "getStreamGraph",
+            "fromParallelCollection",
+            "readFileStream",
+            "isForceCheckpointing",
+            "readFile",
+            "clean",
+            "createInput",
+            "createLocalEnvironmentWithWebUI",
+            "fromCollection",
+            "socketTextStream",
+            "initializeContextEnvironment",
+            "readTextFile",
+            "setNumberOfExecutionRetries",
+            "executeAsync",
+            "registerJobListener",
+            "clearJobListeners",
+            "getJobListeners",
+            "fromSequence",
+            "getConfiguration",
+            "generateStreamGraph",
+            "getTransformations",
+            "areExplicitEnvironmentsAllowed",
+            "registerCollectIterator",
+            "listCompletedClusterDatasets",
+            "invalidateClusterDataset",
+            "registerCacheTransformation",
+            "close",
+            "registerType",
+            "registerTypeWithKryoSerializer",
+            "setStateBackend",
+            "getStateBackend",
+            "addDefaultKryoSerializer",
+        }
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

@@ -25,21 +25,21 @@ from pyflink.datastream.state import ValueStateDescriptor, StateTtlConfig
 
 
 class Sum(KeyedProcessFunction):
-
     def __init__(self):
         self.state = None
 
     def open(self, runtime_context: RuntimeContext):
         state_descriptor = ValueStateDescriptor("state", Types.FLOAT())
-        state_ttl_config = StateTtlConfig \
-            .new_builder(Time.seconds(1)) \
-            .set_update_type(StateTtlConfig.UpdateType.OnReadAndWrite) \
-            .disable_cleanup_in_background() \
+        state_ttl_config = (
+            StateTtlConfig.new_builder(Time.seconds(1))
+            .set_update_type(StateTtlConfig.UpdateType.OnReadAndWrite)
+            .disable_cleanup_in_background()
             .build()
+        )
         state_descriptor.enable_time_to_live(state_ttl_config)
         self.state = runtime_context.get_state(state_descriptor)
 
-    def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
+    def process_element(self, value, ctx: "KeyedProcessFunction.Context"):
         # retrieve the current count
         current = self.state.value()
         if current is None:
@@ -52,12 +52,11 @@ class Sum(KeyedProcessFunction):
         # register an event time timer 2 seconds later
         ctx.timer_service().register_event_time_timer(ctx.timestamp() + 2000)
 
-    def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
+    def on_timer(self, timestamp: int, ctx: "KeyedProcessFunction.OnTimerContext"):
         yield ctx.get_current_key(), self.state.value()
 
 
 class MyTimestampAssigner(TimestampAssigner):
-
     def extract_timestamp(self, value, record_timestamp: int) -> int:
         return int(value[0])
 
@@ -67,29 +66,30 @@ def event_timer_timer_demo():
 
     ds = env.from_collection(
         collection=[
-            (1000, 'Alice', 110.1),
-            (4000, 'Bob', 30.2),
-            (3000, 'Alice', 20.0),
-            (2000, 'Bob', 53.1),
-            (5000, 'Alice', 13.1),
-            (3000, 'Bob', 3.1),
-            (7000, 'Bob', 16.1),
-            (10000, 'Alice', 20.1)
+            (1000, "Alice", 110.1),
+            (4000, "Bob", 30.2),
+            (3000, "Alice", 20.0),
+            (2000, "Bob", 53.1),
+            (5000, "Alice", 13.1),
+            (3000, "Bob", 3.1),
+            (7000, "Bob", 16.1),
+            (10000, "Alice", 20.1),
         ],
-        type_info=Types.TUPLE([Types.LONG(), Types.STRING(), Types.FLOAT()]))
+        type_info=Types.TUPLE([Types.LONG(), Types.STRING(), Types.FLOAT()]),
+    )
 
     ds = ds.assign_timestamps_and_watermarks(
-        WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(2))
-                         .with_timestamp_assigner(MyTimestampAssigner()))
+        WatermarkStrategy.for_bounded_out_of_orderness(
+            Duration.of_seconds(2)
+        ).with_timestamp_assigner(MyTimestampAssigner())
+    )
 
     # apply the process function onto a keyed stream
-    ds.key_by(lambda value: value[1]) \
-      .process(Sum()) \
-      .print()
+    ds.key_by(lambda value: value[1]).process(Sum()).print()
 
     # submit for execution
     env.execute()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     event_timer_timer_demo()

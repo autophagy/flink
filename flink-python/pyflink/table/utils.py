@@ -20,8 +20,19 @@ import ast
 from pyflink.common.types import RowKind
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, LocalZonedTimestampType, Row, RowType, \
-    TimeType, DateType, ArrayType, MapType, TimestampType, FloatType, RawType
+from pyflink.table.types import (
+    DataType,
+    LocalZonedTimestampType,
+    Row,
+    RowType,
+    TimeType,
+    DateType,
+    ArrayType,
+    MapType,
+    TimestampType,
+    FloatType,
+    RawType,
+)
 from pyflink.util.java_utils import to_jarray
 import datetime
 import pickle
@@ -35,8 +46,9 @@ def pandas_to_arrow(schema, timezone, field_types, series):
         try:
             return pa.Array.from_pandas(s, mask=s.isnull(), type=t)
         except pa.ArrowException as e:
-            error_msg = "Exception thrown when converting pandas.Series (%s) to " \
-                        "pyarrow.Array (%s)."
+            error_msg = (
+                "Exception thrown when converting pandas.Series (%s) to " "pyarrow.Array (%s)."
+            )
             raise RuntimeError(error_msg % (s.dtype, t), e)
 
     arrays = []
@@ -45,13 +57,16 @@ def pandas_to_arrow(schema, timezone, field_types, series):
         field_type = field_types[i]
         schema_type = schema.types[i]
         if type(s) == pd.DataFrame:
-            array_names = [(create_array(s[s.columns[j]], field.type), field.name)
-                           for j, field in enumerate(schema_type)]
+            array_names = [
+                (create_array(s[s.columns[j]], field.type), field.name)
+                for j, field in enumerate(schema_type)
+            ]
             struct_arrays, struct_names = zip(*array_names)
             arrays.append(pa.StructArray.from_arrays(struct_arrays, struct_names))
         else:
-            arrays.append(create_array(
-                tz_convert_to_internal(s, field_type, timezone), schema_type))
+            arrays.append(
+                create_array(tz_convert_to_internal(s, field_type, timezone), schema_type)
+            )
     return pa.RecordBatch.from_arrays(arrays, schema=schema)
 
 
@@ -59,15 +74,22 @@ def arrow_to_pandas(timezone, field_types, batches):
     def arrow_column_to_pandas(arrow_column, t: DataType):
         if type(t) == RowType:
             import pandas as pd
-            series = [column.to_pandas(date_as_object=True).rename(field.name)
-                      for column, field in zip(arrow_column.flatten(), arrow_column.type)]
+
+            series = [
+                column.to_pandas(date_as_object=True).rename(field.name)
+                for column, field in zip(arrow_column.flatten(), arrow_column.type)
+            ]
             return pd.concat(series, axis=1)
         else:
             return arrow_column.to_pandas(date_as_object=True)
+
     import pyarrow as pa
+
     table = pa.Table.from_batches(batches)
-    return [tz_convert_from_internal(arrow_column_to_pandas(c, t), t, timezone)
-            for c, t in zip(table.itercolumns(), field_types)]
+    return [
+        tz_convert_from_internal(arrow_column_to_pandas(c, t), t, timezone)
+        for c, t in zip(table.itercolumns(), field_types)
+    ]
 
 
 def tz_convert_from_internal(s, t: DataType, local_tz):
@@ -89,6 +111,7 @@ def tz_convert_to_internal(s, t: DataType, local_tz):
     """
     if type(t) == LocalZonedTimestampType:
         from pandas.api.types import is_datetime64_dtype, is_datetime64tz_dtype
+
         if is_datetime64_dtype(s.dtype):
             return s.dt.tz_localize(None)
         elif is_datetime64tz_dtype(s.dtype):
@@ -106,7 +129,7 @@ def to_expression_jarray(exprs):
 
 def pickled_bytes_to_python_converter(data, field_type: DataType):
     if isinstance(field_type, RowType):
-        row_kind = RowKind(int.from_bytes(data[0], byteorder='big', signed=False))
+        row_kind = RowKind(int.from_bytes(data[0], byteorder="big", signed=False))
         data = zip(list(data[1:]), field_type.field_types())
         fields = []
         for d, d_type in data:
@@ -117,7 +140,7 @@ def pickled_bytes_to_python_converter(data, field_type: DataType):
     else:
         data = pickle.loads(data)
         if isinstance(field_type, TimeType):
-            seconds, microseconds = divmod(data, 10 ** 6)
+            seconds, microseconds = divmod(data, 10**6)
             minutes, seconds = divmod(seconds, 60)
             hours, minutes = divmod(minutes, 60)
             return datetime.time(hours, minutes, seconds, microseconds)
@@ -129,9 +152,13 @@ def pickled_bytes_to_python_converter(data, field_type: DataType):
             key_type = field_type.key_type
             value_type = field_type.value_type
             zip_kv = zip(data[0], data[1])
-            return dict((pickled_bytes_to_python_converter(k, key_type),
-                         pickled_bytes_to_python_converter(v, value_type))
-                        for k, v in zip_kv)
+            return dict(
+                (
+                    pickled_bytes_to_python_converter(k, key_type),
+                    pickled_bytes_to_python_converter(v, value_type),
+                )
+                for k, v in zip_kv
+            )
         elif isinstance(field_type, FloatType):
             return field_type.from_sql_type(ast.literal_eval(data))
         elif isinstance(field_type, ArrayType):

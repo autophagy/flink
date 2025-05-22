@@ -24,18 +24,20 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table import ResultKind, ExplainDetail
 from pyflink.table import expressions as expr
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
-    PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkTestCase
 
 
 class StreamSqlTests(PyFlinkStreamTableTestCase):
-
     def test_sql_ddl(self):
-        self.t_env.execute_sql("create temporary function func1 as "
-                               "'pyflink.table.tests.test_udf.add' language python")
-        table = self.t_env.from_elements([(1, 2)]) \
-            .alias("a", "b") \
+        self.t_env.execute_sql(
+            "create temporary function func1 as "
+            "'pyflink.table.tests.test_udf.add' language python"
+        )
+        table = (
+            self.t_env.from_elements([(1, 2)])
+            .alias("a", "b")
             .select(expr.call("func1", expr.col("a"), expr.col("b")))
+        )
         plan = table.explain()
         self.assertGreaterEqual(plan.find("== Optimized Physical Plan =="), 0)
         self.assertGreaterEqual(plan.find("PythonCalc(select=[func1(f0, f1) AS _c0])"), 0)
@@ -56,20 +58,22 @@ class StreamSqlTests(PyFlinkStreamTableTestCase):
         result.execute_insert("sinks_sql_query").wait()
         actual = source_sink_utils.results()
 
-        expected = ['+I[2, Hi, Hello]', '+I[3, Hello, Hello]']
+        expected = ["+I[2, Hi, Hello]", "+I[3, Hello, Hello]"]
         self.assert_equals(actual, expected)
 
     def test_execute_sql(self):
         t_env = self.t_env
-        table_result = t_env.execute_sql("create table tbl"
-                                         "("
-                                         "   a bigint,"
-                                         "   b int,"
-                                         "   c varchar"
-                                         ") with ("
-                                         "  'connector' = 'COLLECTION',"
-                                         "   'is-bounded' = 'false'"
-                                         ")")
+        table_result = t_env.execute_sql(
+            "create table tbl"
+            "("
+            "   a bigint,"
+            "   b int,"
+            "   c varchar"
+            ") with ("
+            "  'connector' = 'COLLECTION',"
+            "   'is-bounded' = 'false'"
+            ")"
+        )
         self.assertIsNone(table_result.get_job_client())
         self.assert_equals(table_result.get_resolved_schema().get_column_names(), ["result"])
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS)
@@ -89,8 +93,10 @@ class StreamSqlTests(PyFlinkStreamTableTestCase):
 
         job_execution_result = table_result.get_job_client().get_job_execution_result().result()
         self.assertIsNotNone(job_execution_result.get_job_id())
-        self.assert_equals(table_result.get_resolved_schema().get_column_names(),
-                           ["default_catalog.default_database.sinks"])
+        self.assert_equals(
+            table_result.get_resolved_schema().get_column_names(),
+            ["default_catalog.default_database.sinks"],
+        )
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
         table_result.print()
 
@@ -118,11 +124,14 @@ class JavaSqlTests(PyFlinkTestCase):
     def get_jar_path(self, jar_path_pattern):
         test_jar_path = glob.glob(os.path.join(_find_flink_source_root(), jar_path_pattern))
         if not test_jar_path:
-            self.fail("'%s' is not available. Please compile the test jars first."
-                      % jar_path_pattern)
+            self.fail(
+                "'%s' is not available. Please compile the test jars first." % jar_path_pattern
+            )
         if len(test_jar_path) > 1:
-            self.fail("There are multiple jars matches the pattern: %s, the jars are: %s"
-                      % (jar_path_pattern, test_jar_path))
+            self.fail(
+                "There are multiple jars matches the pattern: %s, the jars are: %s"
+                % (jar_path_pattern, test_jar_path)
+            )
         return test_jar_path[0]
 
     def test_java_sql_ddl(self):
@@ -131,7 +140,14 @@ class JavaSqlTests(PyFlinkTestCase):
         test_jar_path = self.get_jar_path(test_jar_pattern)
         test_classpath = self.get_classpath() + os.pathsep + test_jar_path
         java_executable = self.get_java_executable()
-        subprocess.check_output([java_executable,
-                                 "-XX:+IgnoreUnrecognizedVMOptions",
-                                 "--add-opens=java.base/java.lang=ALL-UNNAMED",
-                                 "-cp", test_classpath, test_class], shell=False)
+        subprocess.check_output(
+            [
+                java_executable,
+                "-XX:+IgnoreUnrecognizedVMOptions",
+                "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                "-cp",
+                test_classpath,
+                test_class,
+            ],
+            shell=False,
+        )

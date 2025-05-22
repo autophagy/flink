@@ -17,9 +17,7 @@
 ################################################################################
 from pyflink.common.utils import JavaObjectWrapper
 
-__all__ = [
-    'InputFormat'
-]
+__all__ = ["InputFormat"]
 
 
 class InputFormat(JavaObjectWrapper):

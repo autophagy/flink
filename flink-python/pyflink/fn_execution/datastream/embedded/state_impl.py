@@ -19,20 +19,27 @@ from abc import ABC
 from typing import List, Iterable, Tuple, Dict, Collection
 
 from pyflink.datastream import ReduceFunction, AggregateFunction
-from pyflink.datastream.state import (T, IN, OUT, V, K, State)
-from pyflink.fn_execution.embedded.converters import (DataConverter, DictDataConverter,
-                                                      ListDataConverter)
-from pyflink.fn_execution.internal_state import (InternalValueState, InternalKvState,
-                                                 InternalListState, InternalReducingState,
-                                                 InternalAggregatingState, InternalMapState,
-                                                 N, InternalReadOnlyBroadcastState,
-                                                 InternalBroadcastState)
+from pyflink.datastream.state import T, IN, OUT, V, K, State
+from pyflink.fn_execution.embedded.converters import (
+    DataConverter,
+    DictDataConverter,
+    ListDataConverter,
+)
+from pyflink.fn_execution.internal_state import (
+    InternalValueState,
+    InternalKvState,
+    InternalListState,
+    InternalReducingState,
+    InternalAggregatingState,
+    InternalMapState,
+    N,
+    InternalReadOnlyBroadcastState,
+    InternalBroadcastState,
+)
 
 
 class StateImpl(State, ABC):
-    def __init__(self,
-                 state,
-                 value_converter: DataConverter):
+    def __init__(self, state, value_converter: DataConverter):
         self._state = state
         self._value_converter = value_converter
 
@@ -41,11 +48,9 @@ class StateImpl(State, ABC):
 
 
 class KeyedStateImpl(StateImpl, InternalKvState, ABC):
-
-    def __init__(self,
-                 state,
-                 value_converter: DataConverter,
-                 window_converter: DataConverter = None):
+    def __init__(
+        self, state, value_converter: DataConverter, window_converter: DataConverter = None
+    ):
         super(KeyedStateImpl, self).__init__(state, value_converter)
         self._window_converter = window_converter
 
@@ -55,10 +60,9 @@ class KeyedStateImpl(StateImpl, InternalKvState, ABC):
 
 
 class ValueStateImpl(KeyedStateImpl, InternalValueState):
-    def __init__(self,
-                 value_state,
-                 value_converter: DataConverter,
-                 window_converter: DataConverter = None):
+    def __init__(
+        self, value_state, value_converter: DataConverter, window_converter: DataConverter = None
+    ):
         super(ValueStateImpl, self).__init__(value_state, value_converter, window_converter)
 
     def value(self) -> T:
@@ -69,11 +73,9 @@ class ValueStateImpl(KeyedStateImpl, InternalValueState):
 
 
 class ListStateImpl(KeyedStateImpl, InternalListState):
-
-    def __init__(self,
-                 list_state,
-                 value_converter: ListDataConverter,
-                 window_converter: DataConverter = None):
+    def __init__(
+        self, list_state, value_converter: ListDataConverter, window_converter: DataConverter = None
+    ):
         super(ListStateImpl, self).__init__(list_state, value_converter, window_converter)
         self._element_converter = value_converter._field_converter
 
@@ -98,12 +100,13 @@ class ListStateImpl(KeyedStateImpl, InternalListState):
 
 
 class ReducingStateImpl(KeyedStateImpl, InternalReducingState):
-
-    def __init__(self,
-                 value_state,
-                 value_converter: DataConverter,
-                 reduce_function: ReduceFunction,
-                 window_converter: DataConverter = None):
+    def __init__(
+        self,
+        value_state,
+        value_converter: DataConverter,
+        reduce_function: ReduceFunction,
+        window_converter: DataConverter = None,
+    ):
         super(ReducingStateImpl, self).__init__(value_state, value_converter, window_converter)
         self._reduce_function = reduce_function
 
@@ -145,11 +148,13 @@ class ReducingStateImpl(KeyedStateImpl, InternalReducingState):
 
 
 class AggregatingStateImpl(KeyedStateImpl, InternalAggregatingState):
-    def __init__(self,
-                 value_state,
-                 value_converter,
-                 agg_function: AggregateFunction,
-                 window_converter: DataConverter = None):
+    def __init__(
+        self,
+        value_state,
+        value_converter,
+        agg_function: AggregateFunction,
+        window_converter: DataConverter = None,
+    ):
         super(AggregatingStateImpl, self).__init__(value_state, value_converter, window_converter)
         self._agg_function = agg_function
 
@@ -195,17 +200,15 @@ class AggregatingStateImpl(KeyedStateImpl, InternalAggregatingState):
 
 
 class MapStateImpl(KeyedStateImpl, InternalMapState):
-    def __init__(self,
-                 map_state,
-                 map_converter: DictDataConverter,
-                 window_converter: DataConverter = None):
+    def __init__(
+        self, map_state, map_converter: DictDataConverter, window_converter: DataConverter = None
+    ):
         super(MapStateImpl, self).__init__(map_state, map_converter, window_converter)
         self._k_converter = map_converter._key_converter
         self._v_converter = map_converter._value_converter
 
     def get(self, key: K) -> V:
-        return self._v_converter.to_internal(
-            self._state.get(self._k_converter.to_external(key)))
+        return self._v_converter.to_internal(self._state.get(self._k_converter.to_external(key)))
 
     def put(self, key: K, value: V) -> None:
         self._state.put(self._k_converter.to_external(key), self._v_converter.to_external(value))
@@ -223,8 +226,10 @@ class MapStateImpl(KeyedStateImpl, InternalMapState):
         entries = self._state.entries()
         if entries:
             for entry in entries:
-                yield (self._k_converter.to_internal(entry.getKey()),
-                       self._v_converter.to_internal(entry.getValue()))
+                yield (
+                    self._k_converter.to_internal(entry.getKey()),
+                    self._v_converter.to_internal(entry.getValue()),
+                )
 
     def keys(self) -> Iterable[K]:
         keys = self._state.keys()
@@ -243,17 +248,13 @@ class MapStateImpl(KeyedStateImpl, InternalMapState):
 
 
 class ReadOnlyBroadcastStateImpl(StateImpl, InternalReadOnlyBroadcastState):
-
-    def __init__(self,
-                 map_state,
-                 map_converter: DictDataConverter):
+    def __init__(self, map_state, map_converter: DictDataConverter):
         super(ReadOnlyBroadcastStateImpl, self).__init__(map_state, map_converter)
         self._k_converter = map_converter._key_converter
         self._v_converter = map_converter._value_converter
 
     def get(self, key: K) -> V:
-        return self._v_converter.to_internal(
-            self._state.get(self._k_converter.to_external(key)))
+        return self._v_converter.to_internal(self._state.get(self._k_converter.to_external(key)))
 
     def contains(self, key: K) -> bool:
         return self._state.contains(self._k_converter.to_external(key))
@@ -261,8 +262,10 @@ class ReadOnlyBroadcastStateImpl(StateImpl, InternalReadOnlyBroadcastState):
     def items(self) -> Iterable[Tuple[K, V]]:
         entries = self._state.entries()
         for entry in entries:
-            yield (self._k_converter.to_internal(entry.getKey()),
-                   self._v_converter.to_internal(entry.getValue()))
+            yield (
+                self._k_converter.to_internal(entry.getKey()),
+                self._v_converter.to_internal(entry.getValue()),
+            )
 
     def keys(self) -> Iterable[K]:
         for k in self._state.keys():
@@ -277,9 +280,7 @@ class ReadOnlyBroadcastStateImpl(StateImpl, InternalReadOnlyBroadcastState):
 
 
 class BroadcastStateImpl(ReadOnlyBroadcastStateImpl, InternalBroadcastState):
-    def __init__(self,
-                 map_state,
-                 map_converter: DictDataConverter):
+    def __init__(self, map_state, map_converter: DictDataConverter):
         super(BroadcastStateImpl, self).__init__(map_state, map_converter)
         self._map_converter = map_converter
         self._k_converter = map_converter._key_converter

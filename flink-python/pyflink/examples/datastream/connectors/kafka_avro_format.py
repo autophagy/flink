@@ -27,9 +27,10 @@ from pyflink.datastream.formats.avro import AvroRowSerializationSchema, AvroRowD
 # Make sure that the Kafka cluster is started and the topic 'test_avro_topic' is
 # created before executing this job.
 def write_to_kafka(env):
-    ds = env.from_collection([
-        (1, 'hi'), (2, 'hello'), (3, 'hi'), (4, 'hello'), (5, 'hi'), (6, 'hello'), (6, 'hello')],
-        type_info=Types.ROW([Types.INT(), Types.STRING()]))
+    ds = env.from_collection(
+        [(1, "hi"), (2, "hello"), (3, "hi"), (4, "hello"), (5, "hi"), (6, "hello"), (6, "hello")],
+        type_info=Types.ROW([Types.INT(), Types.STRING()]),
+    )
 
     serialization_schema = AvroRowSerializationSchema(
         avro_schema_string="""
@@ -44,9 +45,9 @@ def write_to_kafka(env):
     )
 
     kafka_producer = FlinkKafkaProducer(
-        topic='test_avro_topic',
+        topic="test_avro_topic",
         serialization_schema=serialization_schema,
-        producer_config={'bootstrap.servers': 'localhost:9092', 'group.id': 'test_group'}
+        producer_config={"bootstrap.servers": "localhost:9092", "group.id": "test_group"},
     )
 
     # note that the output type of ds must be RowTypeInfo
@@ -68,9 +69,9 @@ def read_from_kafka(env):
     )
 
     kafka_consumer = FlinkKafkaConsumer(
-        topics='test_avro_topic',
+        topics="test_avro_topic",
         deserialization_schema=deserialization_schema,
-        properties={'bootstrap.servers': 'localhost:9092', 'group.id': 'test_group_1'}
+        properties={"bootstrap.servers": "localhost:9092", "group.id": "test_group_1"},
     )
     kafka_consumer.set_start_from_earliest()
 
@@ -78,12 +79,14 @@ def read_from_kafka(env):
     env.execute()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
     env = StreamExecutionEnvironment.get_execution_environment()
-    env.add_jars("file:///path/to/flink-sql-avro-1.15.0.jar",
-                 "file:///path/to/flink-sql-connector-kafka-1.15.0.jar")
+    env.add_jars(
+        "file:///path/to/flink-sql-avro-1.15.0.jar",
+        "file:///path/to/flink-sql-connector-kafka-1.15.0.jar",
+    )
 
     print("start writing data to kafka")
     write_to_kafka(env)

@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     # between schema.py -> resolved_schema.py -> catalog.py -> schema.py
     from pyflink.table.catalog import ResolvedSchema
 
-__all__ = ['Schema']
+__all__ = ["Schema"]
 
 
 class Schema(object):
@@ -52,7 +52,7 @@ class Schema(object):
         self._j_schema = j_schema
 
     @staticmethod
-    def new_builder() -> 'Schema.Builder':
+    def new_builder() -> "Schema.Builder":
         gateway = get_gateway()
         j_builder = gateway.jvm.Schema.newBuilder()
         return Schema.Builder(j_builder)
@@ -74,30 +74,30 @@ class Schema(object):
         def __init__(self, j_builder):
             self._j_builder = j_builder
 
-        def from_schema(self, unresolved_schema: 'Schema') -> 'Schema.Builder':
+        def from_schema(self, unresolved_schema: "Schema") -> "Schema.Builder":
             """
             Adopts all members from the given unresolved schema.
             """
             self._j_builder.fromSchema(unresolved_schema._j_schema)
             return self
 
-        def from_resolved_schema(self, resolved_schema: 'ResolvedSchema') -> 'Schema.Builder':
+        def from_resolved_schema(self, resolved_schema: "ResolvedSchema") -> "Schema.Builder":
             """
             Adopts all members from the given resolved schema.
             """
             self._j_builder.fromResolvedSchema(resolved_schema._j_resolved_schema)
             return self
 
-        def from_row_data_type(self, data_type: DataType) -> 'Schema.Builder':
+        def from_row_data_type(self, data_type: DataType) -> "Schema.Builder":
             """
             Adopts all fields of the given row as physical columns of the schema.
             """
             self._j_builder.fromRowDataType(_to_java_data_type(data_type))
             return self
 
-        def from_fields(self,
-                        field_names: List[str],
-                        field_data_types: List[DataType]) -> 'Schema.Builder':
+        def from_fields(
+            self, field_names: List[str], field_data_types: List[DataType]
+        ) -> "Schema.Builder":
             """
             Adopts the given field names and field data types as physical columns of the schema.
             """
@@ -105,13 +105,12 @@ class Schema(object):
             j_field_names = to_jarray(gateway.jvm.String, field_names)
             j_field_data_types = to_jarray(
                 gateway.jvm.AbstractDataType,
-                [_to_java_data_type(field_data_type) for field_data_type in field_data_types])
+                [_to_java_data_type(field_data_type) for field_data_type in field_data_types],
+            )
             self._j_builder.fromFields(j_field_names, j_field_data_types)
             return self
 
-        def column(self,
-                   column_name: str,
-                   data_type: Union[str, DataType]) -> 'Schema.Builder':
+        def column(self, column_name: str, data_type: Union[str, DataType]) -> "Schema.Builder":
             """
             Declares a physical column that is appended to this schema.
 
@@ -131,9 +130,9 @@ class Schema(object):
                 self._j_builder.column(column_name, _to_java_data_type(data_type))
             return self
 
-        def column_by_expression(self,
-                                 column_name: str,
-                                 expr: Union[str, Expression]) -> 'Schema.Builder':
+        def column_by_expression(
+            self, column_name: str, expr: Union[str, Expression]
+        ) -> "Schema.Builder":
             """
             Declares a computed column that is appended to this schema.
 
@@ -160,11 +159,13 @@ class Schema(object):
             self._j_builder.columnByExpression(column_name, _get_java_expression(expr))
             return self
 
-        def column_by_metadata(self,
-                               column_name: str,
-                               data_type: Union[DataType, str],
-                               metadata_key: str = None,
-                               is_virtual: bool = False) -> 'Schema.Builder':
+        def column_by_metadata(
+            self,
+            column_name: str,
+            data_type: Union[DataType, str],
+            metadata_key: str = None,
+            is_virtual: bool = False,
+        ) -> "Schema.Builder":
             """
             Declares a metadata column that is appended to this schema.
 
@@ -192,20 +193,15 @@ class Schema(object):
             """
             if isinstance(data_type, DataType):
                 self._j_builder.columnByMetadata(
-                    column_name,
-                    _to_java_data_type(data_type),
-                    metadata_key, is_virtual)
+                    column_name, _to_java_data_type(data_type), metadata_key, is_virtual
+                )
             else:
-                self._j_builder.columnByMetadata(
-                    column_name,
-                    data_type,
-                    metadata_key,
-                    is_virtual)
+                self._j_builder.columnByMetadata(column_name, data_type, metadata_key, is_virtual)
             return self
 
-        def watermark(self,
-                      column_name: str,
-                      watermark_expr: Union[str, Expression]) -> 'Schema.Builder':
+        def watermark(
+            self, column_name: str, watermark_expr: Union[str, Expression]
+        ) -> "Schema.Builder":
             """
             Declares that the given column should serve as an event-time (i.e. rowtime) attribute
             and specifies a corresponding watermark strategy as an expression.
@@ -236,7 +232,7 @@ class Schema(object):
             self._j_builder.watermark(column_name, _get_java_expression(watermark_expr))
             return self
 
-        def primary_key(self, *column_names: str) -> 'Schema.Builder':
+        def primary_key(self, *column_names: str) -> "Schema.Builder":
             """
             Declares a primary key constraint for a set of given columns. Primary key uniquely
             identify a row in a table. Neither of columns in a primary can be nullable. The primary
@@ -251,9 +247,7 @@ class Schema(object):
             self._j_builder.primaryKey(to_jarray(gateway.jvm.java.lang.String, column_names))
             return self
 
-        def primary_key_named(self,
-                              constraint_name: str,
-                              *column_names: str) -> 'Schema.Builder':
+        def primary_key_named(self, constraint_name: str, *column_names: str) -> "Schema.Builder":
             """
             Declares a primary key constraint for a set of given columns. Primary key uniquely
             identify a row in a table. Neither of columns in a primary can be nullable. The primary
@@ -266,11 +260,11 @@ class Schema(object):
             """
             gateway = get_gateway()
             self._j_builder.primaryKeyNamed(
-                constraint_name,
-                to_jarray(gateway.jvm.java.lang.String, column_names))
+                constraint_name, to_jarray(gateway.jvm.java.lang.String, column_names)
+            )
             return self
 
-        def build(self) -> 'Schema':
+        def build(self) -> "Schema":
             """
             Returns an instance of an unresolved Schema.
             """

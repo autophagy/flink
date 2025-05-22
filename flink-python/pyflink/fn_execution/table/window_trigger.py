@@ -180,7 +180,8 @@ class CountTrigger(Trigger[CountWindow]):
     def __init__(self, count_elements: int):
         self._count_elements = count_elements
         self._count_state_desc = ValueStateDescriptor(
-            "trigger-count-%s" % count_elements, Types.LONG())
+            "trigger-count-%s" % count_elements, Types.LONG()
+        )
         self._ctx: TriggerContext = None
 
     def open(self, ctx: TriggerContext):

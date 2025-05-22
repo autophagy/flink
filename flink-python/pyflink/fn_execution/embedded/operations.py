@@ -20,9 +20,7 @@ from pyflink.fn_execution.embedded.converters import DataConverter
 
 
 class FunctionOperation(object):
-    def __init__(self,
-                 operations,
-                 output_data_converter: DataConverter):
+    def __init__(self, operations, output_data_converter: DataConverter):
         self._operations = operations
         self._output_data_converter = output_data_converter
         self._main_operation = operations[0]
@@ -59,19 +57,21 @@ class FunctionOperation(object):
 
 
 class OneInputFunctionOperation(FunctionOperation):
-    def __init__(self,
-                 serialized_fns,
-                 input_data_converter: DataConverter,
-                 output_data_converter: DataConverter,
-                 runtime_context,
-                 function_context,
-                 timer_context,
-                 side_output_context,
-                 job_parameters,
-                 keyed_state_backend,
-                 operator_state_backend):
-        operations = (
-            [extract_process_function(
+    def __init__(
+        self,
+        serialized_fns,
+        input_data_converter: DataConverter,
+        output_data_converter: DataConverter,
+        runtime_context,
+        function_context,
+        timer_context,
+        side_output_context,
+        job_parameters,
+        keyed_state_backend,
+        operator_state_backend,
+    ):
+        operations = [
+            extract_process_function(
                 serialized_fn,
                 runtime_context,
                 function_context,
@@ -79,14 +79,17 @@ class OneInputFunctionOperation(FunctionOperation):
                 side_output_context,
                 job_parameters,
                 keyed_state_backend,
-                operator_state_backend)
-                for serialized_fn in serialized_fns])
+                operator_state_backend,
+            )
+            for serialized_fn in serialized_fns
+        ]
         super(OneInputFunctionOperation, self).__init__(operations, output_data_converter)
         self._input_data_converter = input_data_converter
 
     def process_element(self, value):
         results = self._main_operation.process_element(
-            self._input_data_converter.to_internal(value))
+            self._input_data_converter.to_internal(value)
+        )
 
         results = self._process_elements(results)
 
@@ -94,20 +97,22 @@ class OneInputFunctionOperation(FunctionOperation):
 
 
 class TwoInputFunctionOperation(FunctionOperation):
-    def __init__(self,
-                 serialized_fns,
-                 input_data_converter1: DataConverter,
-                 input_data_converter2: DataConverter,
-                 output_data_converter: DataConverter,
-                 runtime_context,
-                 function_context,
-                 timer_context,
-                 side_output_context,
-                 job_parameters,
-                 keyed_state_backend,
-                 operator_state_backend):
-        operations = (
-            [extract_process_function(
+    def __init__(
+        self,
+        serialized_fns,
+        input_data_converter1: DataConverter,
+        input_data_converter2: DataConverter,
+        output_data_converter: DataConverter,
+        runtime_context,
+        function_context,
+        timer_context,
+        side_output_context,
+        job_parameters,
+        keyed_state_backend,
+        operator_state_backend,
+    ):
+        operations = [
+            extract_process_function(
                 serialized_fn,
                 runtime_context,
                 function_context,
@@ -115,8 +120,10 @@ class TwoInputFunctionOperation(FunctionOperation):
                 side_output_context,
                 job_parameters,
                 keyed_state_backend,
-                operator_state_backend)
-                for serialized_fn in serialized_fns])
+                operator_state_backend,
+            )
+            for serialized_fn in serialized_fns
+        ]
         super(TwoInputFunctionOperation, self).__init__(operations, output_data_converter)
         self._input_data_converter1 = input_data_converter1
         self._input_data_converter2 = input_data_converter2
@@ -125,7 +132,8 @@ class TwoInputFunctionOperation(FunctionOperation):
 
     def process_element1(self, value):
         results = self._main_operation.process_element1(
-            self._input_data_converter1.to_internal(value))
+            self._input_data_converter1.to_internal(value)
+        )
 
         results = self._process_elements(results)
 
@@ -133,7 +141,8 @@ class TwoInputFunctionOperation(FunctionOperation):
 
     def process_element2(self, value):
         results = self._main_operation.process_element2(
-            self._input_data_converter2.to_internal(value))
+            self._input_data_converter2.to_internal(value)
+        )
 
         results = self._process_elements(results)
 

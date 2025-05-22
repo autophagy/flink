@@ -29,18 +29,14 @@ class MetricGroupType(Enum):
     """
     Indicate the type of MetricGroup.
     """
+
     generic = 0
     key = 1
     value = 2
 
 
 class GenericMetricGroup(MetricGroup):
-
-    def __init__(
-            self,
-            parent,
-            name,
-            metric_group_type=MetricGroupType.generic):
+    def __init__(self, parent, name, metric_group_type=MetricGroupType.generic):
         self._parent = parent
         self._sub_groups = []
         self._name = name
@@ -48,41 +44,43 @@ class GenericMetricGroup(MetricGroup):
         self._flink_gauge = {}
         self._beam_gauge = {}
 
-    def add_group(self, name: str, extra: str = None) -> 'MetricGroup':
+    def add_group(self, name: str, extra: str = None) -> "MetricGroup":
         if extra is None:
             return self._add_group(name, MetricGroupType.generic)
         else:
-            return self._add_group(name, MetricGroupType.key) \
-                ._add_group(extra, MetricGroupType.value)
+            return self._add_group(name, MetricGroupType.key)._add_group(
+                extra, MetricGroupType.value
+            )
 
-    def counter(self, name: str) -> 'Counter':
+    def counter(self, name: str) -> "Counter":
         from apache_beam.metrics.metric import Metrics
+
         return CounterImpl(Metrics.counter(self._get_namespace(), name))
 
     def gauge(self, name: str, obj: Callable[[], int]) -> None:
         from apache_beam.metrics.metric import Metrics
+
         self._flink_gauge[name] = obj
         self._beam_gauge[name] = Metrics.gauge(self._get_namespace(), name)
 
-    def meter(self, name: str, time_span_in_seconds: int = 60) -> 'Meter':
+    def meter(self, name: str, time_span_in_seconds: int = 60) -> "Meter":
         from apache_beam.metrics.metric import Metrics
+
         # There is no meter type in Beam, use counter to implement meter
         return MeterImpl(Metrics.counter(self._get_namespace(time_span_in_seconds), name))
 
-    def distribution(self, name: str) -> 'Distribution':
+    def distribution(self, name: str) -> "Distribution":
         from apache_beam.metrics.metric import Metrics
+
         return DistributionImpl(Metrics.distribution(self._get_namespace(), name))
 
-    def _add_group(self, name: str, metric_group_type: MetricGroupType) -> 'GenericMetricGroup':
+    def _add_group(self, name: str, metric_group_type: MetricGroupType) -> "GenericMetricGroup":
         for group in self._sub_groups:
             if name == group._name and metric_group_type == group._metric_group_type:
                 # we don't create same metric group repeatedly
                 return group
 
-        sub_group = GenericMetricGroup(
-            self,
-            name,
-            metric_group_type)
+        sub_group = GenericMetricGroup(self, name, metric_group_type)
         self._sub_groups.append(sub_group)
         return sub_group
 

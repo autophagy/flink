@@ -20,7 +20,7 @@ from enum import Enum
 
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['RuntimeExecutionMode']
+__all__ = ["RuntimeExecutionMode"]
 
 
 class RuntimeExecutionMode(Enum):
@@ -47,16 +47,16 @@ class RuntimeExecutionMode(Enum):
     Flink will set the execution mode to BATCH if all sources are bounded, or STREAMING if there
     is at least one source which is unbounded.
     """
+
     STREAMING = 0
     BATCH = 1
     AUTOMATIC = 2
 
     @staticmethod
-    def _from_j_execution_mode(j_execution_mode) -> 'RuntimeExecutionMode':
+    def _from_j_execution_mode(j_execution_mode) -> "RuntimeExecutionMode":
         return RuntimeExecutionMode[j_execution_mode.name()]
 
     def _to_j_execution_mode(self):
         gateway = get_gateway()
-        JRuntimeExecutionMode = \
-            gateway.jvm.org.apache.flink.api.common.RuntimeExecutionMode
+        JRuntimeExecutionMode = gateway.jvm.org.apache.flink.api.common.RuntimeExecutionMode
         return getattr(JRuntimeExecutionMode, self.name)

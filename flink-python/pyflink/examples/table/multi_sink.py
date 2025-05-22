@@ -18,7 +18,7 @@
 import logging
 import sys
 
-from pyflink.table import (EnvironmentSettings, TableEnvironment, DataTypes)
+from pyflink.table import EnvironmentSettings, TableEnvironment, DataTypes
 from pyflink.table.udf import udf
 
 
@@ -26,8 +26,8 @@ def multi_sink():
     t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
 
     table = t_env.from_elements(
-        elements=[(1, 'Hello'), (2, 'World'), (3, "Flink"), (4, "PyFlink")],
-        schema=['id', 'data'])
+        elements=[(1, "Hello"), (2, "World"), (3, "Flink"), (4, "PyFlink")], schema=["id", "data"]
+    )
 
     # define the sink tables
     t_env.execute_sql("""
@@ -69,7 +69,7 @@ def multi_sink():
     statement_set.execute().wait()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
     multi_sink()

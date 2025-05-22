@@ -39,7 +39,7 @@ class RunnerInputHandler(ABC):
         self,
         internal_timer_service: InternalTimerServiceImpl,
         process_element_func,
-        has_side_output: bool
+        has_side_output: bool,
     ):
         self._internal_timer_service = internal_timer_service
         self._process_element_func = process_element_func
@@ -50,10 +50,9 @@ class RunnerInputHandler(ABC):
         watermark = value[1]
         data = value[2]
         self._advance_watermark(watermark)
-        yield from _emit_results(timestamp,
-                                 watermark,
-                                 self._process_element_func(data, timestamp),
-                                 self._has_side_output)
+        yield from _emit_results(
+            timestamp, watermark, self._process_element_func(data, timestamp), self._has_side_output
+        )
 
     def _advance_watermark(self, watermark: int) -> None:
         self._internal_timer_service.advance_watermark(watermark)
@@ -70,7 +69,7 @@ class TimerHandler(ABC):
         on_event_time_func,
         on_processing_time_func,
         namespace_coder,
-        has_side_output
+        has_side_output,
     ):
         self._internal_timer_service = internal_timer_service
         self._on_event_time_func = on_event_time_func
@@ -95,14 +94,14 @@ class TimerHandler(ABC):
                 timestamp,
                 watermark,
                 self._on_event_time(timestamp, key, namespace),
-                self._has_side_output
+                self._has_side_output,
             )
         elif timer_type == TimerType.PROCESSING_TIME.value:
             yield from _emit_results(
                 timestamp,
                 watermark,
                 self._on_processing_time(timestamp, key, namespace),
-                self._has_side_output
+                self._has_side_output,
             )
         else:
             raise Exception("Unsupported timer type: %d" % timer_type)
@@ -122,9 +121,7 @@ def _emit_results(timestamp, watermark, results, has_side_output):
         if has_side_output:
             for result in results:
                 if isinstance(result, tuple) and isinstance(result[0], OutputTag):
-                    yield cast(OutputTag, result[0]).tag_id, Row(
-                        timestamp, watermark, result[1]
-                    )
+                    yield cast(OutputTag, result[0]).tag_id, Row(timestamp, watermark, result[1])
                 else:
                     yield DEFAULT_OUTPUT_TAG, Row(timestamp, watermark, result)
         else:

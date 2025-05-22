@@ -19,7 +19,7 @@ from enum import Enum
 
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['CheckpointingMode']
+__all__ = ["CheckpointingMode"]
 
 
 class CheckpointingMode(Enum):
@@ -79,11 +79,10 @@ class CheckpointingMode(Enum):
     AT_LEAST_ONCE = 1
 
     @staticmethod
-    def _from_j_checkpointing_mode(j_checkpointing_mode) -> 'CheckpointingMode':
+    def _from_j_checkpointing_mode(j_checkpointing_mode) -> "CheckpointingMode":
         return CheckpointingMode[j_checkpointing_mode.name()]
 
     def _to_j_checkpointing_mode(self):
         gateway = get_gateway()
-        JCheckpointingMode = \
-            gateway.jvm.org.apache.flink.core.execution.CheckpointingMode
+        JCheckpointingMode = gateway.jvm.org.apache.flink.core.execution.CheckpointingMode
         return getattr(JCheckpointingMode, self.name)

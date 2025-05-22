@@ -27,18 +27,29 @@ from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.process.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.aggregate_slow import DistinctViewDescriptor, RowKeySelector
-from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
-    PerWindowStateDataViewStore
-from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
-    MergingWindowAssigner
+from pyflink.fn_execution.table.state_data_view import (
+    DataViewSpec,
+    ListViewSpec,
+    MapViewSpec,
+    PerWindowStateDataViewStore,
+)
+from pyflink.fn_execution.table.window_assigner import (
+    WindowAssigner,
+    PanedWindowAssigner,
+    MergingWindowAssigner,
+)
 from pyflink.fn_execution.table.window_context import WindowContext, TriggerContext, K, W
-from pyflink.fn_execution.table.window_process_function import GeneralWindowProcessFunction, \
-    InternalWindowProcessFunction, PanedWindowProcessFunction, MergingWindowProcessFunction
+from pyflink.fn_execution.table.window_process_function import (
+    GeneralWindowProcessFunction,
+    InternalWindowProcessFunction,
+    PanedWindowProcessFunction,
+    MergingWindowProcessFunction,
+)
 from pyflink.fn_execution.table.window_trigger import Trigger
 from pyflink.table.udf import ImperativeAggregateFunction, FunctionContext
 
 
-N = TypeVar('N')
+N = TypeVar("N")
 
 
 def join_row(left: List, right: List):
@@ -134,17 +145,18 @@ class NamespaceAggsHandleFunction(NamespaceAggsHandleFunctionBase[N], ABC):
 
 
 class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
-
-    def __init__(self,
-                 udfs: List[ImperativeAggregateFunction],
-                 input_extractors: List,
-                 index_of_count_star: int,
-                 count_star_inserted: bool,
-                 named_property_extractor,
-                 udf_data_view_specs: List[List[DataViewSpec]],
-                 filter_args: List[int],
-                 distinct_indexes: List[int],
-                 distinct_view_descriptors: Dict[int, DistinctViewDescriptor]):
+    def __init__(
+        self,
+        udfs: List[ImperativeAggregateFunction],
+        input_extractors: List,
+        index_of_count_star: int,
+        count_star_inserted: bool,
+        named_property_extractor,
+        udf_data_view_specs: List[List[DataViewSpec]],
+        filter_args: List[int],
+        distinct_indexes: List[int],
+        distinct_view_descriptors: Dict[int, DistinctViewDescriptor],
+    ):
         self._udfs = udfs
         self._input_extractors = input_extractors
         self._named_property_extractor = named_property_extractor
@@ -168,22 +180,24 @@ class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
             data_views = {}
             for data_view_spec in data_view_specs:
                 if isinstance(data_view_spec, ListViewSpec):
-                    data_views[data_view_spec.field_index] = \
+                    data_views[data_view_spec.field_index] = (
                         state_data_view_store.get_state_list_view(
-                            data_view_spec.state_id,
-                            data_view_spec.element_coder)
+                            data_view_spec.state_id, data_view_spec.element_coder
+                        )
+                    )
                 elif isinstance(data_view_spec, MapViewSpec):
-                    data_views[data_view_spec.field_index] = \
+                    data_views[data_view_spec.field_index] = (
                         state_data_view_store.get_state_map_view(
                             data_view_spec.state_id,
                             data_view_spec.key_coder,
-                            data_view_spec.value_coder)
+                            data_view_spec.value_coder,
+                        )
+                    )
             self._udf_data_views.append(data_views)
         for key in self._distinct_view_descriptors.keys():
             self._distinct_data_views[key] = state_data_view_store.get_state_map_view(
-                "agg%ddistinct" % key,
-                PickleCoder(),
-                PickleCoder())
+                "agg%ddistinct" % key, PickleCoder(), PickleCoder()
+            )
 
     def accumulate(self, input_data: Row):
         for i in range(len(self._udfs)):
@@ -213,7 +227,8 @@ class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
                         continue
                 else:
                     raise Exception(
-                        "The args are not in the distinct data view, this should not happen.")
+                        "The args are not in the distinct data view, this should not happen."
+                    )
             self._udfs[i].accumulate(self._accumulators[i], *args)
 
     def retract(self, input_data: Row):
@@ -238,8 +253,10 @@ class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
                 continue
             input_extractor = self._input_extractors[i]
             args = input_extractor(input_data)
-            if self._distinct_indexes[i] >= 0 and \
-                    args in self._distinct_data_views[self._distinct_indexes[i]]:
+            if (
+                self._distinct_indexes[i] >= 0
+                and args in self._distinct_data_views[self._distinct_indexes[i]]
+            ):
                 continue
             self._udfs[i].retract(self._accumulators[i], *args)
 
@@ -284,16 +301,18 @@ class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
 
 
 class GroupWindowAggFunctionBase(Generic[K, W]):
-    def __init__(self,
-                 allowed_lateness: int,
-                 key_selector: RowKeySelector,
-                 state_backend,
-                 state_value_coder,
-                 window_assigner: WindowAssigner[W],
-                 window_aggregator: NamespaceAggsHandleFunctionBase[W],
-                 trigger: Trigger[W],
-                 rowtime_index: int,
-                 shift_timezone: str):
+    def __init__(
+        self,
+        allowed_lateness: int,
+        key_selector: RowKeySelector,
+        state_backend,
+        state_value_coder,
+        window_assigner: WindowAssigner[W],
+        window_aggregator: NamespaceAggsHandleFunctionBase[W],
+        trigger: Trigger[W],
+        rowtime_index: int,
+        shift_timezone: str,
+    ):
         self._allowed_lateness = allowed_lateness
         self._key_selector = key_selector
         self._state_backend = state_backend
@@ -312,24 +331,36 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
     def open(self, function_context: FunctionContext):
         self._internal_timer_service = LegacyInternalTimerServiceImpl(self._state_backend)
         self._window_aggregator.open(
-            PerWindowStateDataViewStore(function_context, self._state_backend))
+            PerWindowStateDataViewStore(function_context, self._state_backend)
+        )
 
         if isinstance(self._window_assigner, PanedWindowAssigner):
             self._window_function = PanedWindowProcessFunction(
-                self._allowed_lateness, self._window_assigner, self._window_aggregator)
+                self._allowed_lateness, self._window_assigner, self._window_aggregator
+            )
         elif isinstance(self._window_assigner, MergingWindowAssigner):
             self._window_function = MergingWindowProcessFunction(
-                self._allowed_lateness, self._window_assigner, self._window_aggregator,
-                self._state_backend)
+                self._allowed_lateness,
+                self._window_assigner,
+                self._window_aggregator,
+                self._state_backend,
+            )
         else:
             self._window_function = GeneralWindowProcessFunction(
-                self._allowed_lateness, self._window_assigner, self._window_aggregator)
+                self._allowed_lateness, self._window_assigner, self._window_aggregator
+            )
         self._trigger_context = TriggerContext(
-            self._trigger, self._internal_timer_service, self._state_backend)
+            self._trigger, self._internal_timer_service, self._state_backend
+        )
         self._trigger_context.open()
         self._window_context = WindowContext(
-            self, self._trigger_context, self._state_backend, self._state_value_coder,
-            self._internal_timer_service, self._window_assigner.is_event_time())
+            self,
+            self._trigger_context,
+            self._state_backend,
+            self._state_value_coder,
+            self._internal_timer_service,
+            self._window_assigner.is_event_time(),
+        )
         self._window_function.open(self._window_context)
 
     def process_element(self, input_row: Row):
@@ -416,8 +447,9 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
             return epoch_mills
         else:
             timezone = pytz.timezone(self._shift_timezone)
-            local_date_time = datetime.datetime.fromtimestamp(epoch_mills / 1000., timezone)\
-                .replace(tzinfo=None)
+            local_date_time = datetime.datetime.fromtimestamp(
+                epoch_mills / 1000.0, timezone
+            ).replace(tzinfo=None)
             epoch = datetime.datetime.utcfromtimestamp(0)
             return int((local_date_time - epoch).total_seconds() * 1000.0)
 
@@ -450,20 +482,29 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
 
 
 class GroupWindowAggFunction(GroupWindowAggFunctionBase[K, W]):
-
-    def __init__(self,
-                 allowed_lateness: int,
-                 key_selector: RowKeySelector,
-                 state_backend,
-                 state_value_coder,
-                 window_assigner: WindowAssigner[W],
-                 window_aggregator: NamespaceAggsHandleFunction[W],
-                 trigger: Trigger[W],
-                 rowtime_index: int,
-                 shift_timezone: str):
+    def __init__(
+        self,
+        allowed_lateness: int,
+        key_selector: RowKeySelector,
+        state_backend,
+        state_value_coder,
+        window_assigner: WindowAssigner[W],
+        window_aggregator: NamespaceAggsHandleFunction[W],
+        trigger: Trigger[W],
+        rowtime_index: int,
+        shift_timezone: str,
+    ):
         super(GroupWindowAggFunction, self).__init__(
-            allowed_lateness, key_selector, state_backend, state_value_coder, window_assigner,
-            window_aggregator, trigger, rowtime_index, shift_timezone)
+            allowed_lateness,
+            key_selector,
+            state_backend,
+            state_value_coder,
+            window_assigner,
+            window_aggregator,
+            trigger,
+            rowtime_index,
+            shift_timezone,
+        )
         self._window_aggregator = window_aggregator
 
     def _emit_window_result(self, key: List, window: W):

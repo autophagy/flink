@@ -21,10 +21,7 @@ from pyflink.datastream.connectors import Source
 from pyflink.java_gateway import get_gateway
 
 
-__all__ = [
-    'HybridSource',
-    'HybridSourceBuilder'
-]
+__all__ = ["HybridSource", "HybridSourceBuilder"]
 
 
 class HybridSource(Source):
@@ -53,19 +50,18 @@ class HybridSource(Source):
         super(HybridSource, self).__init__(j_hybrid_source)
 
     @staticmethod
-    def builder(first_source: Source) -> 'HybridSourceBuilder':
+    def builder(first_source: Source) -> "HybridSourceBuilder":
         JHybridSource = get_gateway().jvm.org.apache.flink.connector.base.source.hybrid.HybridSource
         return HybridSourceBuilder(JHybridSource.builder(first_source.get_java_function()))
 
 
 class HybridSourceBuilder(object):
-
     def __init__(self, j_hybrid_source_builder):
         self._j_hybrid_source_builder = j_hybrid_source_builder
 
-    def add_source(self, source: Source) -> 'HybridSourceBuilder':
+    def add_source(self, source: Source) -> "HybridSourceBuilder":
         self._j_hybrid_source_builder.addSource(source.get_java_function())
         return self
 
-    def build(self) -> 'HybridSource':
+    def build(self) -> "HybridSource":
         return HybridSource(self._j_hybrid_source_builder.build())

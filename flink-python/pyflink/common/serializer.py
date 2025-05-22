@@ -20,9 +20,9 @@ from abc import abstractmethod, ABC
 from io import BytesIO
 from typing import TypeVar, Generic
 
-T = TypeVar('T')
+T = TypeVar("T")
 
-__all__ = ['TypeSerializer']
+__all__ = ["TypeSerializer"]
 
 
 class TypeSerializer(ABC, Generic[T]):
@@ -67,7 +67,6 @@ class TypeSerializer(ABC, Generic[T]):
                 return CoderAdapterIml()
 
         class CoderAdapterIml(object):
-
             def encode_nested(self, element):
                 bytes_io = BytesIO()
                 serialize_func(element, bytes_io)
@@ -80,11 +79,10 @@ class TypeSerializer(ABC, Generic[T]):
         return CoderAdapter()
 
 
-void = b''
+void = b""
 
 
 class VoidNamespaceSerializer(TypeSerializer[bytes]):
-
     def serialize(self, element: bytes, stream: BytesIO) -> None:
         pass
 

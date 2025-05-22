@@ -19,10 +19,7 @@ from pyflink.common import SerializationSchema, TypeInformation, typeinfo, Deser
 from pyflink.java_gateway import get_gateway
 
 
-__all__ = [
-    'JsonRowDeserializationSchema',
-    'JsonRowSerializationSchema'
-]
+__all__ = ["JsonRowDeserializationSchema", "JsonRowSerializationSchema"]
 
 
 class JsonRowDeserializationSchema(DeserializationSchema):
@@ -33,6 +30,7 @@ class JsonRowDeserializationSchema(DeserializationSchema):
 
     Failures during deserialization are forwarded as wrapped IOExceptions.
     """
+
     def __init__(self, j_deserialization_schema):
         super(JsonRowDeserializationSchema, self).__init__(j_deserialization_schema)
 
@@ -71,8 +69,11 @@ class JsonRowDeserializationSchema(DeserializationSchema):
             """
             if json_schema is None:
                 raise TypeError("The json_schema must not be None.")
-            j_type_info = get_gateway().jvm \
-                .org.apache.flink.formats.json.JsonRowSchemaConverter.convert(json_schema)
+            j_type_info = (
+                get_gateway().jvm.org.apache.flink.formats.json.JsonRowSchemaConverter.convert(
+                    json_schema
+                )
+            )
             self._type_info = typeinfo._from_java_type(j_type_info)
             return self
 
@@ -93,8 +94,9 @@ class JsonRowDeserializationSchema(DeserializationSchema):
             return self
 
         def build(self):
-            JBuilder = get_gateway().jvm.org.apache.flink.formats.json.JsonRowDeserializationSchema\
-                .Builder
+            JBuilder = (
+                get_gateway().jvm.org.apache.flink.formats.json.JsonRowDeserializationSchema.Builder
+            )
             j_builder = JBuilder(self._type_info.get_java_type_info())
 
             if self._fail_on_missing_field:
@@ -126,6 +128,7 @@ class JsonRowSerializationSchema(SerializationSchema):
         """
         Builder for JsonRowSerializationSchema.
         """
+
         def __init__(self):
             self._type_info = None
 
@@ -143,8 +146,9 @@ class JsonRowSerializationSchema(SerializationSchema):
             if self._type_info is None:
                 raise TypeError("Typeinfo should be set.")
 
-            j_builder = get_gateway().jvm \
-                .org.apache.flink.formats.json.JsonRowSerializationSchema.builder()
+            j_builder = (
+                get_gateway().jvm.org.apache.flink.formats.json.JsonRowSerializationSchema.builder()
+            )
 
             j_schema = j_builder.withTypeInfo(self._type_info.get_java_type_info()).build()
             return JsonRowSerializationSchema(j_serialization_schema=j_schema)

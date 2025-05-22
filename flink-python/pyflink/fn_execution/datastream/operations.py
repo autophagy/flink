@@ -22,7 +22,6 @@ DATA_STREAM_STATEFUL_FUNCTION_URN = "flink:transform:ds:stateful_function:v1"
 
 
 class Operation(ABC):
-
     def open(self) -> None:
         pass
 
@@ -31,7 +30,6 @@ class Operation(ABC):
 
 
 class OneInputOperation(ABC):
-
     def process_element(self, value):
         raise NotImplementedError
 

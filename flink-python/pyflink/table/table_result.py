@@ -29,7 +29,7 @@ from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import _from_java_data_type
 from pyflink.table.utils import pickled_bytes_to_python_converter
 
-__all__ = ['TableResult', 'CloseableIterator']
+__all__ = ["TableResult", "CloseableIterator"]
 
 
 class TableResult(object):
@@ -118,7 +118,7 @@ class TableResult(object):
         """
         return ResultKind._from_j_result_kind(self._j_table_result.getResultKind())
 
-    def collect(self) -> 'CloseableIterator':
+    def collect(self) -> "CloseableIterator":
         """
         Get the result contents as a closeable row iterator.
 
@@ -189,11 +189,14 @@ class CloseableIterator(object):
     """
     Representing an Iterator that is also auto closeable.
     """
+
     def __init__(self, j_closeable_iterator, field_data_types):
         self._j_closeable_iterator = j_closeable_iterator
         self._j_field_data_types = field_data_types
-        self._data_types = [_from_java_data_type(j_field_data_type)
-                            for j_field_data_type in self._j_field_data_types]
+        self._data_types = [
+            _from_java_data_type(j_field_data_type)
+            for j_field_data_type in self._j_field_data_types
+        ]
 
     def __iter__(self):
         return self
@@ -202,10 +205,10 @@ class CloseableIterator(object):
         if not self._j_closeable_iterator.hasNext():
             raise StopIteration("No more data.")
         gateway = get_gateway()
-        pickle_bytes = gateway.jvm.PythonBridgeUtils. \
-            getPickledBytesFromRow(self._j_closeable_iterator.next(),
-                                   self._j_field_data_types)
-        row_kind = RowKind(int.from_bytes(pickle_bytes[0], byteorder='big', signed=False))
+        pickle_bytes = gateway.jvm.PythonBridgeUtils.getPickledBytesFromRow(
+            self._j_closeable_iterator.next(), self._j_field_data_types
+        )
+        row_kind = RowKind(int.from_bytes(pickle_bytes[0], byteorder="big", signed=False))
         pickle_bytes = list(pickle_bytes[1:])
         field_data = zip(pickle_bytes, self._data_types)
         fields = []

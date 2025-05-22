@@ -17,7 +17,7 @@
 ################################################################################
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['HiveModule', 'Module', 'ModuleEntry']
+__all__ = ["HiveModule", "Module", "ModuleEntry"]
 
 
 class Module(object):

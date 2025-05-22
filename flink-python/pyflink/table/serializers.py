@@ -42,6 +42,7 @@ class ArrowSerializer(IterableSerializer):
                 batch = pandas_to_arrow(self._schema, self._timezone, self._field_types, cols)
                 if writer is None:
                     import pyarrow as pa
+
                     writer = pa.RecordBatchStreamWriter(stream, batch.schema)
                 writer.write_batch(batch)
         finally:
@@ -50,6 +51,7 @@ class ArrowSerializer(IterableSerializer):
 
     def deserialize(self, stream):
         import pyarrow as pa
+
         reader = pa.ipc.open_stream(stream)
         for batch in reader:
             yield arrow_to_pandas(self._timezone, self._field_types, [batch])
@@ -70,10 +72,13 @@ class ArrowSerializer(IterableSerializer):
                 if input is None:
                     return 0
                 output, self.leftover = input[:output_buffer_len], input[output_buffer_len:]
-                b[:len(output)] = output
+                b[: len(output)] = output
                 return len(output)
+
         import pyarrow as pa
+
         reader = pa.ipc.open_stream(
-            io.BufferedReader(IteratorIO(iter), buffer_size=io.DEFAULT_BUFFER_SIZE))
+            io.BufferedReader(IteratorIO(iter), buffer_size=io.DEFAULT_BUFFER_SIZE)
+        )
         for batch in reader:
             yield batch

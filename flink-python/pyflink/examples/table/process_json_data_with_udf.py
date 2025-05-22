@@ -19,8 +19,7 @@ import json
 import logging
 import sys
 
-from pyflink.table import (EnvironmentSettings, TableEnvironment, DataTypes, TableDescriptor,
-                           Schema)
+from pyflink.table import EnvironmentSettings, TableEnvironment, DataTypes, TableDescriptor, Schema
 from pyflink.table.expressions import col
 from pyflink.table.udf import udf
 
@@ -34,38 +33,41 @@ def process_json_data_with_udf():
             (1, '{"name": "Flink", "tel": 123, "addr": {"country": "Germany", "city": "Berlin"}}'),
             (2, '{"name": "hello", "tel": 135, "addr": {"country": "China", "city": "Shanghai"}}'),
             (3, '{"name": "world", "tel": 124, "addr": {"country": "USA", "city": "NewYork"}}'),
-            (4, '{"name": "PyFlink", "tel": 32, "addr": {"country": "China", "city": "Hangzhou"}}')
+            (4, '{"name": "PyFlink", "tel": 32, "addr": {"country": "China", "city": "Hangzhou"}}'),
         ],
-        schema=['id', 'data'])
+        schema=["id", "data"],
+    )
 
     # define the sink
     t_env.create_temporary_table(
-        'sink',
-        TableDescriptor.for_connector('print')
-                       .schema(Schema.new_builder()
-                               .column('id', DataTypes.BIGINT())
-                               .column('data', DataTypes.STRING())
-                               .build())
-                       .build())
+        "sink",
+        TableDescriptor.for_connector("print")
+        .schema(
+            Schema.new_builder()
+            .column("id", DataTypes.BIGINT())
+            .column("data", DataTypes.STRING())
+            .build()
+        )
+        .build(),
+    )
 
     # update json columns
     @udf(result_type=DataTypes.STRING())
     def update_tel(data):
         json_data = json.loads(data)
-        json_data['tel'] += 1
+        json_data["tel"] += 1
         return json.dumps(json_data)
 
-    table = table.select(col('id'), update_tel(col('data')))
+    table = table.select(col("id"), update_tel(col("data")))
 
     # execute
-    table.execute_insert('sink') \
-         .wait()
+    table.execute_insert("sink").wait()
     # remove .wait if submitting to a remote cluster, refer to
     # https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/faq/#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster
     # for more details
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
     process_json_data_with_udf()

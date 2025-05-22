@@ -45,7 +45,8 @@ def on_windows():
 
 def read_from_config(key, default_value, flink_conf_directory):
     from ruamel.yaml import YAML
-    yaml = YAML(typ='safe')
+
+    yaml = YAML(typ="safe")
     config_file = os.path.join(flink_conf_directory, "config.yaml")
     if os.path.isfile(config_file):
         # If config.yaml exists, use YAML parser to read the value
@@ -57,9 +58,9 @@ def read_from_config(key, default_value, flink_conf_directory):
     return default_value
 
 
-def flatten_config(config, parent_key=''):
+def flatten_config(config, parent_key=""):
     items = []
-    sep = '.'
+    sep = "."
     for k, v in config.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
         if isinstance(v, dict):
@@ -91,29 +92,29 @@ def prepare_environment_variables(env):
     # of critical or sensitive files.
     real_flink_home = os.path.realpath(flink_home)
 
-    if 'FLINK_CONF_DIR' in env:
-        flink_conf_directory = os.path.realpath(env['FLINK_CONF_DIR'])
+    if "FLINK_CONF_DIR" in env:
+        flink_conf_directory = os.path.realpath(env["FLINK_CONF_DIR"])
     else:
         flink_conf_directory = os.path.join(real_flink_home, "conf")
-    env['FLINK_CONF_DIR'] = flink_conf_directory
+    env["FLINK_CONF_DIR"] = flink_conf_directory
 
-    if 'FLINK_LIB_DIR' in env:
-        flink_lib_directory = os.path.realpath(env['FLINK_LIB_DIR'])
+    if "FLINK_LIB_DIR" in env:
+        flink_lib_directory = os.path.realpath(env["FLINK_LIB_DIR"])
     else:
         flink_lib_directory = os.path.join(real_flink_home, "lib")
-    env['FLINK_LIB_DIR'] = flink_lib_directory
+    env["FLINK_LIB_DIR"] = flink_lib_directory
 
-    if 'FLINK_OPT_DIR' in env:
-        flink_opt_directory = os.path.realpath(env['FLINK_OPT_DIR'])
+    if "FLINK_OPT_DIR" in env:
+        flink_opt_directory = os.path.realpath(env["FLINK_OPT_DIR"])
     else:
         flink_opt_directory = os.path.join(real_flink_home, "opt")
-    env['FLINK_OPT_DIR'] = flink_opt_directory
+    env["FLINK_OPT_DIR"] = flink_opt_directory
 
-    if 'FLINK_PLUGINS_DIR' in env:
-        flink_plugins_directory = os.path.realpath(env['FLINK_PLUGINS_DIR'])
+    if "FLINK_PLUGINS_DIR" in env:
+        flink_plugins_directory = os.path.realpath(env["FLINK_PLUGINS_DIR"])
     else:
         flink_plugins_directory = os.path.join(real_flink_home, "plugins")
-    env['FLINK_PLUGINS_DIR'] = flink_plugins_directory
+    env["FLINK_PLUGINS_DIR"] = flink_plugins_directory
 
     env["FLINK_BIN_DIR"] = os.path.join(real_flink_home, "bin")
 
@@ -123,17 +124,18 @@ def construct_log_settings(env):
         "-Dlog.file=${flink_log_dir}/flink-${flink_ident_string}-python-${hostname}.log",
         "-Dlog4j.configuration=${log4j_properties}",
         "-Dlog4j.configurationFile=${log4j_properties}",
-        "-Dlogback.configurationFile=${logback_xml}"
+        "-Dlogback.configurationFile=${logback_xml}",
     ]
 
     flink_home = os.path.realpath(_find_flink_home())
-    flink_conf_dir = env['FLINK_CONF_DIR']
+    flink_conf_dir = env["FLINK_CONF_DIR"]
 
     if "FLINK_LOG_DIR" in env:
         flink_log_dir = env["FLINK_LOG_DIR"]
     else:
         flink_log_dir = read_from_config(
-            KEY_ENV_LOG_DIR, os.path.join(flink_home, "log"), env['FLINK_CONF_DIR'])
+            KEY_ENV_LOG_DIR, os.path.join(flink_home, "log"), env["FLINK_CONF_DIR"]
+        )
 
     if "LOG4J_PROPERTIES" in env:
         log4j_properties = env["LOG4J_PROPERTIES"]
@@ -153,23 +155,27 @@ def construct_log_settings(env):
     hostname = socket.gethostname()
     log_settings = []
     for template in templates:
-        log_settings.append(Template(template).substitute(
-            log4j_properties=log4j_properties,
-            logback_xml=logback_xml,
-            flink_log_dir=flink_log_dir,
-            flink_ident_string=flink_ident_string,
-            hostname=hostname))
+        log_settings.append(
+            Template(template).substitute(
+                log4j_properties=log4j_properties,
+                logback_xml=logback_xml,
+                flink_log_dir=flink_log_dir,
+                flink_ident_string=flink_ident_string,
+                hostname=hostname,
+            )
+        )
     return log_settings
 
 
 def get_jvm_opts(env):
     jvm_opts = env.get("FLINK_ENV_JAVA_OPTS")
     if jvm_opts is None:
-        default_jvm_opts = read_from_config(KEY_ENV_JAVA_DEFAULT_OPTS, "", env['FLINK_CONF_DIR'])
+        default_jvm_opts = read_from_config(KEY_ENV_JAVA_DEFAULT_OPTS, "", env["FLINK_CONF_DIR"])
         extra_jvm_opts = read_from_config(
             KEY_ENV_JAVA_OPTS,
-            read_from_config(KEY_ENV_JAVA_OPTS_DEPRECATED, "", env['FLINK_CONF_DIR']),
-            env['FLINK_CONF_DIR'])
+            read_from_config(KEY_ENV_JAVA_OPTS_DEPRECATED, "", env["FLINK_CONF_DIR"]),
+            env["FLINK_CONF_DIR"],
+        )
         jvm_opts = default_jvm_opts + " " + extra_jvm_opts
 
     # Remove leading and trailing double quotes (if present) of value
@@ -179,8 +185,8 @@ def get_jvm_opts(env):
 
 def construct_flink_classpath(env):
     flink_home = _find_flink_home()
-    flink_lib_directory = env['FLINK_LIB_DIR']
-    flink_opt_directory = env['FLINK_OPT_DIR']
+    flink_lib_directory = env["FLINK_LIB_DIR"]
+    flink_opt_directory = env["FLINK_OPT_DIR"]
 
     if on_windows():
         # The command length is limited on Windows. To avoid the problem we should shorten the
@@ -191,8 +197,9 @@ def construct_flink_classpath(env):
 
     flink_python_jars = glob.glob(os.path.join(flink_opt_directory, "flink-python*.jar"))
     if len(flink_python_jars) < 1:
-        print("The flink-python jar is not found in the opt folder of the FLINK_HOME: %s" %
-              flink_home)
+        print(
+            "The flink-python jar is not found in the opt folder of the FLINK_HOME: %s" % flink_home
+        )
         return lib_jars
     flink_python_jar = flink_python_jars[0]
 
@@ -201,26 +208,36 @@ def construct_flink_classpath(env):
 
 def construct_hadoop_classpath(env):
     hadoop_conf_dir = ""
-    if 'HADOOP_CONF_DIR' not in env and 'HADOOP_CLASSPATH' not in env:
+    if "HADOOP_CONF_DIR" not in env and "HADOOP_CLASSPATH" not in env:
         if os.path.isdir("/etc/hadoop/conf"):
-            print("Setting HADOOP_CONF_DIR=/etc/hadoop/conf because no HADOOP_CONF_DIR or"
-                  "HADOOP_CLASSPATH was set.")
+            print(
+                "Setting HADOOP_CONF_DIR=/etc/hadoop/conf because no HADOOP_CONF_DIR or"
+                "HADOOP_CLASSPATH was set."
+            )
             hadoop_conf_dir = "/etc/hadoop/conf"
 
     hbase_conf_dir = ""
-    if 'HBASE_CONF_DIR' not in env:
+    if "HBASE_CONF_DIR" not in env:
         if os.path.isdir("/etc/hbase/conf"):
             print("Setting HBASE_CONF_DIR=/etc/hbase/conf because no HBASE_CONF_DIR was set.")
             hbase_conf_dir = "/etc/hbase/conf"
 
     return os.pathsep.join(
-        [env.get("HADOOP_CLASSPATH", ""),
-         env.get("YARN_CONF_DIR",
-                 read_from_config(KEY_ENV_YARN_CONF_DIR, "", env['FLINK_CONF_DIR'])),
-         env.get("HADOOP_CONF_DIR",
-                 read_from_config(KEY_ENV_HADOOP_CONF_DIR, hadoop_conf_dir, env['FLINK_CONF_DIR'])),
-         env.get("HBASE_CONF_DIR",
-                 read_from_config(KEY_ENV_HBASE_CONF_DIR, hbase_conf_dir, env['FLINK_CONF_DIR']))])
+        [
+            env.get("HADOOP_CLASSPATH", ""),
+            env.get(
+                "YARN_CONF_DIR", read_from_config(KEY_ENV_YARN_CONF_DIR, "", env["FLINK_CONF_DIR"])
+            ),
+            env.get(
+                "HADOOP_CONF_DIR",
+                read_from_config(KEY_ENV_HADOOP_CONF_DIR, hadoop_conf_dir, env["FLINK_CONF_DIR"]),
+            ),
+            env.get(
+                "HBASE_CONF_DIR",
+                read_from_config(KEY_ENV_HBASE_CONF_DIR, hbase_conf_dir, env["FLINK_CONF_DIR"]),
+            ),
+        ]
+    )
 
 
 def construct_test_classpath(env):
@@ -232,8 +249,8 @@ def construct_test_classpath(env):
     test_jars = []
 
     # Connector tests need to add specific jars to the gateway classpath
-    if 'FLINK_TEST_LIBS' in env:
-        test_jars += glob.glob(env['FLINK_TEST_LIBS'])
+    if "FLINK_TEST_LIBS" in env:
+        test_jars += glob.glob(env["FLINK_TEST_LIBS"])
     else:
         flink_source_root = _find_flink_source_root()
         for pattern in test_jar_patterns:
@@ -249,9 +266,9 @@ def construct_program_args(args):
     parse_result, other_args = parser.parse_known_args(args)
     main_class = getattr(parse_result, "class")
     cluster_type = parse_result.cluster_type
-    return namedtuple(
-        "ProgramArgs", ["main_class", "cluster_type", "other_args"])(
-        main_class, cluster_type, other_args)
+    return namedtuple("ProgramArgs", ["main_class", "cluster_type", "other_args"])(
+        main_class, cluster_type, other_args
+    )
 
 
 def launch_gateway_server_process(env, args):
@@ -260,10 +277,11 @@ def launch_gateway_server_process(env, args):
     if program_args.cluster_type == "local":
         java_executable = find_java_executable()
         log_settings = construct_log_settings(env)
-        jvm_args = env.get('JVM_ARGS', '').split()
+        jvm_args = env.get("JVM_ARGS", "").split()
         jvm_opts = get_jvm_opts(env)
         classpath = os.pathsep.join(
-            [construct_flink_classpath(env), construct_hadoop_classpath(env)])
+            [construct_flink_classpath(env), construct_hadoop_classpath(env)]
+        )
         if "FLINK_TESTING" in env:
             classpath = os.pathsep.join([classpath, construct_test_classpath(env)])
         command = [
@@ -288,12 +306,19 @@ def launch_gateway_server_process(env, args):
         ]
     preexec_fn = None
     if not on_windows():
+
         def preexec_func():
             # ignore ctrl-c / SIGINT
             signal.signal(signal.SIGINT, signal.SIG_IGN)
+
         preexec_fn = preexec_func
-    return Popen(list(filter(lambda c: len(c) != 0, command)),
-                 stdin=PIPE, stderr=PIPE, preexec_fn=preexec_fn, env=env)
+    return Popen(
+        list(filter(lambda c: len(c) != 0, command)),
+        stdin=PIPE,
+        stderr=PIPE,
+        preexec_fn=preexec_fn,
+        env=env,
+    )
 
 
 if __name__ == "__main__":

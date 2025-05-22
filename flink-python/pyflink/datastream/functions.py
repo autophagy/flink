@@ -20,53 +20,63 @@ from abc import ABC, abstractmethod
 from py4j.java_gateway import JavaObject
 from typing import Union, Any, Generic, TypeVar, Iterable
 
-from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
-    ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
-    AggregatingStateDescriptor, AggregatingState, BroadcastState, ReadOnlyBroadcastState
+from pyflink.datastream.state import (
+    ValueState,
+    ValueStateDescriptor,
+    ListStateDescriptor,
+    ListState,
+    MapStateDescriptor,
+    MapState,
+    ReducingStateDescriptor,
+    ReducingState,
+    AggregatingStateDescriptor,
+    AggregatingState,
+    BroadcastState,
+    ReadOnlyBroadcastState,
+)
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.timerservice import TimerService
 from pyflink.java_gateway import get_gateway
 from pyflink.metrics import MetricGroup
 
 __all__ = [
-    'RuntimeContext',
-    'MapFunction',
-    'CoMapFunction',
-    'FlatMapFunction',
-    'CoFlatMapFunction',
-    'ReduceFunction',
-    'AggregateFunction',
-    'KeySelector',
-    'FilterFunction',
-    'Partitioner',
-    'SourceFunction',
-    'SinkFunction',
-    'ProcessFunction',
-    'CoProcessFunction',
-    'KeyedProcessFunction',
-    'KeyedCoProcessFunction',
-    'TimerService',
-    'WindowFunction',
-    'AllWindowFunction',
-    'ProcessWindowFunction',
-    'ProcessAllWindowFunction',
-    'BaseBroadcastProcessFunction',
-    'BroadcastProcessFunction',
-    'KeyedBroadcastProcessFunction',
+    "RuntimeContext",
+    "MapFunction",
+    "CoMapFunction",
+    "FlatMapFunction",
+    "CoFlatMapFunction",
+    "ReduceFunction",
+    "AggregateFunction",
+    "KeySelector",
+    "FilterFunction",
+    "Partitioner",
+    "SourceFunction",
+    "SinkFunction",
+    "ProcessFunction",
+    "CoProcessFunction",
+    "KeyedProcessFunction",
+    "KeyedCoProcessFunction",
+    "TimerService",
+    "WindowFunction",
+    "AllWindowFunction",
+    "ProcessWindowFunction",
+    "ProcessAllWindowFunction",
+    "BaseBroadcastProcessFunction",
+    "BroadcastProcessFunction",
+    "KeyedBroadcastProcessFunction",
 ]
 
 
-W = TypeVar('W')
-W2 = TypeVar('W2')
-IN = TypeVar('IN')
-IN1 = TypeVar('IN1')
-IN2 = TypeVar('IN2')
-OUT = TypeVar('OUT')
-KEY = TypeVar('KEY')
+W = TypeVar("W")
+W2 = TypeVar("W2")
+IN = TypeVar("IN")
+IN1 = TypeVar("IN1")
+IN2 = TypeVar("IN2")
+OUT = TypeVar("OUT")
+KEY = TypeVar("KEY")
 
 
 class KeyedStateStore(ABC):
-
     @abstractmethod
     def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
         """
@@ -115,7 +125,8 @@ class KeyedStateStore(ABC):
 
     @abstractmethod
     def get_aggregating_state(
-            self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
+        self, state_descriptor: AggregatingStateDescriptor
+    ) -> AggregatingState:
         """
         Gets a handle to the system's key/value aggregating state. This state is similar to the
         state accessed via get_state(ValueStateDescriptor), but is optimized for state that
@@ -198,6 +209,7 @@ class Function(ABC):
     """
     The base class for all user-defined functions.
     """
+
     def open(self, runtime_context: RuntimeContext):
         pass
 
@@ -650,7 +662,7 @@ class ProcessFunction(Function):
             pass
 
     @abstractmethod
-    def process_element(self, value, ctx: 'ProcessFunction.Context'):
+    def process_element(self, value, ctx: "ProcessFunction.Context"):
         """
         Process one element from the input stream.
 
@@ -679,7 +691,6 @@ class KeyedProcessFunction(Function):
     """
 
     class Context(ABC):
-
         @abstractmethod
         def get_current_key(self):
             pass
@@ -701,7 +712,6 @@ class KeyedProcessFunction(Function):
             pass
 
     class OnTimerContext(Context):
-
         @abstractmethod
         def time_domain(self) -> TimeDomain:
             """
@@ -711,7 +721,7 @@ class KeyedProcessFunction(Function):
             pass
 
     @abstractmethod
-    def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
+    def process_element(self, value, ctx: "KeyedProcessFunction.Context"):
         """
         Process one element from the input stream.
 
@@ -725,7 +735,7 @@ class KeyedProcessFunction(Function):
         """
         pass
 
-    def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
+    def on_timer(self, timestamp: int, ctx: "KeyedProcessFunction.OnTimerContext"):
         """
         Called when a timer set using TimerService fires.
 
@@ -757,7 +767,6 @@ class CoProcessFunction(Function):
     """
 
     class Context(ABC):
-
         @abstractmethod
         def timer_service(self) -> TimerService:
             """
@@ -775,7 +784,7 @@ class CoProcessFunction(Function):
             pass
 
     @abstractmethod
-    def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
+    def process_element1(self, value, ctx: "CoProcessFunction.Context"):
         """
         This method is called for each element in the first of the connected streams.
 
@@ -790,7 +799,7 @@ class CoProcessFunction(Function):
         pass
 
     @abstractmethod
-    def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
+    def process_element2(self, value, ctx: "CoProcessFunction.Context"):
         """
         This method is called for each element in the second of the connected streams.
 
@@ -807,23 +816,22 @@ class CoProcessFunction(Function):
 
 class KeyedCoProcessFunction(Function):
     """
-A function that processes elements of two keyed streams and produces a single output one.
+    A function that processes elements of two keyed streams and produces a single output one.
 
-The function will be called for every element in the input streams and can produce zero or
-more output elements. Contrary to the :class:`CoFlatMapFunction`, this function can also query the
-time (both event and processing) and set timers, through the provided {@link Context}. When
-reacting to the firing of set timers the function can emit yet more elements.
+    The function will be called for every element in the input streams and can produce zero or
+    more output elements. Contrary to the :class:`CoFlatMapFunction`, this function can also query the
+    time (both event and processing) and set timers, through the provided {@link Context}. When
+    reacting to the firing of set timers the function can emit yet more elements.
 
-An example use-case for connected streams would be the application of a set of rules that
-change over time ({@code stream A}) to the elements contained in another stream (stream {@code
-B}). The rules contained in {@code stream A} can be stored in the state and wait for new elements
-to arrive on {@code stream B}. Upon reception of a new element on {@code stream B}, the function
-can now apply the previously stored rules to the element and directly emit a result, and/or
-register a timer that will trigger an action in the future.
+    An example use-case for connected streams would be the application of a set of rules that
+    change over time ({@code stream A}) to the elements contained in another stream (stream {@code
+    B}). The rules contained in {@code stream A} can be stored in the state and wait for new elements
+    to arrive on {@code stream B}. Upon reception of a new element on {@code stream B}, the function
+    can now apply the previously stored rules to the element and directly emit a result, and/or
+    register a timer that will trigger an action in the future.
     """
 
     class Context(ABC):
-
         @abstractmethod
         def get_current_key(self):
             pass
@@ -845,7 +853,6 @@ register a timer that will trigger an action in the future.
             pass
 
     class OnTimerContext(Context):
-
         @abstractmethod
         def time_domain(self) -> TimeDomain:
             """
@@ -855,7 +862,7 @@ register a timer that will trigger an action in the future.
             pass
 
     @abstractmethod
-    def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+    def process_element1(self, value, ctx: "KeyedCoProcessFunction.Context"):
         """
         Process one element from the input stream.
 
@@ -870,7 +877,7 @@ register a timer that will trigger an action in the future.
         pass
 
     @abstractmethod
-    def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+    def process_element2(self, value, ctx: "KeyedCoProcessFunction.Context"):
         """
         Process one element from the input stream.
 
@@ -884,7 +891,7 @@ register a timer that will trigger an action in the future.
         """
         pass
 
-    def on_timer(self, timestamp: int, ctx: 'KeyedCoProcessFunction.OnTimerContext'):
+    def on_timer(self, timestamp: int, ctx: "KeyedCoProcessFunction.OnTimerContext"):
         """
         Called when a timer set using TimerService fires.
 
@@ -983,10 +990,9 @@ class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
             pass
 
     @abstractmethod
-    def process(self,
-                key: KEY,
-                context: 'ProcessWindowFunction.Context',
-                elements: Iterable[IN]) -> Iterable[OUT]:
+    def process(
+        self, key: KEY, context: "ProcessWindowFunction.Context", elements: Iterable[IN]
+    ) -> Iterable[OUT]:
         """
         Evaluates the window and outputs none or several elements.
 
@@ -997,7 +1003,7 @@ class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
         """
         pass
 
-    def clear(self, context: 'ProcessWindowFunction.Context') -> None:
+    def clear(self, context: "ProcessWindowFunction.Context") -> None:
         """
         Deletes any state in the :class:`Context` when the Window expires (the watermark passes its
         max_timestamp + allowed_lateness).
@@ -1046,9 +1052,9 @@ class ProcessAllWindowFunction(Function, Generic[IN, OUT, W]):
             pass
 
     @abstractmethod
-    def process(self,
-                context: 'ProcessAllWindowFunction.Context',
-                elements: Iterable[IN]) -> Iterable[OUT]:
+    def process(
+        self, context: "ProcessAllWindowFunction.Context", elements: Iterable[IN]
+    ) -> Iterable[OUT]:
         """
         Evaluates the window and outputs none or several elements.
 
@@ -1058,7 +1064,7 @@ class ProcessAllWindowFunction(Function, Generic[IN, OUT, W]):
         """
         pass
 
-    def clear(self, context: 'ProcessAllWindowFunction.Context') -> None:
+    def clear(self, context: "ProcessAllWindowFunction.Context") -> None:
         """
         Deletes any state in the :class:`Context` when the Window expires (the watermark passes its
         max_timestamp + allowed_lateness).
@@ -1069,21 +1075,17 @@ class ProcessAllWindowFunction(Function, Generic[IN, OUT, W]):
 
 
 class PassThroughWindowFunction(WindowFunction[IN, IN, KEY, W]):
-
     def apply(self, key: KEY, window: W, inputs: Iterable[IN]) -> Iterable[IN]:
         yield from inputs
 
 
 class PassThroughAllWindowFunction(AllWindowFunction[IN, IN, W]):
-
     def apply(self, window: W, inputs: Iterable[IN]) -> Iterable[IN]:
         yield from inputs
 
 
 class InternalWindowFunction(Function, Generic[IN, OUT, KEY, W]):
-
     class InternalWindowContext(ABC):
-
         @abstractmethod
         def current_processing_time(self) -> int:
             pass
@@ -1101,11 +1103,9 @@ class InternalWindowFunction(Function, Generic[IN, OUT, KEY, W]):
             pass
 
     @abstractmethod
-    def process(self,
-                key: KEY,
-                window: W,
-                context: InternalWindowContext,
-                input_data: IN) -> Iterable[OUT]:
+    def process(
+        self, key: KEY, window: W, context: InternalWindowContext, input_data: IN
+    ) -> Iterable[OUT]:
         pass
 
     @abstractmethod
@@ -1114,7 +1114,6 @@ class InternalWindowFunction(Function, Generic[IN, OUT, KEY, W]):
 
 
 class InternalSingleValueWindowFunction(InternalWindowFunction[IN, OUT, KEY, W]):
-
     def __init__(self, wrapped_function: WindowFunction):
         self._wrapped_function = wrapped_function
 
@@ -1124,11 +1123,13 @@ class InternalSingleValueWindowFunction(InternalWindowFunction[IN, OUT, KEY, W])
     def close(self):
         self._wrapped_function.close()
 
-    def process(self,
-                key: KEY,
-                window: W,
-                context: InternalWindowFunction.InternalWindowContext,
-                input_data: IN) -> Iterable[OUT]:
+    def process(
+        self,
+        key: KEY,
+        window: W,
+        context: InternalWindowFunction.InternalWindowContext,
+        input_data: IN,
+    ) -> Iterable[OUT]:
         return self._wrapped_function.apply(key, window, [input_data])
 
     def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
@@ -1136,7 +1137,6 @@ class InternalSingleValueWindowFunction(InternalWindowFunction[IN, OUT, KEY, W])
 
 
 class InternalSingleValueAllWindowFunction(InternalWindowFunction[IN, OUT, int, W]):
-
     def __init__(self, wrapped_function: AllWindowFunction):
         self._wrapped_function = wrapped_function
 
@@ -1146,11 +1146,13 @@ class InternalSingleValueAllWindowFunction(InternalWindowFunction[IN, OUT, int, 
     def close(self):
         self._wrapped_function.close()
 
-    def process(self,
-                key: int,
-                window: W,
-                context: InternalWindowFunction.InternalWindowContext,
-                input_data: IN) -> Iterable[OUT]:
+    def process(
+        self,
+        key: int,
+        window: W,
+        context: InternalWindowFunction.InternalWindowContext,
+        input_data: IN,
+    ) -> Iterable[OUT]:
         return self._wrapped_function.apply(window, [input_data])
 
     def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
@@ -1158,7 +1160,6 @@ class InternalSingleValueAllWindowFunction(InternalWindowFunction[IN, OUT, int, 
 
 
 class InternalIterableWindowFunction(InternalWindowFunction[Iterable[IN], OUT, KEY, W]):
-
     def __init__(self, wrapped_function: WindowFunction):
         self._wrapped_function = wrapped_function
 
@@ -1168,21 +1169,20 @@ class InternalIterableWindowFunction(InternalWindowFunction[Iterable[IN], OUT, K
     def close(self):
         self._wrapped_function.close()
 
-    def process(self,
-                key: KEY,
-                window: W,
-                context: InternalWindowFunction.InternalWindowContext,
-                input_data: Iterable[IN]) -> Iterable[OUT]:
+    def process(
+        self,
+        key: KEY,
+        window: W,
+        context: InternalWindowFunction.InternalWindowContext,
+        input_data: Iterable[IN],
+    ) -> Iterable[OUT]:
         return self._wrapped_function.apply(key, window, input_data)
 
-    def clear(self,
-              window: W,
-              context: InternalWindowFunction.InternalWindowContext):
+    def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
         pass
 
 
 class InternalIterableAllWindowFunction(InternalWindowFunction[Iterable[IN], OUT, int, W]):
-
     def __init__(self, wrapped_function: AllWindowFunction):
         self._wrapped_function = wrapped_function
 
@@ -1192,21 +1192,20 @@ class InternalIterableAllWindowFunction(InternalWindowFunction[Iterable[IN], OUT
     def close(self):
         self._wrapped_function.close()
 
-    def process(self,
-                key: int,
-                window: W,
-                context: InternalWindowFunction.InternalWindowContext,
-                input_data: Iterable[IN]) -> Iterable[OUT]:
+    def process(
+        self,
+        key: int,
+        window: W,
+        context: InternalWindowFunction.InternalWindowContext,
+        input_data: Iterable[IN],
+    ) -> Iterable[OUT]:
         return self._wrapped_function.apply(window, input_data)
 
-    def clear(self,
-              window: W,
-              context: InternalWindowFunction.InternalWindowContext):
+    def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
         pass
 
 
 class InternalProcessWindowContext(ProcessWindowFunction.Context[W]):
-
     def __init__(self):
         self._underlying = None
         self._window = None
@@ -1228,7 +1227,6 @@ class InternalProcessWindowContext(ProcessWindowFunction.Context[W]):
 
 
 class InternalProcessAllWindowContext(ProcessAllWindowFunction.Context[W]):
-
     def __init__(self):
         self._underlying = None
         self._window = None
@@ -1244,11 +1242,9 @@ class InternalProcessAllWindowContext(ProcessAllWindowFunction.Context[W]):
 
 
 class InternalSingleValueProcessWindowFunction(InternalWindowFunction[IN, OUT, KEY, W]):
-
     def __init__(self, wrapped_function: ProcessWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context: InternalProcessWindowContext = \
-            InternalProcessWindowContext()
+        self._internal_context: InternalProcessWindowContext = InternalProcessWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)
@@ -1256,11 +1252,13 @@ class InternalSingleValueProcessWindowFunction(InternalWindowFunction[IN, OUT, K
     def close(self):
         self._wrapped_function.close()
 
-    def process(self,
-                key: KEY,
-                window: W,
-                context: InternalWindowFunction.InternalWindowContext,
-                input_data: IN) -> Iterable[OUT]:
+    def process(
+        self,
+        key: KEY,
+        window: W,
+        context: InternalWindowFunction.InternalWindowContext,
+        input_data: IN,
+    ) -> Iterable[OUT]:
         self._internal_context._window = window
         self._internal_context._underlying = context
         return self._wrapped_function.process(key, self._internal_context, [input_data])
@@ -1272,11 +1270,9 @@ class InternalSingleValueProcessWindowFunction(InternalWindowFunction[IN, OUT, K
 
 
 class InternalSingleValueProcessAllWindowFunction(InternalWindowFunction[IN, OUT, int, W]):
-
     def __init__(self, wrapped_function: ProcessAllWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context: InternalProcessAllWindowContext = \
-            InternalProcessAllWindowContext()
+        self._internal_context: InternalProcessAllWindowContext = InternalProcessAllWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)
@@ -1284,11 +1280,13 @@ class InternalSingleValueProcessAllWindowFunction(InternalWindowFunction[IN, OUT
     def close(self):
         self._wrapped_function.close()
 
-    def process(self,
-                key: int,
-                window: W,
-                context: InternalWindowFunction.InternalWindowContext,
-                input_data: IN) -> Iterable[OUT]:
+    def process(
+        self,
+        key: int,
+        window: W,
+        context: InternalWindowFunction.InternalWindowContext,
+        input_data: IN,
+    ) -> Iterable[OUT]:
         self._internal_context._window = window
         self._internal_context._underlying = context
         return self._wrapped_function.process(self._internal_context, [input_data])
@@ -1300,11 +1298,9 @@ class InternalSingleValueProcessAllWindowFunction(InternalWindowFunction[IN, OUT
 
 
 class InternalIterableProcessWindowFunction(InternalWindowFunction[Iterable[IN], OUT, KEY, W]):
-
     def __init__(self, wrapped_function: ProcessWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context: InternalProcessWindowContext = \
-            InternalProcessWindowContext()
+        self._internal_context: InternalProcessWindowContext = InternalProcessWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)
@@ -1312,11 +1308,13 @@ class InternalIterableProcessWindowFunction(InternalWindowFunction[Iterable[IN],
     def close(self):
         self._wrapped_function.close()
 
-    def process(self,
-                key: KEY,
-                window: W,
-                context: InternalWindowFunction.InternalWindowContext,
-                input_data: Iterable[IN]) -> Iterable[OUT]:
+    def process(
+        self,
+        key: KEY,
+        window: W,
+        context: InternalWindowFunction.InternalWindowContext,
+        input_data: Iterable[IN],
+    ) -> Iterable[OUT]:
         self._internal_context._window = window
         self._internal_context._underlying = context
         return self._wrapped_function.process(key, self._internal_context, input_data)
@@ -1426,6 +1424,7 @@ class BroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[IN1, IN2, O
         A :class:`BaseBroadcastProcessFunction.Context` available to the broadcast side of a
         :class:`BroadcastConnectedStream`.
         """
+
         pass
 
     class ReadOnlyContext(BaseBroadcastProcessFunction.ReadOnlyContext, ABC):
@@ -1433,6 +1432,7 @@ class BroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[IN1, IN2, O
         A :class:`BaseBroadcastProcessFunction.ReadOnlyContext` available to the non-keyed side of a
         :class:`BroadcastConnectedStream` (if any).
         """
+
         pass
 
     @abstractmethod
@@ -1499,6 +1499,7 @@ class KeyedBroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[KEY, I
 
         Currently, the function ``applyToKeyedState`` in Java is not supported in PyFlink.
         """
+
         pass
 
     class ReadOnlyContext(BaseBroadcastProcessFunction.ReadOnlyContext, ABC):
@@ -1597,11 +1598,9 @@ class KeyedBroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[KEY, I
 
 
 class InternalIterableProcessAllWindowFunction(InternalWindowFunction[Iterable[IN], OUT, int, W]):
-
     def __init__(self, wrapped_function: ProcessAllWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context: InternalProcessAllWindowContext = \
-            InternalProcessAllWindowContext()
+        self._internal_context: InternalProcessAllWindowContext = InternalProcessAllWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)
@@ -1609,11 +1608,13 @@ class InternalIterableProcessAllWindowFunction(InternalWindowFunction[Iterable[I
     def close(self):
         self._wrapped_function.close()
 
-    def process(self,
-                key: int,
-                window: W,
-                context: InternalWindowFunction.InternalWindowContext,
-                input_data: Iterable[IN]) -> Iterable[OUT]:
+    def process(
+        self,
+        key: int,
+        window: W,
+        context: InternalWindowFunction.InternalWindowContext,
+        input_data: Iterable[IN],
+    ) -> Iterable[OUT]:
         self._internal_context._window = window
         self._internal_context._underlying = context
         return self._wrapped_function.process(self._internal_context, input_data)

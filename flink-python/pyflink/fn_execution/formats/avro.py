@@ -26,14 +26,13 @@ from avro.io import (
     validate,
 )
 
-STRUCT_FLOAT = struct.Struct('>f')  # big-endian float
-STRUCT_DOUBLE = struct.Struct('>d')  # big-endian double
-STRUCT_INT = struct.Struct('>i')  # big-endian int
-STRUCT_LONG_LONG = struct.Struct('>q')  # big-endian long long
+STRUCT_FLOAT = struct.Struct(">f")  # big-endian float
+STRUCT_DOUBLE = struct.Struct(">d")  # big-endian double
+STRUCT_INT = struct.Struct(">i")  # big-endian int
+STRUCT_LONG_LONG = struct.Struct(">q")  # big-endian long long
 
 
 class FlinkAvroBufferWrapper(object):
-
     def __init__(self):
         self._stream = None
 
@@ -84,7 +83,7 @@ class FlinkAvroDecoder(BinaryDecoder):
 
     def read_bytes(self):
         nbytes = self.read_int()
-        assert (nbytes >= 0), nbytes
+        assert nbytes >= 0, nbytes
         return self.read(nbytes)
 
     def skip_int(self):
@@ -95,7 +94,7 @@ class FlinkAvroDecoder(BinaryDecoder):
 
     def skip_bytes(self):
         nbytes = self.read_int()
-        assert (nbytes >= 0), nbytes
+        assert nbytes >= 0, nbytes
         self.skip(nbytes)
 
 
@@ -108,19 +107,18 @@ class FlinkAvroDatumReader(DatumReader):
     def __init__(self, writer_schema=None, reader_schema=None):
         super().__init__(writer_schema, reader_schema)
 
-    def read_array(self, writer_schema, reader_schema, decoder: 'FlinkAvroDecoder'):
+    def read_array(self, writer_schema, reader_schema, decoder: "FlinkAvroDecoder"):
         read_items = []
         block_count = decoder.read_var_long()
         assert block_count >= 0
         if block_count == 0:
             return read_items
         for i in range(block_count):
-            read_items.append(self.read_data(writer_schema.items,
-                                             reader_schema.items, decoder))
+            read_items.append(self.read_data(writer_schema.items, reader_schema.items, decoder))
         decoder.read_var_long()
         return read_items
 
-    def skip_array(self, writer_schema, decoder: 'FlinkAvroDecoder'):
+    def skip_array(self, writer_schema, decoder: "FlinkAvroDecoder"):
         block_count = decoder.read_var_long()
         assert block_count >= 0
         if block_count == 0:
@@ -129,7 +127,7 @@ class FlinkAvroDatumReader(DatumReader):
             self.skip_data(writer_schema.items, decoder)
         decoder.read_var_long()
 
-    def read_map(self, writer_schema, reader_schema, decoder: 'FlinkAvroDecoder'):
+    def read_map(self, writer_schema, reader_schema, decoder: "FlinkAvroDecoder"):
         read_items = {}
         block_count = decoder.read_var_long()
         assert block_count >= 0
@@ -137,12 +135,11 @@ class FlinkAvroDatumReader(DatumReader):
             return read_items
         for i in range(block_count):
             key = decoder.read_utf8()
-            read_items[key] = self.read_data(writer_schema.values,
-                                             reader_schema.values, decoder)
+            read_items[key] = self.read_data(writer_schema.values, reader_schema.values, decoder)
         decoder.read_var_long()
         return read_items
 
-    def skip_map(self, writer_schema, decoder: 'FlinkAvroDecoder'):
+    def skip_map(self, writer_schema, decoder: "FlinkAvroDecoder"):
         block_count = decoder.read_var_long()
         assert block_count >= 0
         if block_count == 0:
@@ -152,11 +149,13 @@ class FlinkAvroDatumReader(DatumReader):
             self.skip_data(writer_schema.values, decoder)
         decoder.read_long()
 
-    def read_union(self, writer_schema, reader_schema, decoder: 'FlinkAvroDecoder'):
+    def read_union(self, writer_schema, reader_schema, decoder: "FlinkAvroDecoder"):
         index_of_schema = int(decoder.read_int())
         if index_of_schema >= len(writer_schema.schemas):
-            fail_msg = "Can't access branch index %d for union with %d branches" \
-                       % (index_of_schema, len(writer_schema.schemas))
+            fail_msg = "Can't access branch index %d for union with %d branches" % (
+                index_of_schema,
+                len(writer_schema.schemas),
+            )
             raise SchemaResolutionException(fail_msg, writer_schema, reader_schema)
         selected_writer_schema = writer_schema.schemas[index_of_schema]
 
@@ -165,14 +164,15 @@ class FlinkAvroDatumReader(DatumReader):
     def skip_union(self, writer_schema, decoder):
         index_of_schema = int(decoder.read_int())
         if index_of_schema >= len(writer_schema.schemas):
-            fail_msg = "Can't access branch index %d for union with %d branches" \
-                       % (index_of_schema, len(writer_schema.schemas))
+            fail_msg = "Can't access branch index %d for union with %d branches" % (
+                index_of_schema,
+                len(writer_schema.schemas),
+            )
             raise SchemaResolutionException(fail_msg, writer_schema)
         return self.skip_data(writer_schema.schemas[index_of_schema], decoder)
 
 
 class FlinkAvroEncoder(BinaryEncoder):
-
     def __init__(self, writer):
         super().__init__(writer)
 
@@ -184,9 +184,9 @@ class FlinkAvroEncoder(BinaryEncoder):
 
     def write_var_long(self, datum):
         while datum & 0x80 != 0:
-            self.write((datum & 0x80).to_bytes(1, 'big'))
+            self.write((datum & 0x80).to_bytes(1, "big"))
             datum <<= 7
-        self.write(datum.to_bytes(1, 'big'))
+        self.write(datum.to_bytes(1, "big"))
 
     def write_float(self, datum):
         self.write(STRUCT_FLOAT.pack(datum))
@@ -200,7 +200,6 @@ class FlinkAvroEncoder(BinaryEncoder):
 
 
 class FlinkAvroDatumWriter(DatumWriter):
-
     def __init__(self, writer_schema=None):
         super().__init__(writers_schema=writer_schema)
 

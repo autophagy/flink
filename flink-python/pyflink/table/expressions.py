@@ -24,16 +24,61 @@ from pyflink.table.types import _to_java_data_type, DataType
 from pyflink.table.udf import UserDefinedFunctionWrapper
 from pyflink.util.java_utils import to_jarray, load_java_class
 
-__all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOUNDED_ROW',
-           'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_database',
-           'current_date', 'current_time', 'current_timestamp',
-           'current_watermark', 'local_time', 'local_timestamp',
-           'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
-           'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
-           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json',
-           'json_string', 'json_object', 'json_object_agg', 'json_array', 'json_array_agg',
-           'call', 'call_sql', 'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date',
-           'to_timestamp', 'convert_tz', 'unix_timestamp']
+__all__ = [
+    "if_then_else",
+    "lit",
+    "col",
+    "range_",
+    "and_",
+    "or_",
+    "not_",
+    "UNBOUNDED_ROW",
+    "UNBOUNDED_RANGE",
+    "CURRENT_ROW",
+    "CURRENT_RANGE",
+    "current_database",
+    "current_date",
+    "current_time",
+    "current_timestamp",
+    "current_watermark",
+    "local_time",
+    "local_timestamp",
+    "temporal_overlaps",
+    "date_format",
+    "timestamp_diff",
+    "array",
+    "row",
+    "map_",
+    "row_interval",
+    "pi",
+    "e",
+    "rand",
+    "rand_integer",
+    "atan2",
+    "negative",
+    "concat",
+    "concat_ws",
+    "uuid",
+    "null_of",
+    "log",
+    "with_columns",
+    "without_columns",
+    "json",
+    "json_string",
+    "json_object",
+    "json_object_agg",
+    "json_array",
+    "json_array_agg",
+    "call",
+    "call_sql",
+    "source_watermark",
+    "to_timestamp_ltz",
+    "from_unixtime",
+    "to_date",
+    "to_timestamp",
+    "convert_tz",
+    "unix_timestamp",
+]
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -48,39 +93,47 @@ def _unary_op(op_name: str, arg) -> Expression:
 
 def _binary_op(op_name: str, first, second) -> Expression:
     gateway = get_gateway()
-    return Expression(getattr(gateway.jvm.Expressions, op_name)(
-        _get_java_expression(first),
-        _get_java_expression(second)))
+    return Expression(
+        getattr(gateway.jvm.Expressions, op_name)(
+            _get_java_expression(first), _get_java_expression(second)
+        )
+    )
 
 
 def _ternary_op(op_name: str, first, second, third) -> Expression:
     gateway = get_gateway()
-    return Expression(getattr(gateway.jvm.Expressions, op_name)(
-        _get_java_expression(first),
-        _get_java_expression(second),
-        _get_java_expression(third)))
+    return Expression(
+        getattr(gateway.jvm.Expressions, op_name)(
+            _get_java_expression(first), _get_java_expression(second), _get_java_expression(third)
+        )
+    )
 
 
 def _quaternion_op(op_name: str, first, second, third, forth) -> Expression:
     gateway = get_gateway()
-    return Expression(getattr(gateway.jvm.Expressions, op_name)(
-        _get_java_expression(first),
-        _get_java_expression(second),
-        _get_java_expression(third),
-        _get_java_expression(forth)))
+    return Expression(
+        getattr(gateway.jvm.Expressions, op_name)(
+            _get_java_expression(first),
+            _get_java_expression(second),
+            _get_java_expression(third),
+            _get_java_expression(forth),
+        )
+    )
 
 
 def _varargs_op(op_name: str, *args):
     gateway = get_gateway()
     return Expression(
-        getattr(gateway.jvm.Expressions, op_name)(*[_get_java_expression(arg) for arg in args]))
+        getattr(gateway.jvm.Expressions, op_name)(*[_get_java_expression(arg) for arg in args])
+    )
 
 
 def _add_version_doc():
     from inspect import getmembers, isfunction
     from pyflink.table import expressions
+
     for o in getmembers(expressions):
-        if isfunction(o[1]) and not o[0].startswith('_'):
+        if isfunction(o[1]) and not o[0].startswith("_"):
             add_version_doc(o[1], "1.12.0")
 
 
@@ -132,9 +185,11 @@ def range_(start: Union[str, int], end: Union[str, int]) -> Expression:
     return _binary_op("range", start, end)
 
 
-def and_(predicate0: Union[bool, Expression[bool]],
-         predicate1: Union[bool, Expression[bool]],
-         *predicates: Union[bool, Expression[bool]]) -> Expression[bool]:
+def and_(
+    predicate0: Union[bool, Expression[bool]],
+    predicate1: Union[bool, Expression[bool]],
+    *predicates: Union[bool, Expression[bool]],
+) -> Expression[bool]:
     """
     Boolean AND in three-valued logic.
     """
@@ -143,9 +198,11 @@ def and_(predicate0: Union[bool, Expression[bool]],
     return _ternary_op("and", predicate0, predicate1, predicates)
 
 
-def or_(predicate0: Union[bool, Expression[bool]],
-        predicate1: Union[bool, Expression[bool]],
-        *predicates: Union[bool, Expression[bool]]) -> Expression[bool]:
+def or_(
+    predicate0: Union[bool, Expression[bool]],
+    predicate1: Union[bool, Expression[bool]],
+    *predicates: Union[bool, Expression[bool]],
+) -> Expression[bool]:
     """
     Boolean OR in three-valued logic.
     """
@@ -275,8 +332,9 @@ def local_timestamp() -> Expression:
     return _leaf_op("localTimestamp")
 
 
-def to_date(date_str: Union[str, Expression[str]],
-            format: Union[str, Expression[str]] = None) -> Expression:
+def to_date(
+    date_str: Union[str, Expression[str]], format: Union[str, Expression[str]] = None
+) -> Expression:
     """
     Converts the date string with the given format (by default 'yyyy-MM-dd') to a date.
 
@@ -290,8 +348,9 @@ def to_date(date_str: Union[str, Expression[str]],
         return _binary_op("toDate", date_str, format)
 
 
-def to_timestamp(timestamp_str: Union[str, Expression[str]],
-                 format: Union[str, Expression[str]] = None) -> Expression:
+def to_timestamp(
+    timestamp_str: Union[str, Expression[str]], format: Union[str, Expression[str]] = None
+) -> Expression:
     """
     Converts the date time string with the given format (by default: 'yyyy-MM-dd HH:mm:ss')
     under the 'UTC+0' time zone to a timestamp.
@@ -349,10 +408,9 @@ def to_timestamp_ltz(*args) -> Expression:
         return _ternary_op("toTimestampLtz", lit(args[0]), lit(args[1]), lit(args[2]))
 
 
-def temporal_overlaps(left_time_point,
-                      left_temporal,
-                      right_time_point,
-                      right_temporal) -> Expression:
+def temporal_overlaps(
+    left_time_point, left_temporal, right_time_point, right_temporal
+) -> Expression:
     """
     Determines whether two anchored time intervals overlap. Time point and temporal are
     transformed into a range defined by two time points (start, end). The function
@@ -371,8 +429,9 @@ def temporal_overlaps(left_time_point,
     :param right_temporal: The time interval from the right time point
     :return: An expression which indicates whether two anchored time intervals overlap.
     """
-    return _quaternion_op("temporalOverlaps",
-                          left_time_point, left_temporal, right_time_point, right_temporal)
+    return _quaternion_op(
+        "temporalOverlaps", left_time_point, left_temporal, right_time_point, right_temporal
+    )
 
 
 def date_format(timestamp, format) -> Expression:
@@ -405,13 +464,16 @@ def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> 
     :param time_point2: The second point in time.
     :return: The number of intervals as integer value.
     """
-    return _ternary_op("timestampDiff", time_point_unit._to_j_time_point_unit(),
-                       time_point1, time_point2)
+    return _ternary_op(
+        "timestampDiff", time_point_unit._to_j_time_point_unit(), time_point1, time_point2
+    )
 
 
-def convert_tz(date_str: Union[str, Expression[str]],
-               tz_from: Union[str, Expression[str]],
-               tz_to: Union[str, Expression[str]]) -> Expression:
+def convert_tz(
+    date_str: Union[str, Expression[str]],
+    tz_from: Union[str, Expression[str]],
+    tz_to: Union[str, Expression[str]],
+) -> Expression:
     """
     Converts a datetime string date_str (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss')
     from time zone tz_from to time zone tz_to. The format of time zone should be either an
@@ -443,8 +505,9 @@ def from_unixtime(unixtime, format=None) -> Expression:
         return _binary_op("fromUnixtime", unixtime, format)
 
 
-def unix_timestamp(date_str: Union[str, Expression[str]] = None,
-                   format: Union[str, Expression[str]] = None) -> Expression:
+def unix_timestamp(
+    date_str: Union[str, Expression[str]] = None, format: Union[str, Expression[str]] = None
+) -> Expression:
     """
     Gets the current unix timestamp in seconds if no arguments are not specified.
     This function is not deterministic which means the value would be recalculated for each record.
@@ -578,8 +641,9 @@ def rand(seed: Union[int, Expression[int]] = None) -> Expression[float]:
         return _unary_op("rand", seed)
 
 
-def rand_integer(bound: Union[int, Expression[int]],
-                 seed: Union[int, Expression[int]] = None) -> Expression:
+def rand_integer(
+    bound: Union[int, Expression[int]], seed: Union[int, Expression[int]] = None
+) -> Expression:
     """
     Returns a pseudorandom integer value between 0 (inclusive) and the specified value
     (exclusive) with a initial seed if specified. Two rand_integer() functions will return
@@ -605,22 +669,26 @@ def negative(v) -> Expression:
     return _unary_op("negative", v)
 
 
-def concat(first: Union[str, Expression[str]],
-           *others: Union[str, Expression[str]]) -> Expression[str]:
+def concat(
+    first: Union[str, Expression[str]], *others: Union[str, Expression[str]]
+) -> Expression[str]:
     """
     Returns the string that results from concatenating the arguments.
     Returns NULL if any argument is NULL.
     """
     gateway = get_gateway()
-    return _binary_op("concat",
-                      first,
-                      to_jarray(gateway.jvm.Object,
-                                [_get_java_expression(other) for other in others]))
+    return _binary_op(
+        "concat",
+        first,
+        to_jarray(gateway.jvm.Object, [_get_java_expression(other) for other in others]),
+    )
 
 
-def concat_ws(separator: Union[str, Expression[str]],
-              first: Union[str, Expression[str]],
-              *others: Union[str, Expression[str]]) -> Expression[str]:
+def concat_ws(
+    separator: Union[str, Expression[str]],
+    first: Union[str, Expression[str]],
+    *others: Union[str, Expression[str]],
+) -> Expression[str]:
     """
     Returns the string that results from concatenating the arguments and separator.
     Returns NULL If the separator is NULL.
@@ -631,11 +699,12 @@ def concat_ws(separator: Union[str, Expression[str]],
         values after the separator argument.
     """
     gateway = get_gateway()
-    return _ternary_op("concatWs",
-                       separator,
-                       first,
-                       to_jarray(gateway.jvm.Object,
-                                 [_get_java_expression(other) for other in others]))
+    return _ternary_op(
+        "concatWs",
+        separator,
+        first,
+        to_jarray(gateway.jvm.Object, [_get_java_expression(other) for other in others]),
+    )
 
 
 def uuid() -> Expression[str]:
@@ -860,9 +929,9 @@ def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
     return _varargs_op("jsonObject", *(on_null._to_j_json_on_null(), *args))
 
 
-def json_object_agg(on_null: JsonOnNull,
-                    key_expr: Union[str, Expression[str]],
-                    value_expr) -> Expression:
+def json_object_agg(
+    on_null: JsonOnNull, key_expr: Union[str, Expression[str]], value_expr
+) -> Expression:
     """
     Builds a JSON object string by aggregating key-value expressions into a single JSON object.
 
@@ -986,23 +1055,33 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
     gateway = get_gateway()
 
     if isinstance(f, str):
-        return Expression(gateway.jvm.Expressions.call(
-            f, to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])))
+        return Expression(
+            gateway.jvm.Expressions.call(
+                f, to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
+            )
+        )
 
     expressions_clz = load_java_class("org.apache.flink.table.api.Expressions")
-    function_definition_clz = load_java_class('org.apache.flink.table.functions.FunctionDefinition')
+    function_definition_clz = load_java_class("org.apache.flink.table.functions.FunctionDefinition")
     j_object_array_type = to_jarray(gateway.jvm.Object, []).getClass()
 
     api_call_method = expressions_clz.getDeclaredMethod(
-        "apiCall",
-        to_jarray(gateway.jvm.Class, [function_definition_clz, j_object_array_type]))
+        "apiCall", to_jarray(gateway.jvm.Class, [function_definition_clz, j_object_array_type])
+    )
     api_call_method.setAccessible(True)
 
-    return Expression(api_call_method.invoke(
-        None,
-        to_jarray(gateway.jvm.Object,
-                  [f._java_user_defined_function(),
-                   to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])])))
+    return Expression(
+        api_call_method.invoke(
+            None,
+            to_jarray(
+                gateway.jvm.Object,
+                [
+                    f._java_user_defined_function(),
+                    to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args]),
+                ],
+            ),
+        )
+    )
 
 
 def call_sql(sql_expression: str) -> Expression:

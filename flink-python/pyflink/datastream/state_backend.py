@@ -26,11 +26,12 @@ from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import load_java_class
 
 __all__ = [
-    'StateBackend',
-    'HashMapStateBackend',
-    'EmbeddedRocksDBStateBackend',
-    'CustomStateBackend',
-    'PredefinedOptions']
+    "StateBackend",
+    "HashMapStateBackend",
+    "EmbeddedRocksDBStateBackend",
+    "CustomStateBackend",
+    "PredefinedOptions",
+]
 
 
 def _from_j_state_backend(j_state_backend):
@@ -39,8 +40,9 @@ def _from_j_state_backend(j_state_backend):
     gateway = get_gateway()
     JStateBackend = gateway.jvm.org.apache.flink.runtime.state.StateBackend
     JHashMapStateBackend = gateway.jvm.org.apache.flink.runtime.state.hashmap.HashMapStateBackend
-    JEmbeddedRocksDBStateBackend = gateway.jvm.org.apache.flink.state.rocksdb.\
-        EmbeddedRocksDBStateBackend
+    JEmbeddedRocksDBStateBackend = (
+        gateway.jvm.org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend
+    )
     j_clz = j_state_backend.getClass()
 
     if not get_java_class(JStateBackend).isAssignableFrom(j_clz):
@@ -150,8 +152,9 @@ class HashMapStateBackend(StateBackend):
         """
         if j_hashmap_state_backend is None:
             gateway = get_gateway()
-            JHashMapStateBackend = gateway.jvm.org.apache.flink.runtime.state.hashmap\
-                .HashMapStateBackend
+            JHashMapStateBackend = (
+                gateway.jvm.org.apache.flink.runtime.state.hashmap.HashMapStateBackend
+            )
 
             j_hashmap_state_backend = JHashMapStateBackend()
 
@@ -174,9 +177,9 @@ class EmbeddedRocksDBStateBackend(StateBackend):
     using the methods :func:`set_predefined_options` and :func:`set_options`.
     """
 
-    def __init__(self,
-                 enable_incremental_checkpointing=None,
-                 j_embedded_rocks_db_state_backend=None):
+    def __init__(
+        self, enable_incremental_checkpointing=None, j_embedded_rocks_db_state_backend=None
+    ):
         """
         Creates a new :class:`EmbeddedRocksDBStateBackend` for storing local state.
 
@@ -191,13 +194,16 @@ class EmbeddedRocksDBStateBackend(StateBackend):
         if j_embedded_rocks_db_state_backend is None:
             gateway = get_gateway()
             JTernaryBoolean = gateway.jvm.org.apache.flink.util.TernaryBoolean
-            JEmbeddedRocksDBStateBackend = gateway.jvm.org.apache.flink.state.rocksdb \
-                .EmbeddedRocksDBStateBackend
+            JEmbeddedRocksDBStateBackend = (
+                gateway.jvm.org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend
+            )
 
             if enable_incremental_checkpointing not in (None, True, False):
-                raise TypeError("Unsupported input for 'enable_incremental_checkpointing': %s, "
-                                "the value of the parameter should be None or"
-                                "True or False.")
+                raise TypeError(
+                    "Unsupported input for 'enable_incremental_checkpointing': %s, "
+                    "the value of the parameter should be None or"
+                    "True or False."
+                )
 
             if enable_incremental_checkpointing is None:
                 j_enable_incremental_checkpointing = JTernaryBoolean.UNDEFINED
@@ -206,8 +212,9 @@ class EmbeddedRocksDBStateBackend(StateBackend):
             else:
                 j_enable_incremental_checkpointing = JTernaryBoolean.FALSE
 
-            j_embedded_rocks_db_state_backend = \
-                JEmbeddedRocksDBStateBackend(j_enable_incremental_checkpointing)
+            j_embedded_rocks_db_state_backend = JEmbeddedRocksDBStateBackend(
+                j_enable_incremental_checkpointing
+            )
 
         super(EmbeddedRocksDBStateBackend, self).__init__(j_embedded_rocks_db_state_backend)
 
@@ -263,7 +270,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
         """
         return self._j_state_backend.isIncrementalCheckpointsEnabled()
 
-    def set_predefined_options(self, options: 'PredefinedOptions'):
+    def set_predefined_options(self, options: "PredefinedOptions"):
         """
         Sets the predefined options for RocksDB.
 
@@ -279,10 +286,9 @@ class EmbeddedRocksDBStateBackend(StateBackend):
 
         :param options: The options to set (must not be null), see :class:`PredefinedOptions`.
         """
-        self._j_state_backend\
-            .setPredefinedOptions(options._to_j_predefined_options())
+        self._j_state_backend.setPredefinedOptions(options._to_j_predefined_options())
 
-    def get_predefined_options(self) -> 'PredefinedOptions':
+    def get_predefined_options(self) -> "PredefinedOptions":
         """
         Gets the current predefined options for RocksDB.
         The default options (if nothing was set via :func:`setPredefinedOptions`)
@@ -320,8 +326,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
         j_options_factory_clz = load_java_class(options_factory_class_name)
         if not get_java_class(JOptionsFactory).isAssignableFrom(j_options_factory_clz):
             raise ValueError("The input class does not implement RocksDBOptionsFactory.")
-        self._j_state_backend\
-            .setRocksDBOptions(j_options_factory_clz.newInstance())
+        self._j_state_backend.setRocksDBOptions(j_options_factory_clz.newInstance())
 
     def get_options(self) -> Optional[str]:
         """
@@ -351,8 +356,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
         :param number_of_transfering_threads: The number of threads used to transfer files while
                                               snapshotting/restoring.
         """
-        self._j_state_backend\
-            .setNumberOfTransferThreads(number_of_transfering_threads)
+        self._j_state_backend.setNumberOfTransferThreads(number_of_transfering_threads)
 
     def __str__(self):
         return self._j_state_backend.toString()
@@ -437,13 +441,14 @@ class PredefinedOptions(Enum):
     - setMaxOpenFiles(-1)
 
     """
+
     DEFAULT = 0
     SPINNING_DISK_OPTIMIZED = 1
     SPINNING_DISK_OPTIMIZED_HIGH_MEM = 2
     FLASH_SSD_OPTIMIZED = 3
 
     @staticmethod
-    def _from_j_predefined_options(j_predefined_options) -> 'PredefinedOptions':
+    def _from_j_predefined_options(j_predefined_options) -> "PredefinedOptions":
         return PredefinedOptions[j_predefined_options.name()]
 
     def _to_j_predefined_options(self):

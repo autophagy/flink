@@ -25,6 +25,7 @@ class ExpressionCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase
     Tests whether the Python :class:`Expression` is consistent with
     Java `org.apache.flink.table.api.ApiExpression`.
     """
+
     @classmethod
     def python_class(cls):
         return Expression
@@ -36,41 +37,41 @@ class ExpressionCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase
     @classmethod
     def excluded_methods(cls):
         return {
-            'asSummaryString',
-            'accept',
-            'toExpr',
-            'getChildren',
-
+            "asSummaryString",
+            "accept",
+            "toExpr",
+            "getChildren",
             # The following methods have been replaced with the built-in methods in Python,
             # such as __and__ for and to be more Pythonic.
-            'and',
-            'or',
-            'not',
-            'isGreater',
-            'isGreaterOrEqual',
-            'isLess',
-            'isLessOrEqual',
-            'isEqual',
-            'isNotEqual',
-            'plus',
-            'minus',
-            'dividedBy',
-            'times',
-            'mod',
-            'power',
+            "and",
+            "or",
+            "not",
+            "isGreater",
+            "isGreaterOrEqual",
+            "isLess",
+            "isLessOrEqual",
+            "isEqual",
+            "isNotEqual",
+            "plus",
+            "minus",
+            "dividedBy",
+            "times",
+            "mod",
+            "power",
         }
 
     @classmethod
     def java_method_name(cls, python_method_name):
-        return {'alias': 'as', 'in_': 'in'}.get(python_method_name, python_method_name)
+        return {"alias": "as", "in_": "in"}.get(python_method_name, python_method_name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

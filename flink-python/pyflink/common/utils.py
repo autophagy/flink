@@ -16,8 +16,8 @@
 # limitations under the License.
 ################################################################################
 
-class JavaObjectWrapper(object):
 
+class JavaObjectWrapper(object):
     def __init__(self, j_object):
         self._j_object = j_object
 

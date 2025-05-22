@@ -19,15 +19,20 @@ from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List, Iterable
 
 from pyflink.common.constants import MAX_LONG_VALUE
-from pyflink.datastream.state import StateDescriptor, State, ValueStateDescriptor, \
-    ListStateDescriptor, MapStateDescriptor
+from pyflink.datastream.state import (
+    StateDescriptor,
+    State,
+    ValueStateDescriptor,
+    ListStateDescriptor,
+    MapStateDescriptor,
+)
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.fn_execution.datastream.process.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
 from pyflink.fn_execution.internal_state import InternalMergingState
 
-K = TypeVar('K')
-W = TypeVar('W', TimeWindow, CountWindow)
+K = TypeVar("K")
+W = TypeVar("W", TimeWindow, CountWindow)
 
 
 class Context(Generic[K, W], ABC):
@@ -111,13 +116,15 @@ class WindowContext(Context[K, W]):
     Context of window.
     """
 
-    def __init__(self,
-                 window_operator,
-                 trigger_context: 'TriggerContext',
-                 state_backend,
-                 state_value_coder,
-                 timer_service: LegacyInternalTimerServiceImpl,
-                 is_event_time: bool):
+    def __init__(
+        self,
+        window_operator,
+        trigger_context: "TriggerContext",
+        state_backend,
+        state_value_coder,
+        timer_service: LegacyInternalTimerServiceImpl,
+        is_event_time: bool,
+    ):
         self._window_operator = window_operator
         self._trigger_context = trigger_context
         self._state_backend = state_backend
@@ -175,10 +182,7 @@ class TriggerContext(object):
     key and window fields. No internal state must be kept in the TriggerContext.
     """
 
-    def __init__(self,
-                 trigger,
-                 timer_service: LegacyInternalTimerServiceImpl[W],
-                 state_backend):
+    def __init__(self, trigger, timer_service: LegacyInternalTimerServiceImpl[W], state_backend):
         self._trigger = trigger
         self._timer_service = timer_service
         self._state_backend = state_backend
@@ -224,17 +228,18 @@ class TriggerContext(object):
     def get_partitioned_state(self, state_descriptor: StateDescriptor) -> State:
         if isinstance(state_descriptor, ValueStateDescriptor):
             state = self._state_backend.get_value_state(
-                state_descriptor.name, from_type_info(state_descriptor.type_info))
+                state_descriptor.name, from_type_info(state_descriptor.type_info)
+            )
         elif isinstance(state_descriptor, ListStateDescriptor):
             array_coder: GenericArrayCoder = from_type_info(state_descriptor.type_info)
             state = self._state_backend.get_list_state(
-                state_descriptor.name, array_coder._elem_coder)
+                state_descriptor.name, array_coder._elem_coder
+            )
         elif isinstance(state_descriptor, MapStateDescriptor):
             map_coder: MapCoder = from_type_info(state_descriptor.type_info)
             key_coder = map_coder._key_coder
             value_coder = map_coder._value_coder
-            state = self._state_backend.get_map_state(
-                state_descriptor.name, key_coder, value_coder)
+            state = self._state_backend.get_map_state(state_descriptor.name, key_coder, value_coder)
         else:
             raise Exception("Unknown supported StateDescriptor %s" % state_descriptor)
         state.set_current_namespace(self.window)
@@ -246,5 +251,7 @@ class TriggerContext(object):
             if isinstance(state, InternalMergingState):
                 state.merge_namespaces(self.window, self.merged_windows)
             else:
-                raise Exception("The given state descriptor does not refer to a mergeable state"
-                                " (MergingState)")
+                raise Exception(
+                    "The given state descriptor does not refer to a mergeable state"
+                    " (MergingState)"
+                )

@@ -22,33 +22,43 @@ from typing import Dict, Union, List, Set, Callable, Any, Optional
 
 from py4j.java_gateway import JavaObject, get_java_class
 
-from pyflink.common import DeserializationSchema, TypeInformation, typeinfo, SerializationSchema, \
-    Types, Row
+from pyflink.common import (
+    DeserializationSchema,
+    TypeInformation,
+    typeinfo,
+    SerializationSchema,
+    Types,
+    Row,
+)
 from pyflink.datastream.connectors import Source, Sink
-from pyflink.datastream.connectors.base import DeliveryGuarantee, SupportsPreprocessing, \
-    StreamTransformer
+from pyflink.datastream.connectors.base import (
+    DeliveryGuarantee,
+    SupportsPreprocessing,
+    StreamTransformer,
+)
 from pyflink.datastream.functions import SinkFunction, SourceFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import to_jarray, get_field, get_field_value
 
 __all__ = [
-    'FlinkKafkaConsumer',
-    'FlinkKafkaProducer',
-    'KafkaSource',
-    'KafkaSourceBuilder',
-    'KafkaSink',
-    'KafkaSinkBuilder',
-    'Semantic',
-    'KafkaTopicPartition',
-    'KafkaOffsetsInitializer',
-    'KafkaOffsetResetStrategy',
-    'KafkaRecordSerializationSchema',
-    'KafkaRecordSerializationSchemaBuilder',
-    'KafkaTopicSelector'
+    "FlinkKafkaConsumer",
+    "FlinkKafkaProducer",
+    "KafkaSource",
+    "KafkaSourceBuilder",
+    "KafkaSink",
+    "KafkaSinkBuilder",
+    "Semantic",
+    "KafkaTopicPartition",
+    "KafkaOffsetsInitializer",
+    "KafkaOffsetResetStrategy",
+    "KafkaRecordSerializationSchema",
+    "KafkaRecordSerializationSchemaBuilder",
+    "KafkaTopicSelector",
 ]
 
 
 # ---- FlinkKafkaConsumer ----
+
 
 class FlinkKafkaConsumerBase(SourceFunction, ABC):
     """
@@ -61,19 +71,19 @@ class FlinkKafkaConsumerBase(SourceFunction, ABC):
     def __init__(self, j_flink_kafka_consumer):
         super(FlinkKafkaConsumerBase, self).__init__(source_func=j_flink_kafka_consumer)
 
-    def set_commit_offsets_on_checkpoints(self,
-                                          commit_on_checkpoints: bool) -> 'FlinkKafkaConsumerBase':
+    def set_commit_offsets_on_checkpoints(
+        self, commit_on_checkpoints: bool
+    ) -> "FlinkKafkaConsumerBase":
         """
         Specifies whether or not the consumer should commit offsets back to kafka on checkpoints.
         This setting will only have effect if checkpointing is enabled for the job. If checkpointing
         isn't enabled, only the "auto.commit.enable" (for 0.8) / "enable.auto.commit" (for 0.9+)
         property settings will be used.
         """
-        self._j_function = self._j_function \
-            .setCommitOffsetsOnCheckpoints(commit_on_checkpoints)
+        self._j_function = self._j_function.setCommitOffsetsOnCheckpoints(commit_on_checkpoints)
         return self
 
-    def set_start_from_earliest(self) -> 'FlinkKafkaConsumerBase':
+    def set_start_from_earliest(self) -> "FlinkKafkaConsumerBase":
         """
         Specifies the consumer to start reading from the earliest offset for all partitions. This
         lets the consumer ignore any committed group offsets in Zookeeper/ Kafka brokers.
@@ -85,7 +95,7 @@ class FlinkKafkaConsumerBase(SourceFunction, ABC):
         self._j_function = self._j_function.setStartFromEarliest()
         return self
 
-    def set_start_from_latest(self) -> 'FlinkKafkaConsumerBase':
+    def set_start_from_latest(self) -> "FlinkKafkaConsumerBase":
         """
         Specifies the consuer to start reading from the latest offset for all partitions. This lets
         the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
@@ -97,7 +107,7 @@ class FlinkKafkaConsumerBase(SourceFunction, ABC):
         self._j_function = self._j_function.setStartFromLatest()
         return self
 
-    def set_start_from_timestamp(self, startup_offsets_timestamp: int) -> 'FlinkKafkaConsumerBase':
+    def set_start_from_timestamp(self, startup_offsets_timestamp: int) -> "FlinkKafkaConsumerBase":
         """
         Specifies the consumer to start reading partitions from a specified timestamp. The specified
         timestamp must be before the current timestamp. This lets the consumer ignore any committed
@@ -114,11 +124,10 @@ class FlinkKafkaConsumerBase(SourceFunction, ABC):
         :param startup_offsets_timestamp: timestamp for the startup offsets, as milliseconds for
                                           epoch.
         """
-        self._j_function = self._j_function.setStartFromTimestamp(
-            startup_offsets_timestamp)
+        self._j_function = self._j_function.setStartFromTimestamp(startup_offsets_timestamp)
         return self
 
-    def set_start_from_group_offsets(self) -> 'FlinkKafkaConsumerBase':
+    def set_start_from_group_offsets(self) -> "FlinkKafkaConsumerBase":
         """
         Specifies the consumer to start reading from any committed group offsets found in Zookeeper/
         Kafka brokers. The 'group.id' property must be set in the configuration properties. If no
@@ -132,7 +141,7 @@ class FlinkKafkaConsumerBase(SourceFunction, ABC):
         self._j_function = self._j_function.setStartFromGroupOffsets()
         return self
 
-    def disable_filter_restored_partitions_with_subscribed_topics(self) -> 'FlinkKafkaConsumerBase':
+    def disable_filter_restored_partitions_with_subscribed_topics(self) -> "FlinkKafkaConsumerBase":
         """
         By default, when restoring from a checkpoint / savepoint, the consumer always ignores
         restored partitions that are no longer associated with the current specified topics or topic
@@ -142,8 +151,7 @@ class FlinkKafkaConsumerBase(SourceFunction, ABC):
         from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
         savepoint, only the offsets in the restored state will be used.
         """
-        self._j_function = self._j_function \
-            .disableFilterRestoredPartitionsWithSubscribedTopics()
+        self._j_function = self._j_function.disableFilterRestoredPartitionsWithSubscribedTopics()
         return self
 
     def get_produced_type(self) -> TypeInformation:
@@ -158,9 +166,9 @@ def _get_kafka_consumer(topics, properties, deserialization_schema, j_consumer_c
     for key, value in properties.items():
         j_properties.setProperty(key, value)
 
-    j_flink_kafka_consumer = j_consumer_clz(topics,
-                                            deserialization_schema._j_deserialization_schema,
-                                            j_properties)
+    j_flink_kafka_consumer = j_consumer_clz(
+        topics, deserialization_schema._j_deserialization_schema, j_properties
+    )
     return j_flink_kafka_consumer
 
 
@@ -183,8 +191,12 @@ class FlinkKafkaConsumer(FlinkKafkaConsumerBase):
     http://kafka.apache.org/documentation.html#newconsumerconfigs
     """
 
-    def __init__(self, topics: Union[str, List[str]], deserialization_schema: DeserializationSchema,
-                 properties: Dict):
+    def __init__(
+        self,
+        topics: Union[str, List[str]],
+        deserialization_schema: DeserializationSchema,
+        properties: Dict,
+    ):
         """
         Creates a new Kafka streaming source consumer for Kafka 0.10.x.
 
@@ -198,10 +210,12 @@ class FlinkKafkaConsumer(FlinkKafkaConsumerBase):
         """
 
         warnings.warn("Deprecated in 1.16. Use KafkaSource instead.", DeprecationWarning)
-        JFlinkKafkaConsumer = get_gateway().jvm \
-            .org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer
-        j_flink_kafka_consumer = _get_kafka_consumer(topics, properties, deserialization_schema,
-                                                     JFlinkKafkaConsumer)
+        JFlinkKafkaConsumer = (
+            get_gateway().jvm.org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer
+        )
+        j_flink_kafka_consumer = _get_kafka_consumer(
+            topics, properties, deserialization_schema, JFlinkKafkaConsumer
+        )
         super(FlinkKafkaConsumer, self).__init__(j_flink_kafka_consumer=j_flink_kafka_consumer)
 
 
@@ -241,13 +255,12 @@ class Semantic(Enum):
 
     """
 
-    EXACTLY_ONCE = 0,
-    AT_LEAST_ONCE = 1,
+    EXACTLY_ONCE = (0,)
+    AT_LEAST_ONCE = (1,)
     NONE = 2
 
     def _to_j_semantic(self):
-        JSemantic = get_gateway().jvm \
-            .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer.Semantic
+        JSemantic = get_gateway().jvm.org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer.Semantic
         return getattr(JSemantic, self.name)
 
 
@@ -263,7 +276,7 @@ class FlinkKafkaProducerBase(SinkFunction, ABC):
     def __init__(self, j_flink_kafka_producer):
         super(FlinkKafkaProducerBase, self).__init__(sink_func=j_flink_kafka_producer)
 
-    def set_log_failures_only(self, log_failures_only: bool) -> 'FlinkKafkaProducerBase':
+    def set_log_failures_only(self, log_failures_only: bool) -> "FlinkKafkaProducerBase":
         """
         Defines whether the producer should fail on errors, or only log them. If this is set to
         true, then exceptions will be only logged, if set to false, exceptions will be eventually
@@ -274,7 +287,7 @@ class FlinkKafkaProducerBase(SinkFunction, ABC):
         self._j_function.setLogFailuresOnly(log_failures_only)
         return self
 
-    def set_flush_on_checkpoint(self, flush_on_checkpoint: bool) -> 'FlinkKafkaProducerBase':
+    def set_flush_on_checkpoint(self, flush_on_checkpoint: bool) -> "FlinkKafkaProducerBase":
         """
         If set to true, the Flink producer will wait for all outstanding messages in the Kafka
         buffers to be acknowledged by the Kafka producer on a checkpoint.
@@ -287,8 +300,9 @@ class FlinkKafkaProducerBase(SinkFunction, ABC):
         self._j_function.setFlushOnCheckpoint(flush_on_checkpoint)
         return self
 
-    def set_write_timestamp_to_kafka(self,
-                                     write_timestamp_to_kafka: bool) -> 'FlinkKafkaProducerBase':
+    def set_write_timestamp_to_kafka(
+        self, write_timestamp_to_kafka: bool
+    ) -> "FlinkKafkaProducerBase":
         """
         If set to true, Flink will write the (event time) timestamp attached to each record into
         Kafka. Timestamps must be positive for Kafka to accept them.
@@ -307,9 +321,14 @@ class FlinkKafkaProducer(FlinkKafkaProducerBase):
     Flink's Kafka connector documentation.
     """
 
-    def __init__(self, topic: str, serialization_schema: SerializationSchema,
-                 producer_config: Dict, kafka_producer_pool_size: int = 5,
-                 semantic=Semantic.AT_LEAST_ONCE):
+    def __init__(
+        self,
+        topic: str,
+        serialization_schema: SerializationSchema,
+        producer_config: Dict,
+        kafka_producer_pool_size: int = 5,
+        semantic=Semantic.AT_LEAST_ONCE,
+    ):
         """
         Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to the topic.
 
@@ -326,15 +345,21 @@ class FlinkKafkaProducer(FlinkKafkaProducerBase):
         for key, value in producer_config.items():
             j_properties.setProperty(key, value)
 
-        JFlinkKafkaProducer = gateway.jvm \
-            .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer
+        JFlinkKafkaProducer = (
+            gateway.jvm.org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer
+        )
 
         j_flink_kafka_producer = JFlinkKafkaProducer(
-            topic, serialization_schema._j_serialization_schema, j_properties, None,
-            semantic._to_j_semantic(), kafka_producer_pool_size)
+            topic,
+            serialization_schema._j_serialization_schema,
+            j_properties,
+            None,
+            semantic._to_j_semantic(),
+            kafka_producer_pool_size,
+        )
         super(FlinkKafkaProducer, self).__init__(j_flink_kafka_producer=j_flink_kafka_producer)
 
-    def ignore_failures_after_transaction_timeout(self) -> 'FlinkKafkaProducer':
+    def ignore_failures_after_transaction_timeout(self) -> "FlinkKafkaProducer":
         """
         Disables the propagation of exceptions thrown when committing presumably timed out Kafka
         transactions during recovery of the job. If a Kafka transaction is timed out, a commit will
@@ -378,7 +403,7 @@ class KafkaSource(Source):
         super().__init__(j_kafka_source)
 
     @staticmethod
-    def builder() -> 'KafkaSourceBuilder':
+    def builder() -> "KafkaSourceBuilder":
         """
         Get a kafkaSourceBuilder to build a :class:`KafkaSource`.
 
@@ -426,13 +451,14 @@ class KafkaSourceBuilder(object):
     """
 
     def __init__(self):
-        self._j_builder = get_gateway().jvm.org.apache.flink.connector.kafka.source \
-            .KafkaSource.builder()
+        self._j_builder = (
+            get_gateway().jvm.org.apache.flink.connector.kafka.source.KafkaSource.builder()
+        )
 
-    def build(self) -> 'KafkaSource':
+    def build(self) -> "KafkaSource":
         return KafkaSource(self._j_builder.build())
 
-    def set_bootstrap_servers(self, bootstrap_servers: str) -> 'KafkaSourceBuilder':
+    def set_bootstrap_servers(self, bootstrap_servers: str) -> "KafkaSourceBuilder":
         """
         Sets the bootstrap servers for the KafkaConsumer of the KafkaSource.
 
@@ -442,7 +468,7 @@ class KafkaSourceBuilder(object):
         self._j_builder.setBootstrapServers(bootstrap_servers)
         return self
 
-    def set_group_id(self, group_id: str) -> 'KafkaSourceBuilder':
+    def set_group_id(self, group_id: str) -> "KafkaSourceBuilder":
         """
         Sets the consumer group id of the KafkaSource.
 
@@ -452,7 +478,7 @@ class KafkaSourceBuilder(object):
         self._j_builder.setGroupId(group_id)
         return self
 
-    def set_topics(self, *topics: str) -> 'KafkaSourceBuilder':
+    def set_topics(self, *topics: str) -> "KafkaSourceBuilder":
         """
         Set a list of topics the KafkaSource should consume from. All the topics in the list should
         have existed in the Kafka cluster. Otherwise, an exception will be thrown. To allow some
@@ -464,7 +490,7 @@ class KafkaSourceBuilder(object):
         self._j_builder.setTopics(to_jarray(get_gateway().jvm.java.lang.String, topics))
         return self
 
-    def set_topic_pattern(self, topic_pattern: str) -> 'KafkaSourceBuilder':
+    def set_topic_pattern(self, topic_pattern: str) -> "KafkaSourceBuilder":
         """
         Set a topic pattern to consume from use the java Pattern. For grammar, check out
         `JavaDoc <https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html>`_ .
@@ -472,11 +498,12 @@ class KafkaSourceBuilder(object):
         :param topic_pattern: the pattern of the topic name to consume from.
         :return: this KafkaSourceBuilder.
         """
-        self._j_builder.setTopicPattern(get_gateway().jvm.java.util.regex
-                                        .Pattern.compile(topic_pattern))
+        self._j_builder.setTopicPattern(
+            get_gateway().jvm.java.util.regex.Pattern.compile(topic_pattern)
+        )
         return self
 
-    def set_partitions(self, partitions: Set['KafkaTopicPartition']) -> 'KafkaSourceBuilder':
+    def set_partitions(self, partitions: Set["KafkaTopicPartition"]) -> "KafkaSourceBuilder":
         """
         Set a set of partitions to consume from.
 
@@ -497,8 +524,9 @@ class KafkaSourceBuilder(object):
         self._j_builder.setPartitions(j_set)
         return self
 
-    def set_starting_offsets(self, starting_offsets_initializer: 'KafkaOffsetsInitializer') \
-            -> 'KafkaSourceBuilder':
+    def set_starting_offsets(
+        self, starting_offsets_initializer: "KafkaOffsetsInitializer"
+    ) -> "KafkaSourceBuilder":
         """
         Specify from which offsets the KafkaSource should start consume from by providing an
         :class:`KafkaOffsetsInitializer`.
@@ -527,8 +555,9 @@ class KafkaSourceBuilder(object):
         self._j_builder.setStartingOffsets(starting_offsets_initializer._j_initializer)
         return self
 
-    def set_unbounded(self, stopping_offsets_initializer: 'KafkaOffsetsInitializer') \
-            -> 'KafkaSourceBuilder':
+    def set_unbounded(
+        self, stopping_offsets_initializer: "KafkaOffsetsInitializer"
+    ) -> "KafkaSourceBuilder":
         """
         By default, the KafkaSource is set to run in CONTINUOUS_UNBOUNDED manner and thus never
         stops until the Flink job fails or is canceled. To let the KafkaSource run as a streaming
@@ -562,8 +591,9 @@ class KafkaSourceBuilder(object):
         self._j_builder.setUnbounded(stopping_offsets_initializer._j_initializer)
         return self
 
-    def set_bounded(self, stopping_offsets_initializer: 'KafkaOffsetsInitializer') \
-            -> 'KafkaSourceBuilder':
+    def set_bounded(
+        self, stopping_offsets_initializer: "KafkaOffsetsInitializer"
+    ) -> "KafkaSourceBuilder":
         """
         By default, the KafkaSource is set to run in CONTINUOUS_UNBOUNDED manner and thus never
         stops until the Flink job fails or is canceled. To let the KafkaSource run in BOUNDED manner
@@ -597,8 +627,9 @@ class KafkaSourceBuilder(object):
         self._j_builder.setBounded(stopping_offsets_initializer._j_initializer)
         return self
 
-    def set_value_only_deserializer(self, deserialization_schema: DeserializationSchema) \
-            -> 'KafkaSourceBuilder':
+    def set_value_only_deserializer(
+        self, deserialization_schema: DeserializationSchema
+    ) -> "KafkaSourceBuilder":
         """
         Sets the :class:`~pyflink.common.serialization.DeserializationSchema` for deserializing the
         value of Kafka's ConsumerRecord. The other information (e.g. key) in a ConsumerRecord will
@@ -611,7 +642,7 @@ class KafkaSourceBuilder(object):
         self._j_builder.setValueOnlyDeserializer(deserialization_schema._j_deserialization_schema)
         return self
 
-    def set_client_id_prefix(self, prefix: str) -> 'KafkaSourceBuilder':
+    def set_client_id_prefix(self, prefix: str) -> "KafkaSourceBuilder":
         """
         Sets the client id prefix of this KafkaSource.
 
@@ -621,7 +652,7 @@ class KafkaSourceBuilder(object):
         self._j_builder.setClientIdPrefix(prefix)
         return self
 
-    def set_property(self, key: str, value: str) -> 'KafkaSourceBuilder':
+    def set_property(self, key: str, value: str) -> "KafkaSourceBuilder":
         """
         Set an arbitrary property for the KafkaSource and KafkaConsumer. The valid keys can be found
         in ConsumerConfig and KafkaSourceOptions.
@@ -644,7 +675,7 @@ class KafkaSourceBuilder(object):
         self._j_builder.setProperty(key, value)
         return self
 
-    def set_properties(self, props: Dict) -> 'KafkaSourceBuilder':
+    def set_properties(self, props: Dict) -> "KafkaSourceBuilder":
         """
         Set arbitrary properties for the KafkaSource and KafkaConsumer. The valid keys can be found
         in ConsumerConfig and KafkaSourceOptions.
@@ -692,7 +723,8 @@ class KafkaTopicPartition(object):
     def _to_j_topic_partition(self):
         jvm = get_gateway().jvm
         return jvm.org.apache.flink.kafka.shaded.org.apache.kafka.common.TopicPartition(
-            self._topic, self._partition)
+            self._topic, self._partition
+        )
 
     def __eq__(self, other):
         if not isinstance(other, KafkaTopicPartition):
@@ -715,8 +747,7 @@ class KafkaOffsetResetStrategy(Enum):
     NONE = 2
 
     def _to_j_offset_reset_strategy(self):
-        JOffsetResetStrategy = get_gateway().jvm.org.apache.flink.kafka.shaded.org.apache.kafka.\
-            clients.consumer.OffsetResetStrategy
+        JOffsetResetStrategy = get_gateway().jvm.org.apache.flink.kafka.shaded.org.apache.kafka.clients.consumer.OffsetResetStrategy
         return getattr(JOffsetResetStrategy, self.name)
 
 
@@ -732,8 +763,8 @@ class KafkaOffsetsInitializer(object):
 
     @staticmethod
     def committed_offsets(
-            offset_reset_strategy: 'KafkaOffsetResetStrategy' = KafkaOffsetResetStrategy.NONE) -> \
-            'KafkaOffsetsInitializer':
+        offset_reset_strategy: "KafkaOffsetResetStrategy" = KafkaOffsetResetStrategy.NONE,
+    ) -> "KafkaOffsetsInitializer":
         """
         Get an :class:`KafkaOffsetsInitializer` which initializes the offsets to the committed
         offsets. An exception will be thrown at runtime if there is no committed offsets.
@@ -745,13 +776,15 @@ class KafkaOffsetsInitializer(object):
             not exist.
         :return: an offset initializer which initialize the offsets to the committed offsets.
         """
-        JOffsetsInitializer = get_gateway().jvm.org.apache.flink.connector.kafka.source.\
-            enumerator.initializer.OffsetsInitializer
-        return KafkaOffsetsInitializer(JOffsetsInitializer.committedOffsets(
-            offset_reset_strategy._to_j_offset_reset_strategy()))
+        JOffsetsInitializer = get_gateway().jvm.org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer
+        return KafkaOffsetsInitializer(
+            JOffsetsInitializer.committedOffsets(
+                offset_reset_strategy._to_j_offset_reset_strategy()
+            )
+        )
 
     @staticmethod
-    def timestamp(timestamp: int) -> 'KafkaOffsetsInitializer':
+    def timestamp(timestamp: int) -> "KafkaOffsetsInitializer":
         """
         Get an :class:`KafkaOffsetsInitializer` which initializes the offsets in each partition so
         that the initialized offset is the offset of the first record whose record timestamp is
@@ -761,12 +794,11 @@ class KafkaOffsetsInitializer(object):
         :return: an :class:`OffsetsInitializer` which initializes the offsets based on the given
             timestamp.
         """
-        JOffsetsInitializer = get_gateway().jvm.org.apache.flink.connector.kafka.source. \
-            enumerator.initializer.OffsetsInitializer
+        JOffsetsInitializer = get_gateway().jvm.org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer
         return KafkaOffsetsInitializer(JOffsetsInitializer.timestamp(timestamp))
 
     @staticmethod
-    def earliest() -> 'KafkaOffsetsInitializer':
+    def earliest() -> "KafkaOffsetsInitializer":
         """
         Get an :class:`KafkaOffsetsInitializer` which initializes the offsets to the earliest
         available offsets of each partition.
@@ -774,12 +806,11 @@ class KafkaOffsetsInitializer(object):
         :return: an :class:`KafkaOffsetsInitializer` which initializes the offsets to the earliest
             available offsets.
         """
-        JOffsetsInitializer = get_gateway().jvm.org.apache.flink.connector.kafka.source. \
-            enumerator.initializer.OffsetsInitializer
+        JOffsetsInitializer = get_gateway().jvm.org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer
         return KafkaOffsetsInitializer(JOffsetsInitializer.earliest())
 
     @staticmethod
-    def latest() -> 'KafkaOffsetsInitializer':
+    def latest() -> "KafkaOffsetsInitializer":
         """
         Get an :class:`KafkaOffsetsInitializer` which initializes the offsets to the latest offsets
         of each partition.
@@ -787,14 +818,14 @@ class KafkaOffsetsInitializer(object):
         :return: an :class:`KafkaOffsetsInitializer` which initializes the offsets to the latest
             offsets.
         """
-        JOffsetsInitializer = get_gateway().jvm.org.apache.flink.connector.kafka.source. \
-            enumerator.initializer.OffsetsInitializer
+        JOffsetsInitializer = get_gateway().jvm.org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer
         return KafkaOffsetsInitializer(JOffsetsInitializer.latest())
 
     @staticmethod
-    def offsets(offsets: Dict['KafkaTopicPartition', int],
-                offset_reset_strategy: 'KafkaOffsetResetStrategy' =
-                KafkaOffsetResetStrategy.EARLIEST) -> 'KafkaOffsetsInitializer':
+    def offsets(
+        offsets: Dict["KafkaTopicPartition", int],
+        offset_reset_strategy: "KafkaOffsetResetStrategy" = KafkaOffsetResetStrategy.EARLIEST,
+    ) -> "KafkaOffsetsInitializer":
         """
         Get an :class:`KafkaOffsetsInitializer` which initializes the offsets to the specified
         offsets.
@@ -818,14 +849,17 @@ class KafkaOffsetsInitializer(object):
         """
         jvm = get_gateway().jvm
         j_map_wrapper = jvm.org.apache.flink.python.util.HashMapWrapper(
-            None, get_java_class(jvm.Long))
+            None, get_java_class(jvm.Long)
+        )
         for tp, offset in offsets.items():
             j_map_wrapper.put(tp._to_j_topic_partition(), offset)
 
-        JOffsetsInitializer = get_gateway().jvm.org.apache.flink.connector.kafka.source. \
-            enumerator.initializer.OffsetsInitializer
-        return KafkaOffsetsInitializer(JOffsetsInitializer.offsets(
-            j_map_wrapper.asMap(), offset_reset_strategy._to_j_offset_reset_strategy()))
+        JOffsetsInitializer = get_gateway().jvm.org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer
+        return KafkaOffsetsInitializer(
+            JOffsetsInitializer.offsets(
+                j_map_wrapper.asMap(), offset_reset_strategy._to_j_offset_reset_strategy()
+            )
+        )
 
 
 class KafkaSink(Sink, SupportsPreprocessing):
@@ -858,7 +892,7 @@ class KafkaSink(Sink, SupportsPreprocessing):
         self._transformer = transformer
 
     @staticmethod
-    def builder() -> 'KafkaSinkBuilder':
+    def builder() -> "KafkaSinkBuilder":
         """
         Create a :class:`KafkaSinkBuilder` to construct :class:`KafkaSink`.
         """
@@ -899,13 +933,13 @@ class KafkaSinkBuilder(object):
         self._j_builder = jvm.org.apache.flink.connector.kafka.sink.KafkaSink.builder()
         self._preprocessing = None
 
-    def build(self) -> 'KafkaSink':
+    def build(self) -> "KafkaSink":
         """
         Constructs the :class:`KafkaSink` with the configured properties.
         """
         return KafkaSink(self._j_builder.build(), self._preprocessing)
 
-    def set_bootstrap_servers(self, bootstrap_servers: str) -> 'KafkaSinkBuilder':
+    def set_bootstrap_servers(self, bootstrap_servers: str) -> "KafkaSinkBuilder":
         """
         Sets the Kafka bootstrap servers.
 
@@ -914,7 +948,7 @@ class KafkaSinkBuilder(object):
         self._j_builder.setBootstrapServers(bootstrap_servers)
         return self
 
-    def set_delivery_guarantee(self, delivery_guarantee: DeliveryGuarantee) -> 'KafkaSinkBuilder':
+    def set_delivery_guarantee(self, delivery_guarantee: DeliveryGuarantee) -> "KafkaSinkBuilder":
         """
         Sets the wanted :class:`DeliveryGuarantee`. The default delivery guarantee is
         :attr:`DeliveryGuarantee.NONE`.
@@ -924,7 +958,7 @@ class KafkaSinkBuilder(object):
         self._j_builder.setDeliveryGuarantee(delivery_guarantee._to_j_delivery_guarantee())
         return self
 
-    def set_transactional_id_prefix(self, transactional_id_prefix: str) -> 'KafkaSinkBuilder':
+    def set_transactional_id_prefix(self, transactional_id_prefix: str) -> "KafkaSinkBuilder":
         """
         Sets the prefix for all created transactionalIds if :attr:`DeliveryGuarantee.EXACTLY_ONCE`
         is configured.
@@ -944,8 +978,9 @@ class KafkaSinkBuilder(object):
         self._j_builder.setTransactionalIdPrefix(transactional_id_prefix)
         return self
 
-    def set_record_serializer(self, record_serializer: 'KafkaRecordSerializationSchema') \
-            -> 'KafkaSinkBuilder':
+    def set_record_serializer(
+        self, record_serializer: "KafkaRecordSerializationSchema"
+    ) -> "KafkaSinkBuilder":
         """
         Sets the :class:`KafkaRecordSerializationSchema` that transforms incoming records to kafka
         producer records.
@@ -953,19 +988,26 @@ class KafkaSinkBuilder(object):
         :param record_serializer: The :class:`KafkaRecordSerializationSchema`.
         """
         # NOTE: If topic selector is a generated first-column selector, do extra preprocessing
-        j_topic_selector = get_field_value(record_serializer._j_serialization_schema,
-                                           'topicSelector')
+        j_topic_selector = get_field_value(
+            record_serializer._j_serialization_schema, "topicSelector"
+        )
         if (
-            j_topic_selector.getClass().getCanonicalName() ==
-            'org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchemaBuilder.'
-            'CachingTopicSelector'
+            j_topic_selector.getClass().getCanonicalName()
+            == "org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchemaBuilder."
+            "CachingTopicSelector"
         ) and (
-            get_field_value(j_topic_selector, 'topicSelector').getClass().getCanonicalName()
-            is not None and
-            (get_field_value(j_topic_selector, 'topicSelector').getClass().getCanonicalName()
-             .startswith('com.sun.proxy') or
-             get_field_value(j_topic_selector, 'topicSelector').getClass().getCanonicalName()
-             .startswith('jdk.proxy'))
+            get_field_value(j_topic_selector, "topicSelector").getClass().getCanonicalName()
+            is not None
+            and (
+                get_field_value(j_topic_selector, "topicSelector")
+                .getClass()
+                .getCanonicalName()
+                .startswith("com.sun.proxy")
+                or get_field_value(j_topic_selector, "topicSelector")
+                .getClass()
+                .getCanonicalName()
+                .startswith("jdk.proxy")
+            )
         ):
             record_serializer._wrap_serialization_schema()
             self._preprocessing = record_serializer._build_preprocessing()
@@ -973,7 +1015,7 @@ class KafkaSinkBuilder(object):
         self._j_builder.setRecordSerializer(record_serializer._j_serialization_schema)
         return self
 
-    def set_property(self, key: str, value: str) -> 'KafkaSinkBuilder':
+    def set_property(self, key: str, value: str) -> "KafkaSinkBuilder":
         """
         Sets kafka producer config.
 
@@ -991,13 +1033,14 @@ class KafkaRecordSerializationSchema(SerializationSchema):
     .. versionadded:: 1.16.0
     """
 
-    def __init__(self, j_serialization_schema,
-                 topic_selector: Optional['KafkaTopicSelector'] = None):
+    def __init__(
+        self, j_serialization_schema, topic_selector: Optional["KafkaTopicSelector"] = None
+    ):
         super().__init__(j_serialization_schema)
         self._topic_selector = topic_selector
 
     @staticmethod
-    def builder() -> 'KafkaRecordSerializationSchemaBuilder':
+    def builder() -> "KafkaRecordSerializationSchemaBuilder":
         """
         Creates a default schema builder to provide common building blocks i.e. key serialization,
         value serialization, topic selection.
@@ -1012,25 +1055,24 @@ class KafkaRecordSerializationSchema(SerializationSchema):
             if j_schema_field.get(self._j_serialization_schema) is not None:
                 j_schema_field.set(
                     self._j_serialization_schema,
-                    jvm.org.apache.flink.python.util.PythonConnectorUtils
-                    .SecondColumnSerializationSchema(
+                    jvm.org.apache.flink.python.util.PythonConnectorUtils.SecondColumnSerializationSchema(
                         j_schema_field.get(self._j_serialization_schema)
-                    )
+                    ),
                 )
 
-        _wrap_schema('keySerializationSchema')
-        _wrap_schema('valueSerializationSchema')
+        _wrap_schema("keySerializationSchema")
+        _wrap_schema("valueSerializationSchema")
 
     def _build_preprocessing(self) -> StreamTransformer:
         class SelectTopicTransformer(StreamTransformer):
-
             def __init__(self, topic_selector: KafkaTopicSelector):
                 self._topic_selector = topic_selector
 
             def apply(self, ds):
                 output_type = Types.ROW([Types.STRING(), ds.get_type()])
-                return ds.map(lambda v: Row(self._topic_selector.apply(v), v),
-                              output_type=output_type)
+                return ds.map(
+                    lambda v: Row(self._topic_selector.apply(v), v), output_type=output_type
+                )
 
         return SelectTopicTransformer(self._topic_selector)
 
@@ -1064,14 +1106,15 @@ class KafkaRecordSerializationSchemaBuilder(object):
 
     def __init__(self):
         jvm = get_gateway().jvm
-        self._j_builder = jvm.org.apache.flink.connector.kafka.sink \
-            .KafkaRecordSerializationSchemaBuilder()
+        self._j_builder = (
+            jvm.org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchemaBuilder()
+        )
         self._fixed_topic: bool = True
         self._topic_selector: Optional[KafkaTopicSelector] = None
         self._key_serialization_schema: Optional[SerializationSchema] = None
         self._value_serialization_schema: Optional[SerializationSchema] = None
 
-    def build(self) -> 'KafkaRecordSerializationSchema':
+    def build(self) -> "KafkaRecordSerializationSchema":
         """
         Constructs the :class:`KafkaRecordSerializationSchemaBuilder` with the configured
         properties.
@@ -1081,7 +1124,7 @@ class KafkaRecordSerializationSchemaBuilder(object):
         else:
             return KafkaRecordSerializationSchema(self._j_builder.build(), self._topic_selector)
 
-    def set_topic(self, topic: str) -> 'KafkaRecordSerializationSchemaBuilder':
+    def set_topic(self, topic: str) -> "KafkaRecordSerializationSchemaBuilder":
         """
         Sets a fixed topic which used as destination for all records.
 
@@ -1091,8 +1134,9 @@ class KafkaRecordSerializationSchemaBuilder(object):
         self._fixed_topic = True
         return self
 
-    def set_topic_selector(self, topic_selector: Union[Callable[[Any], str], 'KafkaTopicSelector'])\
-            -> 'KafkaRecordSerializationSchemaBuilder':
+    def set_topic_selector(
+        self, topic_selector: Union[Callable[[Any], str], "KafkaTopicSelector"]
+    ) -> "KafkaRecordSerializationSchemaBuilder":
         """
         Sets a topic selector which computes the target topic for every incoming record.
 
@@ -1100,10 +1144,10 @@ class KafkaRecordSerializationSchemaBuilder(object):
             consumes each incoming record and return the topic string.
         """
         if not isinstance(topic_selector, KafkaTopicSelector) and not callable(topic_selector):
-            raise TypeError('topic_selector must be KafkaTopicSelector or a callable')
+            raise TypeError("topic_selector must be KafkaTopicSelector or a callable")
         if not isinstance(topic_selector, KafkaTopicSelector):
-            class TopicSelectorFunctionAdapter(KafkaTopicSelector):
 
+            class TopicSelectorFunctionAdapter(KafkaTopicSelector):
                 def __init__(self, f: Callable[[Any], str]):
                     self._f = f
 
@@ -1122,8 +1166,9 @@ class KafkaRecordSerializationSchemaBuilder(object):
         self._topic_selector = topic_selector
         return self
 
-    def set_key_serialization_schema(self, key_serialization_schema: SerializationSchema) \
-            -> 'KafkaRecordSerializationSchemaBuilder':
+    def set_key_serialization_schema(
+        self, key_serialization_schema: SerializationSchema
+    ) -> "KafkaRecordSerializationSchemaBuilder":
         """
         Sets a :class:`SerializationSchema` which is used to serialize the incoming element to the
         key of the producer record. The key serialization is optional, if not set, the key of the
@@ -1136,8 +1181,9 @@ class KafkaRecordSerializationSchemaBuilder(object):
         self._j_builder.setKeySerializationSchema(key_serialization_schema._j_serialization_schema)
         return self
 
-    def set_value_serialization_schema(self, value_serialization_schema: SerializationSchema) \
-            -> 'KafkaRecordSerializationSchemaBuilder':
+    def set_value_serialization_schema(
+        self, value_serialization_schema: SerializationSchema
+    ) -> "KafkaRecordSerializationSchemaBuilder":
         """
         Sets a :class:`SerializationSchema` which is used to serialize the incoming element to the
         value of the producer record. The value serialization is required.
@@ -1147,7 +1193,8 @@ class KafkaRecordSerializationSchemaBuilder(object):
         """
         self._value_serialization_schema = value_serialization_schema
         self._j_builder.setValueSerializationSchema(
-            value_serialization_schema._j_serialization_schema)
+            value_serialization_schema._j_serialization_schema
+        )
         return self
 
 

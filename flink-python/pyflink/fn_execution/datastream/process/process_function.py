@@ -19,16 +19,27 @@ from abc import ABC
 from typing import cast
 
 from pyflink.datastream import TimerService, TimeDomain
-from pyflink.datastream.functions import KeyedProcessFunction, KeyedCoProcessFunction, \
-    ProcessFunction, CoProcessFunction, BroadcastProcessFunction, KeyedBroadcastProcessFunction, \
-    BaseBroadcastProcessFunction
-from pyflink.datastream.state import MapStateDescriptor, BroadcastState, ReadOnlyBroadcastState, \
-    OperatorStateStore
+from pyflink.datastream.functions import (
+    KeyedProcessFunction,
+    KeyedCoProcessFunction,
+    ProcessFunction,
+    CoProcessFunction,
+    BroadcastProcessFunction,
+    KeyedBroadcastProcessFunction,
+    BaseBroadcastProcessFunction,
+)
+from pyflink.datastream.state import (
+    MapStateDescriptor,
+    BroadcastState,
+    ReadOnlyBroadcastState,
+    OperatorStateStore,
+)
 from pyflink.fn_execution.internal_state import InternalBroadcastState
 
 
 class InternalKeyedProcessFunctionOnTimerContext(
-        KeyedProcessFunction.OnTimerContext, KeyedCoProcessFunction.OnTimerContext):
+    KeyedProcessFunction.OnTimerContext, KeyedCoProcessFunction.OnTimerContext
+):
     """
     Internal implementation of OnTimerContext of KeyedProcessFunction and KeyedCoProcessFunction.
     """
@@ -62,7 +73,8 @@ class InternalKeyedProcessFunctionOnTimerContext(
 
 
 class InternalKeyedProcessFunctionContext(
-        KeyedProcessFunction.Context, KeyedCoProcessFunction.Context):
+    KeyedProcessFunction.Context, KeyedCoProcessFunction.Context
+):
     """
     Internal implementation of Context of KeyedProcessFunction and KeyedCoProcessFunction.
     """
@@ -108,7 +120,6 @@ class InternalProcessFunctionContext(ProcessFunction.Context, CoProcessFunction.
 
 
 class InternalBaseBroadcastProcessFunctionContext(BaseBroadcastProcessFunction.Context, ABC):
-
     def __init__(self, timer_service: TimerService, operator_state_store: OperatorStateStore):
         self._timer_service = timer_service
         self._timestamp = None
@@ -130,9 +141,9 @@ class InternalBaseBroadcastProcessFunctionContext(BaseBroadcastProcessFunction.C
         return self._timer_service.current_watermark()
 
 
-class InternalBroadcastProcessFunctionContext(InternalBaseBroadcastProcessFunctionContext,
-                                              BroadcastProcessFunction.Context):
-
+class InternalBroadcastProcessFunctionContext(
+    InternalBaseBroadcastProcessFunctionContext, BroadcastProcessFunction.Context
+):
     def __init__(self, timer_service: TimerService, operator_state_store: OperatorStateStore):
         InternalBaseBroadcastProcessFunctionContext.__init__(
             self, timer_service, operator_state_store
@@ -142,9 +153,9 @@ class InternalBroadcastProcessFunctionContext(InternalBaseBroadcastProcessFuncti
         return self._operator_state_store.get_broadcast_state(state_descriptor)
 
 
-class InternalBroadcastProcessFunctionReadOnlyContext(InternalBaseBroadcastProcessFunctionContext,
-                                                      BroadcastProcessFunction.ReadOnlyContext):
-
+class InternalBroadcastProcessFunctionReadOnlyContext(
+    InternalBaseBroadcastProcessFunctionContext, BroadcastProcessFunction.ReadOnlyContext
+):
     def __init__(self, timer_service: TimerService, operator_state_store: OperatorStateStore):
         InternalBaseBroadcastProcessFunctionContext.__init__(
             self, timer_service, operator_state_store
@@ -152,14 +163,13 @@ class InternalBroadcastProcessFunctionReadOnlyContext(InternalBaseBroadcastProce
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> ReadOnlyBroadcastState:
         return cast(
-            InternalBroadcastState,
-            self._operator_state_store.get_broadcast_state(state_descriptor)
+            InternalBroadcastState, self._operator_state_store.get_broadcast_state(state_descriptor)
         ).to_read_only_broadcast_state()
 
 
-class InternalKeyedBroadcastProcessFunctionContext(InternalBaseBroadcastProcessFunctionContext,
-                                                   KeyedBroadcastProcessFunction.Context):
-
+class InternalKeyedBroadcastProcessFunctionContext(
+    InternalBaseBroadcastProcessFunctionContext, KeyedBroadcastProcessFunction.Context
+):
     def __init__(self, timer_service: TimerService, operator_state_store: OperatorStateStore):
         InternalBaseBroadcastProcessFunctionContext.__init__(
             self, timer_service, operator_state_store
@@ -170,9 +180,8 @@ class InternalKeyedBroadcastProcessFunctionContext(InternalBaseBroadcastProcessF
 
 
 class InternalKeyedBroadcastProcessFunctionReadOnlyContext(
-        InternalBaseBroadcastProcessFunctionContext,
-        KeyedBroadcastProcessFunction.ReadOnlyContext):
-
+    InternalBaseBroadcastProcessFunctionContext, KeyedBroadcastProcessFunction.ReadOnlyContext
+):
     def __init__(self, timer_service: TimerService, operator_state_store: OperatorStateStore):
         InternalBaseBroadcastProcessFunctionContext.__init__(
             self, timer_service, operator_state_store
@@ -187,15 +196,13 @@ class InternalKeyedBroadcastProcessFunctionReadOnlyContext(
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> ReadOnlyBroadcastState:
         return cast(
-            InternalBroadcastState,
-            self._operator_state_store.get_broadcast_state(state_descriptor)
+            InternalBroadcastState, self._operator_state_store.get_broadcast_state(state_descriptor)
         ).to_read_only_broadcast_state()
 
 
 class InternalKeyedBroadcastProcessFunctionOnTimerContext(
-        InternalBaseBroadcastProcessFunctionContext,
-        KeyedBroadcastProcessFunction.OnTimerContext):
-
+    InternalBaseBroadcastProcessFunctionContext, KeyedBroadcastProcessFunction.OnTimerContext
+):
     def __init__(self, timer_service: TimerService, operator_state_store: OperatorStateStore):
         InternalBaseBroadcastProcessFunctionContext.__init__(
             self, timer_service, operator_state_store
@@ -217,6 +224,5 @@ class InternalKeyedBroadcastProcessFunctionOnTimerContext(
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> ReadOnlyBroadcastState:
         return cast(
-            InternalBroadcastState,
-            self._operator_state_store.get_broadcast_state(state_descriptor)
+            InternalBroadcastState, self._operator_state_store.get_broadcast_state(state_descriptor)
         ).to_read_only_broadcast_state()

@@ -21,12 +21,12 @@ from pyflink.util.java_utils import load_java_class
 
 
 class SequenceSourceTests(PyFlinkStreamingTestCase):
-
     def test_seq_source(self):
         seq_source = NumberSequenceSource(1, 10)
 
         seq_source_clz = load_java_class(
-            "org.apache.flink.api.connector.source.lib.NumberSequenceSource")
+            "org.apache.flink.api.connector.source.lib.NumberSequenceSource"
+        )
         from_field = seq_source_clz.getDeclaredField("from")
         from_field.setAccessible(True)
         self.assertEqual(1, from_field.get(seq_source.get_java_function()))

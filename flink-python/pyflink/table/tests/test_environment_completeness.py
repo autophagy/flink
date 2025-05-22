@@ -25,6 +25,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
     Tests whether the Python :class:`TableEnvironment` is consistent with
     Java `org.apache.flink.table.api.TableEnvironment`.
     """
+
     @classmethod
     def python_class(cls):
         return TableEnvironment
@@ -37,17 +38,18 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
     def excluded_methods(cls):
         # getCompletionHints has been deprecated. It will be removed in the next release.
         return {
-            'getCompletionHints',
-            'fromValues',
-            'fromCall',
+            "getCompletionHints",
+            "fromValues",
+            "fromCall",
             # See FLINK-25986
-            'loadPlan',
-            'compilePlanSql',
-            'executePlan',
-            'explainPlan',
-            'registerFunction',
-            'scan',
-            'registerTable'}
+            "loadPlan",
+            "compilePlanSql",
+            "executePlan",
+            "explainPlan",
+            "registerFunction",
+            "scan",
+            "registerTable",
+        }
 
     @classmethod
     def java_method_name(cls, python_method_name):
@@ -58,18 +60,21 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
         :param python_method_name:
         :return:
         """
-        py_func_to_java_method_dict = {'from_path': 'from',
-                                       "from_descriptor": "from",
-                                       "create_java_function": "create_function"}
+        py_func_to_java_method_dict = {
+            "from_path": "from",
+            "from_descriptor": "from",
+            "create_java_function": "create_function",
+        }
         return py_func_to_java_method_dict.get(python_method_name, python_method_name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

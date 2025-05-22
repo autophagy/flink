@@ -17,7 +17,7 @@
 ################################################################################
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['ChangelogMode']
+__all__ = ["ChangelogMode"]
 
 
 class ChangelogMode(object):
@@ -32,16 +32,15 @@ class ChangelogMode(object):
     def insert_only():
         gateway = get_gateway()
         return ChangelogMode(
-            gateway.jvm.org.apache.flink.table.connector.ChangelogMode.insertOnly())
+            gateway.jvm.org.apache.flink.table.connector.ChangelogMode.insertOnly()
+        )
 
     @staticmethod
     def upsert():
         gateway = get_gateway()
-        return ChangelogMode(
-            gateway.jvm.org.apache.flink.table.connector.ChangelogMode.upsert())
+        return ChangelogMode(gateway.jvm.org.apache.flink.table.connector.ChangelogMode.upsert())
 
     @staticmethod
     def all():
         gateway = get_gateway()
-        return ChangelogMode(
-            gateway.jvm.org.apache.flink.table.connector.ChangelogMode.all())
+        return ChangelogMode(gateway.jvm.org.apache.flink.table.connector.ChangelogMode.all())

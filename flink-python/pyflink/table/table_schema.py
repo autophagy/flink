@@ -21,7 +21,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, RowType, _to_java_data_type, _from_java_data_type
 from pyflink.util.java_utils import to_jarray
 
-__all__ = ['TableSchema']
+__all__ = ["TableSchema"]
 
 
 class TableSchema(object):
@@ -29,19 +29,22 @@ class TableSchema(object):
     A table schema that represents a table's structure with field names and data types.
     """
 
-    def __init__(self, field_names: List[str] = None, data_types: List[DataType] = None,
-                 j_table_schema=None):
+    def __init__(
+        self, field_names: List[str] = None, data_types: List[DataType] = None, j_table_schema=None
+    ):
         if j_table_schema is None:
             gateway = get_gateway()
             j_field_names = to_jarray(gateway.jvm.String, field_names)
-            j_data_types = to_jarray(gateway.jvm.DataType,
-                                     [_to_java_data_type(item) for item in data_types])
-            self._j_table_schema = gateway.jvm.TableSchema.builder()\
-                .fields(j_field_names, j_data_types).build()
+            j_data_types = to_jarray(
+                gateway.jvm.DataType, [_to_java_data_type(item) for item in data_types]
+            )
+            self._j_table_schema = (
+                gateway.jvm.TableSchema.builder().fields(j_field_names, j_data_types).build()
+            )
         else:
             self._j_table_schema = j_table_schema
 
-    def copy(self) -> 'TableSchema':
+    def copy(self) -> "TableSchema":
         """
         Returns a deep copy of the table schema.
 
@@ -135,7 +138,7 @@ class TableSchema(object):
             self._field_names = []
             self._field_data_types = []
 
-        def field(self, name: str, data_type: DataType) -> 'TableSchema.Builder':
+        def field(self, name: str, data_type: DataType) -> "TableSchema.Builder":
             """
             Add a field with name and data type.
 
@@ -151,7 +154,7 @@ class TableSchema(object):
             self._field_data_types.append(data_type)
             return self
 
-        def build(self) -> 'TableSchema':
+        def build(self) -> "TableSchema":
             """
             Returns a :class:`TableSchema` instance.
 

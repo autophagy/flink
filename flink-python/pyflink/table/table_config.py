@@ -23,7 +23,7 @@ from pyflink.common.configuration import Configuration
 from pyflink.java_gateway import get_gateway
 from pyflink.table.sql_dialect import SqlDialect
 
-__all__ = ['TableConfig']
+__all__ = ["TableConfig"]
 
 from pyflink.util.java_utils import add_jars_to_context_class_loader
 
@@ -94,7 +94,7 @@ class TableConfig(object):
         else:
             return self._j_table_config.getRootConfiguration().getString(key, default_value)
 
-    def set(self, key: str, value: str) -> 'TableConfig':
+    def set(self, key: str, value: str) -> "TableConfig":
         """
         Sets a string-based value for the given string-based key.
 
@@ -188,7 +188,8 @@ class TableConfig(object):
         :return: The duration until state which was not updated will be retained.
         """
         return datetime.timedelta(
-            milliseconds=self._j_table_config.getIdleStateRetention().toMillis())
+            milliseconds=self._j_table_config.getIdleStateRetention().toMillis()
+        )
 
     def get_configuration(self) -> Configuration:
         """
@@ -281,7 +282,7 @@ class TableConfig(object):
         return self.get_configuration().get_string(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), None)
 
     @staticmethod
-    def get_default() -> 'TableConfig':
+    def get_default() -> "TableConfig":
         """
         :return: A TableConfig object with default settings.
         """

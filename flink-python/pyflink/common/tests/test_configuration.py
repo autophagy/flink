@@ -22,7 +22,6 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class ConfigurationTests(PyFlinkTestCase):
-
     def test_init(self):
         conf = Configuration()
 
@@ -75,11 +74,9 @@ class ConfigurationTests(PyFlinkTestCase):
         target_dict = dict()
         conf.add_all_to_dict(target_dict)
 
-        self.assertEqual(target_dict, {"k1": "v1",
-                                       "k2": 1,
-                                       "k3": 1.2,
-                                       "k4": True,
-                                       "k5": bytearray([1, 2, 3])})
+        self.assertEqual(
+            target_dict, {"k1": "v1", "k2": 1, "k3": 1.2, "k4": True, "k5": bytearray([1, 2, 3])}
+        )
 
     def test_add_all(self):
         conf = Configuration()
@@ -173,18 +170,18 @@ class ConfigurationTests(PyFlinkTestCase):
 
         # test parse YAML list
         value = "[jar1, jar2, jar3]"
-        expected_result = ['jar1', 'jar2', 'jar3']
+        expected_result = ["jar1", "jar2", "jar3"]
         result = Configuration.parse_list_value(value)
         self.assertEqual(result, expected_result)
 
         # test parse multiline YAML list
         value = "- jar1\n- jar2\n- jar3"
-        expected_result = ['jar1', 'jar2', 'jar3']
+        expected_result = ["jar1", "jar2", "jar3"]
         result = Configuration.parse_list_value(value)
         self.assertEqual(result, expected_result)
 
         # test parse legacy pattern
         value = "jar1;jar2;jar3"
-        expected_result = ['jar1', 'jar2', 'jar3']
+        expected_result = ["jar1", "jar2", "jar3"]
         result = Configuration.parse_list_value(value)
         self.assertEqual(result, expected_result)

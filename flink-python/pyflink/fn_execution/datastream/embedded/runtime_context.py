@@ -16,10 +16,18 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream import RuntimeContext
-from pyflink.datastream.state import (AggregatingStateDescriptor, AggregatingState,
-                                      ReducingStateDescriptor, ReducingState, MapStateDescriptor,
-                                      MapState, ListStateDescriptor, ListState,
-                                      ValueStateDescriptor, ValueState)
+from pyflink.datastream.state import (
+    AggregatingStateDescriptor,
+    AggregatingState,
+    ReducingStateDescriptor,
+    ReducingState,
+    MapStateDescriptor,
+    MapState,
+    ListStateDescriptor,
+    ListState,
+    ValueStateDescriptor,
+    ValueState,
+)
 from pyflink.fn_execution.embedded.state_impl import KeyedStateBackend
 from pyflink.fn_execution.metrics.embedded.metric_impl import MetricGroupImpl
 from pyflink.metrics import MetricGroup
@@ -92,8 +100,9 @@ class StreamingRuntimeContext(RuntimeContext):
     def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
         return self._keyed_state_backend.get_reducing_state(state_descriptor)
 
-    def get_aggregating_state(self,
-                              state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
+    def get_aggregating_state(
+        self, state_descriptor: AggregatingStateDescriptor
+    ) -> AggregatingState:
         return self._keyed_state_backend.get_aggregating_state(state_descriptor)
 
     def set_keyed_state_backend(self, keyed_state_backend: KeyedStateBackend):

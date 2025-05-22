@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-__all__ = ['MemorySize', 'SlotSharingGroup']
+__all__ = ["MemorySize", "SlotSharingGroup"]
 
 from typing import Optional
 
@@ -29,14 +29,17 @@ class MemorySize(object):
     """
 
     def __init__(self, j_memory_size=None, bytes_size: int = None):
-        self._j_memory_size = get_gateway().jvm \
-            .org.apache.flink.configuration.MemorySize(bytes_size) \
-            if j_memory_size is None else j_memory_size
+        self._j_memory_size = (
+            get_gateway().jvm.org.apache.flink.configuration.MemorySize(bytes_size)
+            if j_memory_size is None
+            else j_memory_size
+        )
 
     @staticmethod
-    def of_mebi_bytes(mebi_bytes: int) -> 'MemorySize':
+    def of_mebi_bytes(mebi_bytes: int) -> "MemorySize":
         return MemorySize(
-            get_gateway().jvm.org.apache.flink.configuration.MemorySize.ofMebiBytes(mebi_bytes))
+            get_gateway().jvm.org.apache.flink.configuration.MemorySize.ofMebiBytes(mebi_bytes)
+        )
 
     def get_bytes(self) -> int:
         """
@@ -92,13 +95,13 @@ class MemorySize(object):
     def __hash__(self):
         return self._j_memory_size.hashCode()
 
-    def __lt__(self, other: 'MemorySize'):
+    def __lt__(self, other: "MemorySize"):
         if not isinstance(other, MemorySize):
             raise Exception("Does not support comparison with non-MemorySize %s" % other)
 
         return self._j_memory_size.compareTo(other._j_memory_size) == -1
 
-    def __le__(self, other: 'MemorySize'):
+    def __le__(self, other: "MemorySize"):
         return self.__eq__(other) and self.__lt__(other)
 
     def __str__(self):
@@ -150,9 +153,9 @@ class SlotSharingGroup(object):
 
     def get_cpu_cores(self) -> Optional[float]:
         """
-       Gets the CPU cores for this SlotSharingGroup.
+        Gets the CPU cores for this SlotSharingGroup.
 
-        :return: The CPU cores of the SlotSharingGroup.
+         :return: The CPU cores of the SlotSharingGroup.
         """
         cpu_cores = self._j_slot_sharing_group.getCpuCores()
         return cpu_cores.get() if cpu_cores.isPresent() else None
@@ -174,7 +177,7 @@ class SlotSharingGroup(object):
         return self._j_slot_sharing_group
 
     @staticmethod
-    def builder(name: str) -> 'Builder':
+    def builder(name: str) -> "Builder":
         """
         Gets the Builder with the given name for this SlotSharingGroup.
 
@@ -183,11 +186,15 @@ class SlotSharingGroup(object):
         """
         return SlotSharingGroup.Builder(
             get_gateway().jvm.org.apache.flink.api.common.operators.SlotSharingGroup.newBuilder(
-                name))
+                name
+            )
+        )
 
     def __eq__(self, other):
-        return isinstance(other, self.__class__) and \
-            self._j_slot_sharing_group == other._j_slot_sharing_group
+        return (
+            isinstance(other, self.__class__)
+            and self._j_slot_sharing_group == other._j_slot_sharing_group
+        )
 
     def __hash__(self):
         return self._j_slot_sharing_group.hashCode()
@@ -200,7 +207,7 @@ class SlotSharingGroup(object):
         def __init__(self, j_builder):
             self._j_builder = j_builder
 
-        def set_cpu_cores(self, cpu_cores: float) -> 'SlotSharingGroup.Builder':
+        def set_cpu_cores(self, cpu_cores: float) -> "SlotSharingGroup.Builder":
             """
             Sets the CPU cores for this SlotSharingGroup.
 
@@ -210,7 +217,7 @@ class SlotSharingGroup(object):
             self._j_builder.setCpuCores(cpu_cores)
             return self
 
-        def set_task_heap_memory(self, task_heap_memory: MemorySize) -> 'SlotSharingGroup.Builder':
+        def set_task_heap_memory(self, task_heap_memory: MemorySize) -> "SlotSharingGroup.Builder":
             """
             Sets the task heap memory for this SlotSharingGroup.
 
@@ -220,7 +227,7 @@ class SlotSharingGroup(object):
             self._j_builder.setTaskHeapMemory(task_heap_memory.get_java_memory_size())
             return self
 
-        def set_task_heap_memory_mb(self, task_heap_memory_mb: int) -> 'SlotSharingGroup.Builder':
+        def set_task_heap_memory_mb(self, task_heap_memory_mb: int) -> "SlotSharingGroup.Builder":
             """
             Sets the task heap memory for this SlotSharingGroup in MB.
 
@@ -230,8 +237,9 @@ class SlotSharingGroup(object):
             self._j_builder.setTaskHeapMemoryMB(task_heap_memory_mb)
             return self
 
-        def set_task_off_heap_memory(self, task_off_heap_memory: MemorySize) \
-                -> 'SlotSharingGroup.Builder':
+        def set_task_off_heap_memory(
+            self, task_off_heap_memory: MemorySize
+        ) -> "SlotSharingGroup.Builder":
             """
             Sets the task off-heap memory for this SlotSharingGroup.
 
@@ -241,8 +249,9 @@ class SlotSharingGroup(object):
             self._j_builder.setTaskOffHeapMemory(task_off_heap_memory.get_java_memory_size())
             return self
 
-        def set_task_off_heap_memory_mb(self, task_off_heap_memory_mb: int) \
-                -> 'SlotSharingGroup.Builder':
+        def set_task_off_heap_memory_mb(
+            self, task_off_heap_memory_mb: int
+        ) -> "SlotSharingGroup.Builder":
             """
             Sets the task off-heap memory for this SlotSharingGroup in MB.
 
@@ -252,7 +261,7 @@ class SlotSharingGroup(object):
             self._j_builder.setTaskOffHeapMemoryMB(task_off_heap_memory_mb)
             return self
 
-        def set_managed_memory(self, managed_memory: MemorySize) -> 'SlotSharingGroup.Builder':
+        def set_managed_memory(self, managed_memory: MemorySize) -> "SlotSharingGroup.Builder":
             """
             Sets the task managed memory for this SlotSharingGroup.
 
@@ -262,7 +271,7 @@ class SlotSharingGroup(object):
             self._j_builder.setManagedMemory(managed_memory.get_java_memory_size())
             return self
 
-        def set_managed_memory_mb(self, managed_memory_mb: int) -> 'SlotSharingGroup.Builder':
+        def set_managed_memory_mb(self, managed_memory_mb: int) -> "SlotSharingGroup.Builder":
             """
             Sets the task managed memory for this SlotSharingGroup in MB.
 
@@ -272,7 +281,7 @@ class SlotSharingGroup(object):
             self._j_builder.setManagedMemoryMB(managed_memory_mb)
             return self
 
-        def set_external_resource(self, name: str, value: float) -> 'SlotSharingGroup.Builder':
+        def set_external_resource(self, name: str, value: float) -> "SlotSharingGroup.Builder":
             """
             Adds the given external resource. The old value with the same resource name will be
             replaced if present.
@@ -284,7 +293,7 @@ class SlotSharingGroup(object):
             self._j_builder.setExternalResource(name, value)
             return self
 
-        def build(self) -> 'SlotSharingGroup':
+        def build(self) -> "SlotSharingGroup":
             """
             Builds the SlotSharingGroup.
 

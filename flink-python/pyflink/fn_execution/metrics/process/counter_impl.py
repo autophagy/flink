@@ -45,5 +45,6 @@ class CounterImpl(Counter):
         .. versionadded:: 1.11.0
         """
         from apache_beam.metrics.execution import MetricsEnvironment
+
         container = MetricsEnvironment.current_container()
         return container.get_counter(self._inner_counter.metric_name).get_cumulative()

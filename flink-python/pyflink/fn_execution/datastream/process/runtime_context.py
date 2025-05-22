@@ -18,26 +18,36 @@
 from typing import Dict
 
 from pyflink.datastream import RuntimeContext
-from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
-    ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
-    AggregatingStateDescriptor, AggregatingState
+from pyflink.datastream.state import (
+    ValueStateDescriptor,
+    ValueState,
+    ListStateDescriptor,
+    ListState,
+    MapStateDescriptor,
+    MapState,
+    ReducingStateDescriptor,
+    ReducingState,
+    AggregatingStateDescriptor,
+    AggregatingState,
+)
 from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
 from pyflink.metrics import MetricGroup
 
 
 class StreamingRuntimeContext(RuntimeContext):
-
-    def __init__(self,
-                 task_name: str,
-                 task_name_with_subtasks: str,
-                 number_of_parallel_subtasks: int,
-                 max_number_of_parallel_subtasks: int,
-                 index_of_this_subtask: int,
-                 attempt_number: int,
-                 job_parameters: Dict[str, str],
-                 metric_group: MetricGroup,
-                 keyed_state_backend,
-                 in_batch_execution_mode: bool):
+    def __init__(
+        self,
+        task_name: str,
+        task_name_with_subtasks: str,
+        number_of_parallel_subtasks: int,
+        max_number_of_parallel_subtasks: int,
+        index_of_this_subtask: int,
+        attempt_number: int,
+        job_parameters: Dict[str, str],
+        metric_group: MetricGroup,
+        keyed_state_backend,
+        in_batch_execution_mode: bool,
+    ):
         self._task_name = task_name
         self._task_name_with_subtasks = task_name_with_subtasks
         self._number_of_parallel_subtasks = number_of_parallel_subtasks
@@ -106,7 +116,8 @@ class StreamingRuntimeContext(RuntimeContext):
             return self._keyed_state_backend.get_value_state(
                 state_descriptor.name,
                 from_type_info(state_descriptor.type_info),
-                state_descriptor._ttl_config)
+                state_descriptor._ttl_config,
+            )
         else:
             raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
@@ -114,9 +125,8 @@ class StreamingRuntimeContext(RuntimeContext):
         if self._keyed_state_backend:
             array_coder: GenericArrayCoder = from_type_info(state_descriptor.type_info)
             return self._keyed_state_backend.get_list_state(
-                state_descriptor.name,
-                array_coder._elem_coder,
-                state_descriptor._ttl_config)
+                state_descriptor.name, array_coder._elem_coder, state_descriptor._ttl_config
+            )
         else:
             raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
@@ -126,10 +136,8 @@ class StreamingRuntimeContext(RuntimeContext):
             key_coder = map_coder._key_coder
             value_coder = map_coder._value_coder
             return self._keyed_state_backend.get_map_state(
-                state_descriptor.name,
-                key_coder,
-                value_coder,
-                state_descriptor._ttl_config)
+                state_descriptor.name, key_coder, value_coder, state_descriptor._ttl_config
+            )
         else:
             raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
@@ -139,18 +147,21 @@ class StreamingRuntimeContext(RuntimeContext):
                 state_descriptor.get_name(),
                 from_type_info(state_descriptor.type_info),
                 state_descriptor.get_reduce_function(),
-                state_descriptor._ttl_config)
+                state_descriptor._ttl_config,
+            )
         else:
             raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
     def get_aggregating_state(
-            self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
+        self, state_descriptor: AggregatingStateDescriptor
+    ) -> AggregatingState:
         if self._keyed_state_backend:
             return self._keyed_state_backend.get_aggregating_state(
                 state_descriptor.get_name(),
                 from_type_info(state_descriptor.type_info),
                 state_descriptor.get_agg_function(),
-                state_descriptor._ttl_config)
+                state_descriptor._ttl_config,
+            )
         else:
             raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
@@ -166,4 +177,5 @@ class StreamingRuntimeContext(RuntimeContext):
             {p.key: p.value for p in runtime_context_proto.job_parameters},
             metric_group,
             keyed_state_backend,
-            runtime_context_proto.in_batch_execution_mode)
+            runtime_context_proto.in_batch_execution_mode,
+        )

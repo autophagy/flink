@@ -18,15 +18,25 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List, Iterable, Collection
 
-from pyflink.datastream.state import State, ValueState, AppendingState, MergingState, ListState, \
-    AggregatingState, ReducingState, MapState, ReadOnlyBroadcastState, BroadcastState
+from pyflink.datastream.state import (
+    State,
+    ValueState,
+    AppendingState,
+    MergingState,
+    ListState,
+    AggregatingState,
+    ReducingState,
+    MapState,
+    ReadOnlyBroadcastState,
+    BroadcastState,
+)
 
-N = TypeVar('N')
-T = TypeVar('T')
-K = TypeVar('K')
-V = TypeVar('V')
-IN = TypeVar('IN')
-OUT = TypeVar('OUT')
+N = TypeVar("N")
+T = TypeVar("T")
+K = TypeVar("K")
+V = TypeVar("V")
+IN = TypeVar("IN")
+OUT = TypeVar("OUT")
 
 
 class InternalKvState(State, Generic[N]):
@@ -58,6 +68,7 @@ class InternalValueState(InternalKvState[N], ValueState[T], ABC):
     """
     The peer to the :class:ValueState in the internal state type hierarchy.
     """
+
     pass
 
 
@@ -65,6 +76,7 @@ class InternalAppendingState(InternalKvState[N], AppendingState[IN, OUT], ABC):
     """
     The peer to the :class:AppendingState in the internal state type hierarchy.
     """
+
     pass
 
 
@@ -89,6 +101,7 @@ class InternalListState(InternalMergingState[N, List[T], Iterable[T]], ListState
     """
     The peer to the :class:ListState in the internal state type hierarchy.
     """
+
     pass
 
 
@@ -96,6 +109,7 @@ class InternalAggregatingState(InternalMergingState[N, IN, OUT], AggregatingStat
     """
     The peer to the :class:AggregatingState in the internal state type hierarchy.
     """
+
     pass
 
 
@@ -103,6 +117,7 @@ class InternalReducingState(InternalMergingState[N, T, T], ReducingState[T], ABC
     """
     The peer to the :class:ReducingState in the internal state type hierarchy.
     """
+
     pass
 
 
@@ -110,6 +125,7 @@ class InternalMapState(InternalKvState[N], MapState[K, V], ABC):
     """
     The peer to the :class:MapState in the internal state type hierarchy.
     """
+
     pass
 
 
@@ -117,6 +133,7 @@ class InternalReadOnlyBroadcastState(ReadOnlyBroadcastState[K, V], ABC):
     """
     The peer to :class:`ReadOnlyBroadcastState`.
     """
+
     pass
 
 

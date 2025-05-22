@@ -23,13 +23,28 @@ from pyflink.common.typeinfo import PickledBytesTypeInfo
 from pyflink.datastream import WindowAssigner, Trigger, MergingWindowAssigner, TriggerResult
 from pyflink.datastream.functions import KeyedStateStore, RuntimeContext, InternalWindowFunction
 from pyflink.datastream.output_tag import OutputTag
-from pyflink.datastream.state import StateDescriptor, ListStateDescriptor, \
-    ReducingStateDescriptor, AggregatingStateDescriptor, ValueStateDescriptor, MapStateDescriptor, \
-    State, AggregatingState, ReducingState, MapState, ListState, ValueState, AppendingState
+from pyflink.datastream.state import (
+    StateDescriptor,
+    ListStateDescriptor,
+    ReducingStateDescriptor,
+    AggregatingStateDescriptor,
+    ValueStateDescriptor,
+    MapStateDescriptor,
+    State,
+    AggregatingState,
+    ReducingState,
+    MapState,
+    ListState,
+    ValueState,
+    AppendingState,
+)
 from pyflink.fn_execution.datastream.timerservice import InternalTimerService
 from pyflink.fn_execution.datastream.window.merging_window_set import MergingWindowSet
-from pyflink.fn_execution.internal_state import InternalMergingState, InternalKvState, \
-    InternalAppendingState
+from pyflink.fn_execution.internal_state import (
+    InternalMergingState,
+    InternalKvState,
+    InternalAppendingState,
+)
 from pyflink.metrics import MetricGroup
 
 T = TypeVar("T")
@@ -56,7 +71,6 @@ def get_or_create_keyed_state(runtime_context, state_descriptor):
 
 
 class MergingWindowStateStore(KeyedStateStore):
-
     def __init__(self):
         self.window = None
 
@@ -73,12 +87,12 @@ class MergingWindowStateStore(KeyedStateStore):
         raise Exception("Per-window state is not allowed when using merging windows.")
 
     def get_aggregating_state(
-            self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
+        self, state_descriptor: AggregatingStateDescriptor
+    ) -> AggregatingState:
         raise Exception("Per-window state is not allowed when using merging windows.")
 
 
 class PerWindowStateStore(KeyedStateStore):
-
     def __init__(self, runtime_context):
         self._runtime_context = runtime_context
         self.window = None
@@ -96,7 +110,8 @@ class PerWindowStateStore(KeyedStateStore):
         return self._set_namespace(self._runtime_context.get_reducing_state(state_descriptor))
 
     def get_aggregating_state(
-            self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
+        self, state_descriptor: AggregatingStateDescriptor
+    ) -> AggregatingState:
         return self._set_namespace(self._runtime_context.get_aggregating_state(state_descriptor))
 
     def _set_namespace(self, state):
@@ -105,12 +120,12 @@ class PerWindowStateStore(KeyedStateStore):
 
 
 class Context(Trigger.OnMergeContext):
-
     def __init__(
-            self,
-            runtime_context: RuntimeContext,
-            internal_timer_service: InternalTimerService,
-            trigger: Trigger):
+        self,
+        runtime_context: RuntimeContext,
+        internal_timer_service: InternalTimerService,
+        trigger: Trigger,
+    ):
         self._runtime_context = runtime_context
         self._internal_timer_service = internal_timer_service
         self._trigger = trigger
@@ -146,11 +161,11 @@ class Context(Trigger.OnMergeContext):
                 raw_state.merge_namespaces(self.window, self.merged_windows)
             else:
                 raise Exception(
-                    "The given state descriptor does not refer to a mergeable state (MergingState)")
+                    "The given state descriptor does not refer to a mergeable state (MergingState)"
+                )
 
     def get_partitioned_state(self, state_descriptor: StateDescriptor) -> State:
-        state: InternalKvState = get_or_create_keyed_state(
-            self._runtime_context, state_descriptor)
+        state: InternalKvState = get_or_create_keyed_state(self._runtime_context, state_descriptor)
         state.set_current_namespace(self.window)
         return state
 
@@ -172,12 +187,13 @@ class Context(Trigger.OnMergeContext):
 
 
 class WindowContext(InternalWindowFunction.InternalWindowContext):
-
-    def __init__(self,
-                 window_assigner: WindowAssigner,
-                 runtime_context: RuntimeContext,
-                 window_function: InternalWindowFunction,
-                 internal_timer_service: InternalTimerService):
+    def __init__(
+        self,
+        window_assigner: WindowAssigner,
+        runtime_context: RuntimeContext,
+        window_function: InternalWindowFunction,
+        internal_timer_service: InternalTimerService,
+    ):
         self.window = None
         if isinstance(window_assigner, MergingWindowAssigner):
             self._window_state = MergingWindowStateStore()
@@ -205,10 +221,9 @@ class WindowContext(InternalWindowFunction.InternalWindowContext):
 
 
 class WindowAssignerContext(WindowAssigner.WindowAssignerContext):
-
-    def __init__(self,
-                 internal_timer_service: InternalTimerService,
-                 runtime_context: RuntimeContext):
+    def __init__(
+        self, internal_timer_service: InternalTimerService, runtime_context: RuntimeContext
+    ):
         self._internal_timer_service = internal_timer_service
         self._runtime_context = runtime_context
 
@@ -220,9 +235,7 @@ class WindowAssignerContext(WindowAssigner.WindowAssignerContext):
 
 
 class WindowMergeFunction(MergingWindowSet.MergeFunction[W]):
-
-    def __init__(self,
-                 window_operator: 'WindowOperator'):
+    def __init__(self, window_operator: "WindowOperator"):
         self._window_assigner = window_operator.window_assigner
         self._internal_timer_service = window_operator.internal_timer_service
         self._allowed_lateness = window_operator.allowed_lateness
@@ -233,24 +246,31 @@ class WindowMergeFunction(MergingWindowSet.MergeFunction[W]):
 
         self.key = None
 
-    def merge(self,
-              merge_result: W,
-              merged_windows: Collection[W],
-              state_window_result: W,
-              merged_state_windows: Collection[W]):
-        if self._window_assigner.is_event_time() and \
-                merge_result.max_timestamp() + self._allowed_lateness <= \
-                self._internal_timer_service.current_watermark():
-            raise Exception("The end timestamp of an event-time window cannot become earlier than "
-                            "the current watermark by merging. Current watermark: %d window: %s" %
-                            (self._internal_timer_service.current_watermark(), merge_result))
+    def merge(
+        self,
+        merge_result: W,
+        merged_windows: Collection[W],
+        state_window_result: W,
+        merged_state_windows: Collection[W],
+    ):
+        if (
+            self._window_assigner.is_event_time()
+            and merge_result.max_timestamp() + self._allowed_lateness
+            <= self._internal_timer_service.current_watermark()
+        ):
+            raise Exception(
+                "The end timestamp of an event-time window cannot become earlier than "
+                "the current watermark by merging. Current watermark: %d window: %s"
+                % (self._internal_timer_service.current_watermark(), merge_result)
+            )
         elif not self._window_assigner.is_event_time():
             current_processing_time = self._internal_timer_service.current_processing_time()
             if merge_result.max_timestamp() <= current_processing_time:
-                raise Exception("The end timestamp of a processing-time window cannot become "
-                                "earlier than the current processing time by merging. Current "
-                                "processing time: %d window: %s" %
-                                (current_processing_time, merge_result))
+                raise Exception(
+                    "The end timestamp of a processing-time window cannot become "
+                    "earlier than the current processing time by merging. Current "
+                    "processing time: %d window: %s" % (current_processing_time, merge_result)
+                )
 
         self._trigger_context.user_key = self._user_key_selector(self.key)
         self._trigger_context.window = merge_result
@@ -268,15 +288,17 @@ class WindowMergeFunction(MergingWindowSet.MergeFunction[W]):
 class WindowOperator(object):
     LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped"
 
-    def __init__(self,
-                 window_assigner: WindowAssigner,
-                 keyed_state_backend,
-                 user_key_selector,
-                 window_state_descriptor: StateDescriptor,
-                 window_function: InternalWindowFunction,
-                 trigger: Trigger,
-                 allowed_lateness: int,
-                 late_data_output_tag: Optional[OutputTag]):
+    def __init__(
+        self,
+        window_assigner: WindowAssigner,
+        keyed_state_backend,
+        user_key_selector,
+        window_state_descriptor: StateDescriptor,
+        window_function: InternalWindowFunction,
+        trigger: Trigger,
+        allowed_lateness: int,
+        late_data_output_tag: Optional[OutputTag],
+    ):
         self.window_assigner = window_assigner
         self.keyed_state_backend = keyed_state_backend
         self.user_key_selector = user_key_selector
@@ -301,37 +323,37 @@ class WindowOperator(object):
         self.window_function.open(runtime_context)
 
         self.num_late_records_dropped = runtime_context.get_metrics_group().counter(
-            self.LATE_ELEMENTS_DROPPED_METRIC_NAME)
+            self.LATE_ELEMENTS_DROPPED_METRIC_NAME
+        )
         self.internal_timer_service = internal_timer_service
         self.trigger_context = Context(runtime_context, internal_timer_service, self.trigger)
         self.process_context = WindowContext(
-            self.window_assigner,
-            runtime_context,
-            self.window_function,
-            self.internal_timer_service)
+            self.window_assigner, runtime_context, self.window_function, self.internal_timer_service
+        )
         self.window_assigner_context = WindowAssignerContext(
-            self.internal_timer_service,
-            runtime_context)
+            self.internal_timer_service, runtime_context
+        )
 
         # create (or restore) the state that hold the actual window contents
         # NOTE - the state may be null in the case of the overriding evicting window operator
         if self.window_state_descriptor is not None:
             self.window_state = get_or_create_keyed_state(
-                runtime_context, self.window_state_descriptor)
+                runtime_context, self.window_state_descriptor
+            )
 
         if isinstance(self.window_assigner, MergingWindowAssigner):
             if isinstance(self.window_state, InternalMergingState):
                 self.window_merging_state = self.window_state
 
-            if hasattr(self.keyed_state_backend, 'namespace_coder'):
+            if hasattr(self.keyed_state_backend, "namespace_coder"):
                 window_coder = self.keyed_state_backend.namespace_coder
                 self.merging_sets_state = self.keyed_state_backend.get_map_state(
-                    "merging-window-set", window_coder, window_coder)
+                    "merging-window-set", window_coder, window_coder
+                )
             else:
                 state_descriptor = MapStateDescriptor(
-                    "merging-window-set",
-                    PickledBytesTypeInfo(),
-                    PickledBytesTypeInfo())
+                    "merging-window-set", PickledBytesTypeInfo(), PickledBytesTypeInfo()
+                )
                 self.merging_sets_state = self.keyed_state_backend.get_map_state(state_descriptor)
 
         self.merge_function = WindowMergeFunction(self)
@@ -344,7 +366,8 @@ class WindowOperator(object):
 
     def process_element(self, value, timestamp: int):
         element_windows = self.window_assigner.assign_windows(
-            value, timestamp, self.window_assigner_context)
+            value, timestamp, self.window_assigner_context
+        )
 
         is_skipped_element = True
 
@@ -458,7 +481,8 @@ class WindowOperator(object):
             self.window_state.clear()
 
         if self.window_assigner.is_event_time() and self.is_cleanup_time(
-                self.trigger_context.window, timestamp):
+            self.trigger_context.window, timestamp
+        ):
             self.clear_all_state(self.trigger_context.window, self.window_state, merging_windows)
 
         if merging_windows is not None:
@@ -498,7 +522,8 @@ class WindowOperator(object):
             self.window_state.clear()
 
         if not self.window_assigner.is_event_time() and self.is_cleanup_time(
-                self.trigger_context.window, timestamp):
+            self.trigger_context.window, timestamp
+        ):
             self.clear_all_state(self.trigger_context.window, self.window_state, merging_windows)
 
         if merging_windows is not None:
@@ -506,8 +531,8 @@ class WindowOperator(object):
 
     def get_merging_window_set(self) -> MergingWindowSet:
         return MergingWindowSet(
-            typing.cast(MergingWindowAssigner[T, W], self.window_assigner),
-            self.merging_sets_state)
+            typing.cast(MergingWindowAssigner[T, W], self.window_assigner), self.merging_sets_state
+        )
 
     def cleanup_time(self, window) -> int:
         if self.window_assigner.is_event_time():
@@ -541,15 +566,20 @@ class WindowOperator(object):
             self.trigger_context.delete_processing_time_timer(cleanup_time)
 
     def is_window_late(self, window) -> bool:
-        return self.window_assigner.is_event_time() and \
-            self.cleanup_time(window) <= self.internal_timer_service.current_watermark()
+        return (
+            self.window_assigner.is_event_time()
+            and self.cleanup_time(window) <= self.internal_timer_service.current_watermark()
+        )
 
     def is_element_late(self, value, timestamp) -> bool:
-        return self.window_assigner.is_event_time() and timestamp + self.allowed_lateness <= \
-            self.internal_timer_service.current_watermark()
+        return (
+            self.window_assigner.is_event_time()
+            and timestamp + self.allowed_lateness <= self.internal_timer_service.current_watermark()
+        )
 
     def clear_all_state(
-            self, window, window_state: AppendingState, merging_windows: MergingWindowSet):
+        self, window, window_state: AppendingState, merging_windows: MergingWindowSet
+    ):
         window_state.clear()
         self.trigger_context.clear()
         self.process_context.window = window
@@ -561,4 +591,5 @@ class WindowOperator(object):
     def emit_window_contents(self, window, contents) -> Iterable:
         self.process_context.window = window
         return self.window_function.process(
-            self.trigger_context.user_key, window, self.process_context, contents)
+            self.trigger_context.user_key, window, self.process_context, contents
+        )

@@ -21,8 +21,11 @@ from typing import Generic, List, Iterable, Dict, Set
 from pyflink.common import Row
 from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.datastream.state import MapState
-from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
-    MergingWindowAssigner
+from pyflink.fn_execution.table.window_assigner import (
+    WindowAssigner,
+    PanedWindowAssigner,
+    MergingWindowAssigner,
+)
 from pyflink.fn_execution.table.window_context import Context, K, W
 
 
@@ -35,10 +38,9 @@ class InternalWindowProcessFunction(Generic[K, W], ABC):
     The internal interface for functions that process over grouped windows.
     """
 
-    def __init__(self,
-                 allowed_lateness: int,
-                 window_assigner: WindowAssigner[W],
-                 window_aggregator):
+    def __init__(
+        self, allowed_lateness: int, window_assigner: WindowAssigner[W], window_aggregator
+    ):
         self._allowed_lateness = allowed_lateness
         self._window_assigner = window_assigner
         self._window_aggregator = window_aggregator
@@ -55,8 +57,10 @@ class InternalWindowProcessFunction(Generic[K, W], ABC):
         return time == self._cleanup_time(window)
 
     def is_window_late(self, window: W) -> bool:
-        return self._window_assigner.is_event_time() and \
-            self._cleanup_time(window) <= self._ctx.current_watermark()
+        return (
+            self._window_assigner.is_event_time()
+            and self._cleanup_time(window) <= self._ctx.current_watermark()
+        )
 
     def _cleanup_time(self, window: W) -> int:
         if self._window_assigner.is_event_time():
@@ -121,12 +125,12 @@ class GeneralWindowProcessFunction(InternalWindowProcessFunction[K, W]):
     regular assigner without implement PanedWindowAssigner or MergingWindowAssigner.
     """
 
-    def __init__(self,
-                 allowed_lateness: int,
-                 window_assigner: WindowAssigner[W],
-                 window_aggregator):
+    def __init__(
+        self, allowed_lateness: int, window_assigner: WindowAssigner[W], window_aggregator
+    ):
         super(GeneralWindowProcessFunction, self).__init__(
-            allowed_lateness, window_assigner, window_aggregator)
+            allowed_lateness, window_assigner, window_aggregator
+        )
         self._reuse_affected_windows: List[W] = None
 
     def assign_state_namespace(self, input_row: List, timestamp: int) -> List[W]:
@@ -159,12 +163,12 @@ class PanedWindowProcessFunction(InternalWindowProcessFunction[K, W]):
     The implementation of InternalWindowProcessFunction for PanedWindowAssigner.
     """
 
-    def __init__(self,
-                 allowed_lateness: int,
-                 window_assigner: PanedWindowAssigner[W],
-                 window_aggregator):
+    def __init__(
+        self, allowed_lateness: int, window_assigner: PanedWindowAssigner[W], window_aggregator
+    ):
         super(PanedWindowProcessFunction, self).__init__(
-            allowed_lateness, window_assigner, window_aggregator)
+            allowed_lateness, window_assigner, window_aggregator
+        )
         self._window_assigner = window_assigner
 
     def assign_state_namespace(self, input_row: List, timestamp: int) -> List[W]:
@@ -203,12 +207,12 @@ class PanedWindowProcessFunction(InternalWindowProcessFunction[K, W]):
 
     def _is_pane_late(self, pane: W):
         # whether the pane is late depends on the last window which the pane is belongs to is late
-        return self._window_assigner.is_event_time() and \
-            self.is_window_late(self._window_assigner.get_last_window(pane))
+        return self._window_assigner.is_event_time() and self.is_window_late(
+            self._window_assigner.get_last_window(pane)
+        )
 
 
 class MergeResultCollector(MergingWindowAssigner.MergeCallback):
-
     def __init__(self):
         self.merge_results: Dict[W, Iterable[W]] = {}
 
@@ -221,13 +225,16 @@ class MergingWindowProcessFunction(InternalWindowProcessFunction[K, W]):
     The implementation of InternalWindowProcessFunction for MergingWindowAssigner.
     """
 
-    def __init__(self,
-                 allowed_lateness: int,
-                 window_assigner: MergingWindowAssigner[W],
-                 window_aggregator,
-                 state_backend):
+    def __init__(
+        self,
+        allowed_lateness: int,
+        window_assigner: MergingWindowAssigner[W],
+        window_aggregator,
+        state_backend,
+    ):
         super(MergingWindowProcessFunction, self).__init__(
-            allowed_lateness, window_assigner, window_aggregator)
+            allowed_lateness, window_assigner, window_aggregator
+        )
         self._window_assigner = window_assigner
         self._reuse_actual_windows: List = None
         self._window_mapping: MapState = None
@@ -241,9 +248,10 @@ class MergingWindowProcessFunction(InternalWindowProcessFunction[K, W]):
     def open(self, ctx: Context[K, W]):
         super(MergingWindowProcessFunction, self).open(ctx)
         self._window_mapping = self._state_backend.get_map_state(
-            'session-window-mapping',
+            "session-window-mapping",
             self._state_backend.namespace_coder,
-            self._state_backend.namespace_coder)
+            self._state_backend.namespace_coder,
+        )
 
     def assign_state_namespace(self, input_row: List, timestamp: int) -> List[W]:
         element_windows = self._window_assigner.assign_windows(input_row, timestamp)
@@ -262,8 +270,9 @@ class MergingWindowProcessFunction(InternalWindowProcessFunction[K, W]):
             else:
                 self._reuse_actual_windows.append(actual_window)
 
-        affected_windows = [self._window_mapping.get(actual)
-                            for actual in self._reuse_actual_windows]
+        affected_windows = [
+            self._window_mapping.get(actual) for actual in self._reuse_actual_windows
+        ]
         return affected_windows
 
     def assign_actual_windows(self, input_row: List, timestamp: int) -> List[W]:
@@ -344,7 +353,8 @@ class MergingWindowProcessFunction(InternalWindowProcessFunction[K, W]):
             # without extending the pre-existing window
             if not (len(merge_windows) == 1 and merge_result in merge_windows):
                 self._merge(
-                    merge_result, merge_windows, merged_state_namespace, merged_state_windows)
+                    merge_result, merge_windows, merged_state_namespace, merged_state_windows
+                )
 
         # the new window created a new, self-contained window without merging
         if len(merge_results) == 0 or result_window == new_window and not is_new_window_merged:
@@ -354,8 +364,13 @@ class MergingWindowProcessFunction(InternalWindowProcessFunction[K, W]):
 
         return result_window
 
-    def _merge(self, merge_result: W, merge_windows: Set[W], state_window_result: W,
-               state_windows_tobe_merged: Iterable[W]):
+    def _merge(
+        self,
+        merge_result: W,
+        merge_windows: Set[W],
+        state_window_result: W,
+        state_windows_tobe_merged: Iterable[W],
+    ):
         self._ctx.on_merge(merge_result, state_windows_tobe_merged)
 
         # clear registered timers

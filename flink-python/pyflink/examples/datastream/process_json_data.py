@@ -31,19 +31,20 @@ def process_json_data():
             (1, '{"name": "Flink", "tel": 123, "addr": {"country": "Germany", "city": "Berlin"}}'),
             (2, '{"name": "hello", "tel": 135, "addr": {"country": "China", "city": "Shanghai"}}'),
             (3, '{"name": "world", "tel": 124, "addr": {"country": "USA", "city": "NewYork"}}'),
-            (4, '{"name": "PyFlink", "tel": 32, "addr": {"country": "China", "city": "Hangzhou"}}')]
+            (4, '{"name": "PyFlink", "tel": 32, "addr": {"country": "China", "city": "Hangzhou"}}'),
+        ]
     )
 
     def update_tel(data):
         # parse the json
         json_data = json.loads(data[1])
-        json_data['tel'] += 1
+        json_data["tel"] += 1
         return data[0], json_data
 
     def filter_by_country(data):
         # the json data could be accessed directly, there is no need to parse it again using
         # json.loads
-        return "China" in data[1]['addr']['country']
+        return "China" in data[1]["addr"]["country"]
 
     ds.map(update_tel).filter(filter_by_country).print()
 
@@ -51,7 +52,7 @@ def process_json_data():
     env.execute()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
     process_json_data()

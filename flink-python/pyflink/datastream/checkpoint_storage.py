@@ -24,10 +24,11 @@ from typing import Optional
 from pyflink.java_gateway import get_gateway
 
 __all__ = [
-    'CheckpointStorage',
-    'JobManagerCheckpointStorage',
-    'FileSystemCheckpointStorage',
-    'CustomCheckpointStorage']
+    "CheckpointStorage",
+    "JobManagerCheckpointStorage",
+    "FileSystemCheckpointStorage",
+    "CustomCheckpointStorage",
+]
 
 
 def _from_j_checkpoint_storage(j_checkpoint_storage):
@@ -35,10 +36,12 @@ def _from_j_checkpoint_storage(j_checkpoint_storage):
         return None
     gateway = get_gateway()
     JCheckpointStorage = gateway.jvm.org.apache.flink.runtime.state.CheckpointStorage
-    JJobManagerCheckpointStorage = gateway.jvm.org.apache.flink.runtime.state.storage \
-        .JobManagerCheckpointStorage
-    JFileSystemCheckpointStorage = gateway.jvm.org.apache.flink.runtime.state.storage \
-        .FileSystemCheckpointStorage
+    JJobManagerCheckpointStorage = (
+        gateway.jvm.org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage
+    )
+    JFileSystemCheckpointStorage = (
+        gateway.jvm.org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage
+    )
 
     j_clz = j_checkpoint_storage.getClass()
 
@@ -148,10 +151,9 @@ class JobManagerCheckpointStorage(CheckpointStorage):
     # The default maximal size that the snapshotted memory state may have (5 MiBytes).
     DEFAULT_MAX_STATE_SIZE = 5 * 1024 * 1024
 
-    def __init__(self,
-                 checkpoint_path=None,
-                 max_state_size=None,
-                 j_jobmanager_checkpoint_storage=None):
+    def __init__(
+        self, checkpoint_path=None, max_state_size=None, j_jobmanager_checkpoint_storage=None
+    ):
         """
         Creates a new JobManagerCheckpointStorage, setting optionally the paths to persist
         checkpoint metadata to, as well as configuring state thresholds.
@@ -173,16 +175,18 @@ class JobManagerCheckpointStorage(CheckpointStorage):
         """
         if j_jobmanager_checkpoint_storage is None:
             gateway = get_gateway()
-            JJobManagerCheckpointStorage = gateway.jvm.org.apache.flink.runtime.state.storage\
-                .JobManagerCheckpointStorage
+            JJobManagerCheckpointStorage = (
+                gateway.jvm.org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage
+            )
             JPath = gateway.jvm.org.apache.flink.core.fs.Path
 
             if checkpoint_path is not None:
                 checkpoint_path = JPath(checkpoint_path)
             if max_state_size is None:
                 max_state_size = JJobManagerCheckpointStorage.DEFAULT_MAX_STATE_SIZE
-            j_jobmanager_checkpoint_storage = JJobManagerCheckpointStorage(checkpoint_path,
-                                                                           max_state_size)
+            j_jobmanager_checkpoint_storage = JJobManagerCheckpointStorage(
+                checkpoint_path, max_state_size
+            )
 
         super(JobManagerCheckpointStorage, self).__init__(j_jobmanager_checkpoint_storage)
 
@@ -261,11 +265,13 @@ class FileSystemCheckpointStorage(CheckpointStorage):
     # Maximum size of state that is stored with the metadata, rather than in files (1 MiByte).
     MAX_FILE_STATE_THRESHOLD = 1024 * 1024
 
-    def __init__(self,
-                 checkpoint_path=None,
-                 file_state_size_threshold=None,
-                 write_buffer_size=-1,
-                 j_filesystem_checkpoint_storage=None):
+    def __init__(
+        self,
+        checkpoint_path=None,
+        file_state_size_threshold=None,
+        write_buffer_size=-1,
+        j_filesystem_checkpoint_storage=None,
+    ):
         """
         Creates a new FileSystemCheckpointStorage, setting the paths for the checkpoint data
         in a file system.
@@ -294,8 +300,9 @@ class FileSystemCheckpointStorage(CheckpointStorage):
         """
         if j_filesystem_checkpoint_storage is None:
             gateway = get_gateway()
-            JFileSystemCheckpointStorage = gateway.jvm.org.apache.flink.runtime.state.storage\
-                .FileSystemCheckpointStorage
+            JFileSystemCheckpointStorage = (
+                gateway.jvm.org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage
+            )
             JPath = gateway.jvm.org.apache.flink.core.fs.Path
 
             if checkpoint_path is None:
@@ -307,9 +314,8 @@ class FileSystemCheckpointStorage(CheckpointStorage):
                 file_state_size_threshold = -1
 
             j_filesystem_checkpoint_storage = JFileSystemCheckpointStorage(
-                checkpoint_path,
-                file_state_size_threshold,
-                write_buffer_size)
+                checkpoint_path, file_state_size_threshold, write_buffer_size
+            )
 
         super(FileSystemCheckpointStorage, self).__init__(j_filesystem_checkpoint_storage)
 

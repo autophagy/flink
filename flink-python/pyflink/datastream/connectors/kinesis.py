@@ -17,22 +17,25 @@
 ################################################################################
 from typing import Dict, Union, List
 
-from pyflink.common import SerializationSchema, DeserializationSchema, \
-    AssignerWithPeriodicWatermarksWrapper
+from pyflink.common import (
+    SerializationSchema,
+    DeserializationSchema,
+    AssignerWithPeriodicWatermarksWrapper,
+)
 from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.connectors import Sink
 from pyflink.java_gateway import get_gateway
 
 __all__ = [
-    'KinesisShardAssigner',
-    'KinesisDeserializationSchema',
-    'WatermarkTracker',
-    'PartitionKeyGenerator',
-    'FlinkKinesisConsumer',
-    'KinesisStreamsSink',
-    'KinesisStreamsSinkBuilder',
-    'KinesisFirehoseSink',
-    'KinesisFirehoseSinkBuilder'
+    "KinesisShardAssigner",
+    "KinesisDeserializationSchema",
+    "WatermarkTracker",
+    "PartitionKeyGenerator",
+    "FlinkKinesisConsumer",
+    "KinesisStreamsSink",
+    "KinesisStreamsSinkBuilder",
+    "KinesisFirehoseSink",
+    "KinesisFirehoseSinkBuilder",
 ]
 
 
@@ -44,19 +47,21 @@ class KinesisShardAssigner(object):
     Utility to map Kinesis shards to Flink subtask indices. Users can provide a Java
     KinesisShardAssigner in Python if they want to provide custom shared assigner.
     """
+
     def __init__(self, j_kinesis_shard_assigner):
         self._j_kinesis_shard_assigner = j_kinesis_shard_assigner
 
     @staticmethod
-    def default_shard_assigner() -> 'KinesisShardAssigner':
+    def default_shard_assigner() -> "KinesisShardAssigner":
         """
         A Default KinesisShardAssigner that maps Kinesis shard hash-key ranges to Flink subtasks.
         """
-        return KinesisShardAssigner(get_gateway().jvm.org.apache.flink.streaming.connectors.
-                                    kinesis.internals.KinesisDataFetcher.DEFAULT_SHARD_ASSIGNER)
+        return KinesisShardAssigner(
+            get_gateway().jvm.org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher.DEFAULT_SHARD_ASSIGNER
+        )
 
     @staticmethod
-    def uniform_shard_assigner() -> 'KinesisShardAssigner':
+    def uniform_shard_assigner() -> "KinesisShardAssigner":
         """
         A KinesisShardAssigner that maps Kinesis shard hash-key ranges to Flink subtasks.
         It creates a more uniform distribution of shards across subtasks than org.apache.flink. \
@@ -66,8 +71,9 @@ class KinesisShardAssigner(object):
         (This is the same assumption made if you use the Kinesis UpdateShardCount operation with
         UNIFORM_SCALING.)
         """
-        return KinesisShardAssigner(get_gateway().jvm.org.apache.flink.streaming.connectors.
-                                    kinesis.util.UniformShardAssigner())
+        return KinesisShardAssigner(
+            get_gateway().jvm.org.apache.flink.streaming.connectors.kinesis.util.UniformShardAssigner()
+        )
 
 
 class KinesisDeserializationSchema(object):
@@ -94,9 +100,11 @@ class WatermarkTracker(object):
 
     @staticmethod
     def job_manager_watermark_tracker(
-            aggregate_name: str, log_accumulator_interval_millis: int = -1) -> 'WatermarkTracker':
-        j_watermark_tracker = get_gateway().jvm.org.apache.flink.streaming.connectors.kinesis.util \
-            .JobManagerWatermarkTracker(aggregate_name, log_accumulator_interval_millis)
+        aggregate_name: str, log_accumulator_interval_millis: int = -1
+    ) -> "WatermarkTracker":
+        j_watermark_tracker = get_gateway().jvm.org.apache.flink.streaming.connectors.kinesis.util.JobManagerWatermarkTracker(
+            aggregate_name, log_accumulator_interval_millis
+        )
         return WatermarkTracker(j_watermark_tracker)
 
 
@@ -139,32 +147,34 @@ class FlinkKinesisConsumer(SourceFunction):
     the source or a downstream operator.
     """
 
-    def __init__(self,
-                 streams: Union[str, List[str]],
-                 deserializer: Union[DeserializationSchema, KinesisDeserializationSchema],
-                 config_props: Dict
-                 ):
+    def __init__(
+        self,
+        streams: Union[str, List[str]],
+        deserializer: Union[DeserializationSchema, KinesisDeserializationSchema],
+        config_props: Dict,
+    ):
         gateway = get_gateway()
         j_properties = gateway.jvm.java.util.Properties()
         for key, value in config_props.items():
             j_properties.setProperty(key, value)
 
-        JFlinkKinesisConsumer = gateway.jvm.org.apache.flink.streaming.connectors.kinesis. \
-            FlinkKinesisConsumer
-        JKinesisDeserializationSchemaWrapper = get_gateway().jvm.org.apache.flink.streaming. \
-            connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper
+        JFlinkKinesisConsumer = (
+            gateway.jvm.org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer
+        )
+        JKinesisDeserializationSchemaWrapper = get_gateway().jvm.org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper
 
         if isinstance(streams, str):
             streams = [streams]
 
         if isinstance(deserializer, DeserializationSchema):
             deserializer = JKinesisDeserializationSchemaWrapper(
-                deserializer._j_deserialization_schema)
+                deserializer._j_deserialization_schema
+            )
 
         self._j_kinesis_consumer = JFlinkKinesisConsumer(streams, deserializer, j_properties)
         super(FlinkKinesisConsumer, self).__init__(self._j_kinesis_consumer)
 
-    def set_shard_assigner(self, shard_assigner: KinesisShardAssigner) -> 'FlinkKinesisConsumer':
+    def set_shard_assigner(self, shard_assigner: KinesisShardAssigner) -> "FlinkKinesisConsumer":
         """
         Provide a custom assigner to influence how shards are distributed over subtasks.
         """
@@ -172,17 +182,17 @@ class FlinkKinesisConsumer(SourceFunction):
         return self
 
     def set_periodic_watermark_assigner(
-        self,
-        periodic_watermark_assigner: AssignerWithPeriodicWatermarksWrapper) \
-            -> 'FlinkKinesisConsumer':
+        self, periodic_watermark_assigner: AssignerWithPeriodicWatermarksWrapper
+    ) -> "FlinkKinesisConsumer":
         """
         Set the assigner that will extract the timestamp from T and calculate the watermark.
         """
         self._j_kinesis_consumer.setPeriodicWatermarkAssigner(
-            periodic_watermark_assigner._j_assigner_with_periodic_watermarks)
+            periodic_watermark_assigner._j_assigner_with_periodic_watermarks
+        )
         return self
 
-    def set_watermark_tracker(self, watermark_tracker: WatermarkTracker) -> 'FlinkKinesisConsumer':
+    def set_watermark_tracker(self, watermark_tracker: WatermarkTracker) -> "FlinkKinesisConsumer":
         """
         Set the global watermark tracker. When set, it will be used by the fetcher to align the
         shard consumers by event time.
@@ -193,29 +203,33 @@ class FlinkKinesisConsumer(SourceFunction):
 
 # ---- KinesisSink ----
 
+
 class PartitionKeyGenerator(object):
     """
     This is a generator convert from an input element to the partition key, a string.
     """
+
     def __init__(self, j_partition_key_generator):
         self._j_partition_key_generator = j_partition_key_generator
 
     @staticmethod
-    def fixed() -> 'PartitionKeyGenerator':
+    def fixed() -> "PartitionKeyGenerator":
         """
         A partitioner ensuring that each internal Flink partition ends up in the same Kinesis
         partition. This is achieved by using the index of the producer task as a PartitionKey.
         """
-        return PartitionKeyGenerator(get_gateway().jvm.org.apache.flink.connector.kinesis.table.
-                                     FixedKinesisPartitionKeyGenerator())
+        return PartitionKeyGenerator(
+            get_gateway().jvm.org.apache.flink.connector.kinesis.table.FixedKinesisPartitionKeyGenerator()
+        )
 
     @staticmethod
-    def random() -> 'PartitionKeyGenerator':
+    def random() -> "PartitionKeyGenerator":
         """
         A PartitionKeyGenerator that maps an arbitrary input element to a random partition ID.
         """
-        return PartitionKeyGenerator(get_gateway().jvm.org.apache.flink.connector.kinesis.table.
-                                     RandomKinesisPartitionKeyGenerator())
+        return PartitionKeyGenerator(
+            get_gateway().jvm.org.apache.flink.connector.kinesis.table.RandomKinesisPartitionKeyGenerator()
+        )
 
 
 class KinesisStreamsSink(Sink):
@@ -249,7 +263,7 @@ class KinesisStreamsSink(Sink):
         super(KinesisStreamsSink, self).__init__(sink=j_kinesis_streams_sink)
 
     @staticmethod
-    def builder() -> 'KinesisStreamsSinkBuilder':
+    def builder() -> "KinesisStreamsSinkBuilder":
         return KinesisStreamsSinkBuilder()
 
 
@@ -284,11 +298,12 @@ class KinesisStreamsSinkBuilder(object):
     """
 
     def __init__(self):
-        JKinesisStreamsSink = get_gateway().jvm.org.apache.flink.connector.kinesis.sink.\
-            KinesisStreamsSink
+        JKinesisStreamsSink = (
+            get_gateway().jvm.org.apache.flink.connector.kinesis.sink.KinesisStreamsSink
+        )
         self._j_kinesis_sink_builder = JKinesisStreamsSink.builder()
 
-    def set_stream_name(self, stream_name: Union[str, List[str]]) -> 'KinesisStreamsSinkBuilder':
+    def set_stream_name(self, stream_name: Union[str, List[str]]) -> "KinesisStreamsSinkBuilder":
         """
         Sets the name of the KDS stream that the sink will connect to. There is no default for this
         parameter, therefore, this must be provided at sink creation time otherwise the build will
@@ -297,25 +312,29 @@ class KinesisStreamsSinkBuilder(object):
         self._j_kinesis_sink_builder.setStreamName(stream_name)
         return self
 
-    def set_serialization_schema(self, serialization_schema: SerializationSchema) \
-            -> 'KinesisStreamsSinkBuilder':
+    def set_serialization_schema(
+        self, serialization_schema: SerializationSchema
+    ) -> "KinesisStreamsSinkBuilder":
         """
         Sets the SerializationSchema of the KinesisSinkBuilder.
         """
         self._j_kinesis_sink_builder.setSerializationSchema(
-            serialization_schema._j_serialization_schema)
+            serialization_schema._j_serialization_schema
+        )
         return self
 
-    def set_partition_key_generator(self, partition_key_generator: PartitionKeyGenerator) \
-            -> 'KinesisStreamsSinkBuilder':
+    def set_partition_key_generator(
+        self, partition_key_generator: PartitionKeyGenerator
+    ) -> "KinesisStreamsSinkBuilder":
         """
         Sets the PartitionKeyGenerator of the KinesisSinkBuilder.
         """
         self._j_kinesis_sink_builder.setPartitionKeyGenerator(
-            partition_key_generator._j_partition_key_generator)
+            partition_key_generator._j_partition_key_generator
+        )
         return self
 
-    def set_fail_on_error(self, fail_on_error: bool) -> 'KinesisStreamsSinkBuilder':
+    def set_fail_on_error(self, fail_on_error: bool) -> "KinesisStreamsSinkBuilder":
         """
         Sets the failOnError of the KinesisSinkBuilder. If failOnError is on, then a runtime
         exception will be raised. Otherwise, those records will be requested in the buffer for
@@ -324,8 +343,9 @@ class KinesisStreamsSinkBuilder(object):
         self._j_kinesis_sink_builder.setFailOnError(fail_on_error)
         return self
 
-    def set_kinesis_client_properties(self, kinesis_client_properties: Dict) \
-            -> 'KinesisStreamsSinkBuilder':
+    def set_kinesis_client_properties(
+        self, kinesis_client_properties: Dict
+    ) -> "KinesisStreamsSinkBuilder":
         """
         Sets the kinesisClientProperties of the KinesisSinkBuilder.
         """
@@ -335,15 +355,16 @@ class KinesisStreamsSinkBuilder(object):
         self._j_kinesis_sink_builder.setKinesisClientProperties(j_properties)
         return self
 
-    def set_max_batch_size(self, max_batch_size: int) -> 'KinesisStreamsSinkBuilder':
+    def set_max_batch_size(self, max_batch_size: int) -> "KinesisStreamsSinkBuilder":
         """
         Maximum number of elements that may be passed in a list to be written downstream.
         """
         self._j_kinesis_sink_builder.setMaxBatchSize(max_batch_size)
         return self
 
-    def set_max_in_flight_requests(self, max_in_flight_requests: int) \
-            -> 'KinesisStreamsSinkBuilder':
+    def set_max_in_flight_requests(
+        self, max_in_flight_requests: int
+    ) -> "KinesisStreamsSinkBuilder":
         """
         Maximum number of uncompleted calls to submitRequestEntries that the SinkWriter will allow
         at any given point. Once this point has reached, writes and callbacks to add elements to
@@ -352,7 +373,7 @@ class KinesisStreamsSinkBuilder(object):
         self._j_kinesis_sink_builder.setMaxInFlightRequests(max_in_flight_requests)
         return self
 
-    def set_max_buffered_requests(self, max_buffered_requests: int) -> 'KinesisStreamsSinkBuilder':
+    def set_max_buffered_requests(self, max_buffered_requests: int) -> "KinesisStreamsSinkBuilder":
         """
         The maximum buffer length. Callbacks to add elements to the buffer and calls to write will
         block if this length has been reached and will only unblock if elements from the buffer have
@@ -361,8 +382,9 @@ class KinesisStreamsSinkBuilder(object):
         self._j_kinesis_sink_builder.setMaxBufferedRequests(max_buffered_requests)
         return self
 
-    def set_max_batch_size_in_bytes(self, max_batch_size_in_bytes: int) \
-            -> 'KinesisStreamsSinkBuilder':
+    def set_max_batch_size_in_bytes(
+        self, max_batch_size_in_bytes: int
+    ) -> "KinesisStreamsSinkBuilder":
         """
         The flush will be attempted if the most recent call to write introduces an element to the
         buffer such that the total size of the buffer is greater than or equal to this threshold
@@ -372,7 +394,7 @@ class KinesisStreamsSinkBuilder(object):
         self._j_kinesis_sink_builder.setMaxBatchSizeInBytes(max_batch_size_in_bytes)
         return self
 
-    def set_max_time_in_buffer_ms(self, max_time_in_buffer_ms: int) -> 'KinesisStreamsSinkBuilder':
+    def set_max_time_in_buffer_ms(self, max_time_in_buffer_ms: int) -> "KinesisStreamsSinkBuilder":
         """
         The maximum amount of time an element may remain in the buffer. In most cases elements are
         flushed as a result of the batch size (in bytes or number) being reached or during a
@@ -383,8 +405,9 @@ class KinesisStreamsSinkBuilder(object):
         self._j_kinesis_sink_builder.setMaxTimeInBufferMS(max_time_in_buffer_ms)
         return self
 
-    def set_max_record_size_in_bytes(self, max_record_size_in_bytes: int) \
-            -> 'KinesisStreamsSinkBuilder':
+    def set_max_record_size_in_bytes(
+        self, max_record_size_in_bytes: int
+    ) -> "KinesisStreamsSinkBuilder":
         """
         The maximum size of each records in bytes. If a record larger than this is passed to the
         sink, it will throw an IllegalArgumentException.
@@ -392,7 +415,7 @@ class KinesisStreamsSinkBuilder(object):
         self._j_kinesis_sink_builder.setMaxRecordSizeInBytes(max_record_size_in_bytes)
         return self
 
-    def build(self) -> 'KinesisStreamsSink':
+    def build(self) -> "KinesisStreamsSink":
         """
         Build thd KinesisStreamsSink.
         """
@@ -404,11 +427,12 @@ class KinesisFirehoseSink(Sink):
     A Kinesis Data Firehose (KDF) Sink that performs async requests against a destination delivery
     stream using the buffering protocol.
     """
+
     def __init__(self, j_kinesis_firehose_sink):
         super(KinesisFirehoseSink, self).__init__(sink=j_kinesis_firehose_sink)
 
     @staticmethod
-    def builder() -> 'KinesisFirehoseSinkBuilder':
+    def builder() -> "KinesisFirehoseSinkBuilder":
         return KinesisFirehoseSinkBuilder()
 
 
@@ -440,12 +464,14 @@ class KinesisFirehoseSinkBuilder(object):
     - maxRecordSizeInBytes will be 1000 KB i.e. 1000 * 1024
     - failOnError will be false
     """
+
     def __init__(self):
-        JKinesisFirehoseSink = get_gateway().jvm.org.apache.flink.connector.firehose.sink. \
-            KinesisFirehoseSink
+        JKinesisFirehoseSink = (
+            get_gateway().jvm.org.apache.flink.connector.firehose.sink.KinesisFirehoseSink
+        )
         self._j_kinesis_sink_builder = JKinesisFirehoseSink.builder()
 
-    def set_delivery_stream_name(self, delivery_stream_name: str) -> 'KinesisFirehoseSinkBuilder':
+    def set_delivery_stream_name(self, delivery_stream_name: str) -> "KinesisFirehoseSinkBuilder":
         """
         Sets the name of the KDF delivery stream that the sink will connect to. There is no default
         for this parameter, therefore, this must be provided at sink creation time otherwise the
@@ -454,17 +480,19 @@ class KinesisFirehoseSinkBuilder(object):
         self._j_kinesis_sink_builder.setDeliveryStreamName(delivery_stream_name)
         return self
 
-    def set_serialization_schema(self, serialization_schema: SerializationSchema) \
-            -> 'KinesisFirehoseSinkBuilder':
+    def set_serialization_schema(
+        self, serialization_schema: SerializationSchema
+    ) -> "KinesisFirehoseSinkBuilder":
         """
         Allows the user to specify a serialization schema to serialize each record to persist to
         Firehose.
         """
         self._j_kinesis_sink_builder.setSerializationSchema(
-            serialization_schema._j_serialization_schema)
+            serialization_schema._j_serialization_schema
+        )
         return self
 
-    def set_fail_on_error(self, fail_on_error: bool) -> 'KinesisFirehoseSinkBuilder':
+    def set_fail_on_error(self, fail_on_error: bool) -> "KinesisFirehoseSinkBuilder":
         """
         If writing to Kinesis Data Firehose results in a partial or full failure being returned,
         the job will fail
@@ -472,8 +500,9 @@ class KinesisFirehoseSinkBuilder(object):
         self._j_kinesis_sink_builder.setFailOnError(fail_on_error)
         return self
 
-    def set_firehose_client_properties(self, firehose_client_properties: Dict) \
-            -> 'KinesisFirehoseSinkBuilder':
+    def set_firehose_client_properties(
+        self, firehose_client_properties: Dict
+    ) -> "KinesisFirehoseSinkBuilder":
         """
         A set of properties used by the sink to create the firehose client. This may be used to set
         the aws region, credentials etc. See the docs for usage and syntax.
@@ -484,15 +513,16 @@ class KinesisFirehoseSinkBuilder(object):
         self._j_kinesis_sink_builder.setFirehoseClientProperties(j_properties)
         return self
 
-    def set_max_batch_size(self, max_batch_size: int) -> 'KinesisFirehoseSinkBuilder':
+    def set_max_batch_size(self, max_batch_size: int) -> "KinesisFirehoseSinkBuilder":
         """
         Maximum number of elements that may be passed in a list to be written downstream.
         """
         self._j_kinesis_sink_builder.setMaxBatchSize(max_batch_size)
         return self
 
-    def set_max_in_flight_requests(self, max_in_flight_requests: int) \
-            -> 'KinesisFirehoseSinkBuilder':
+    def set_max_in_flight_requests(
+        self, max_in_flight_requests: int
+    ) -> "KinesisFirehoseSinkBuilder":
         """
         Maximum number of uncompleted calls to submitRequestEntries that the SinkWriter will allow
         at any given point. Once this point has reached, writes and callbacks to add elements to
@@ -501,7 +531,7 @@ class KinesisFirehoseSinkBuilder(object):
         self._j_kinesis_sink_builder.setMaxInFlightRequests(max_in_flight_requests)
         return self
 
-    def set_max_buffered_requests(self, max_buffered_requests: int) -> 'KinesisFirehoseSinkBuilder':
+    def set_max_buffered_requests(self, max_buffered_requests: int) -> "KinesisFirehoseSinkBuilder":
         """
         The maximum buffer length. Callbacks to add elements to the buffer and calls to write will
         block if this length has been reached and will only unblock if elements from the buffer have
@@ -510,8 +540,9 @@ class KinesisFirehoseSinkBuilder(object):
         self._j_kinesis_sink_builder.setMaxBufferedRequests(max_buffered_requests)
         return self
 
-    def set_max_batch_size_in_bytes(self, max_batch_size_in_bytes: int) \
-            -> 'KinesisFirehoseSinkBuilder':
+    def set_max_batch_size_in_bytes(
+        self, max_batch_size_in_bytes: int
+    ) -> "KinesisFirehoseSinkBuilder":
         """
         The flush will be attempted if the most recent call to write introduces an element to the
         buffer such that the total size of the buffer is greater than or equal to this threshold
@@ -521,7 +552,7 @@ class KinesisFirehoseSinkBuilder(object):
         self._j_kinesis_sink_builder.setMaxBatchSizeInBytes(max_batch_size_in_bytes)
         return self
 
-    def set_max_time_in_buffer_ms(self, max_time_in_buffer_ms: int) -> 'KinesisFirehoseSinkBuilder':
+    def set_max_time_in_buffer_ms(self, max_time_in_buffer_ms: int) -> "KinesisFirehoseSinkBuilder":
         """
         The maximum amount of time an element may remain in the buffer. In most cases elements are
         flushed as a result of the batch size (in bytes or number) being reached or during a
@@ -532,8 +563,9 @@ class KinesisFirehoseSinkBuilder(object):
         self._j_kinesis_sink_builder.setMaxTimeInBufferMS(max_time_in_buffer_ms)
         return self
 
-    def set_max_record_size_in_bytes(self, max_record_size_in_bytes: int) \
-            -> 'KinesisFirehoseSinkBuilder':
+    def set_max_record_size_in_bytes(
+        self, max_record_size_in_bytes: int
+    ) -> "KinesisFirehoseSinkBuilder":
         """
         The maximum size of each records in bytes. If a record larger than this is passed to the
         sink, it will throw an IllegalArgumentException.
@@ -541,7 +573,7 @@ class KinesisFirehoseSinkBuilder(object):
         self._j_kinesis_sink_builder.setMaxRecordSizeInBytes(max_record_size_in_bytes)
         return self
 
-    def build(self) -> 'KinesisFirehoseSink':
+    def build(self) -> "KinesisFirehoseSink":
         """
         Build thd KinesisFirehoseSink.
         """

@@ -28,8 +28,9 @@ class DataStreamTestSinkFunction(SinkFunction):
     """
 
     def __init__(self):
-        self.j_data_stream_collect_sink = get_gateway().jvm \
-            .org.apache.flink.python.util.DataStreamTestCollectSink()
+        self.j_data_stream_collect_sink = (
+            get_gateway().jvm.org.apache.flink.python.util.DataStreamTestCollectSink()
+        )
         super(DataStreamTestSinkFunction, self).__init__(sink_func=self.j_data_stream_collect_sink)
 
     def get_results(self, is_python_object: bool = False, stringify: bool = True):

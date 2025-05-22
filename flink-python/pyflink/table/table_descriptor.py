@@ -22,7 +22,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.schema import Schema
 from pyflink.util.java_utils import to_jarray
 
-__all__ = ['TableDescriptor', 'FormatDescriptor']
+__all__ = ["TableDescriptor", "FormatDescriptor"]
 
 
 class TableDescriptor(object):
@@ -42,7 +42,7 @@ class TableDescriptor(object):
         self._j_table_descriptor = j_table_descriptor
 
     @staticmethod
-    def for_connector(connector: str) -> 'TableDescriptor.Builder':
+    def for_connector(connector: str) -> "TableDescriptor.Builder":
         """
         Creates a new :class:`~pyflink.table.TableDescriptor.Builder` for a table using the given
         connector.
@@ -77,8 +77,9 @@ class TableDescriptor(object):
         return self._j_table_descriptor.toString()
 
     def __eq__(self, other):
-        return (self.__class__ == other.__class__ and
-                self._j_table_descriptor.equals(other._j_table_descriptor))
+        return self.__class__ == other.__class__ and self._j_table_descriptor.equals(
+            other._j_table_descriptor
+        )
 
     def __hash__(self):
         return self._j_table_descriptor.hashCode()
@@ -91,14 +92,14 @@ class TableDescriptor(object):
         def __init__(self, j_builder):
             self._j_builder = j_builder
 
-        def schema(self, schema: Schema) -> 'TableDescriptor.Builder':
+        def schema(self, schema: Schema) -> "TableDescriptor.Builder":
             """
             Define the schema of the TableDescriptor.
             """
             self._j_builder.schema(schema._j_schema)
             return self
 
-        def option(self, key: Union[str, ConfigOption], value) -> 'TableDescriptor.Builder':
+        def option(self, key: Union[str, ConfigOption], value) -> "TableDescriptor.Builder":
             """
             Sets the given option on the table.
 
@@ -119,9 +120,9 @@ class TableDescriptor(object):
                 self._j_builder.option(key._j_config_option, value)
             return self
 
-        def format(self,
-                   format: Union[str, 'FormatDescriptor'],
-                   format_option: ConfigOption[str] = None) -> 'TableDescriptor.Builder':
+        def format(
+            self, format: Union[str, "FormatDescriptor"], format_option: ConfigOption[str] = None
+        ) -> "TableDescriptor.Builder":
             """
             Defines the format to be used for this table.
 
@@ -152,10 +153,11 @@ class TableDescriptor(object):
                     self._j_builder.format(format_option._j_config_option, format)
                 else:
                     self._j_builder.format(
-                        format_option._j_config_option, format._j_format_descriptor)
+                        format_option._j_config_option, format._j_format_descriptor
+                    )
             return self
 
-        def partitioned_by(self, *partition_keys: str) -> 'TableDescriptor.Builder':
+        def partitioned_by(self, *partition_keys: str) -> "TableDescriptor.Builder":
             """
             Define which columns this table is partitioned by.
             """
@@ -163,14 +165,14 @@ class TableDescriptor(object):
             self._j_builder.partitionedBy(to_jarray(gateway.jvm.java.lang.String, partition_keys))
             return self
 
-        def comment(self, comment: str) -> 'TableDescriptor.Builder':
+        def comment(self, comment: str) -> "TableDescriptor.Builder":
             """
             Define the comment for this table.
             """
             self._j_builder.comment(comment)
             return self
 
-        def build(self) -> 'TableDescriptor':
+        def build(self) -> "TableDescriptor":
             """
             Returns an immutable instance of :class:`~pyflink.table.TableDescriptor`.
             """
@@ -190,7 +192,7 @@ class FormatDescriptor(object):
         self._j_format_descriptor = j_format_descriptor
 
     @staticmethod
-    def for_format(format: str) -> 'FormatDescriptor.Builder':
+    def for_format(format: str) -> "FormatDescriptor.Builder":
         """
         Creates a new :class:`~pyflink.table.FormatDescriptor.Builder` describing a format with the
         given format identifier.
@@ -211,8 +213,9 @@ class FormatDescriptor(object):
         return self._j_format_descriptor.toString()
 
     def __eq__(self, other):
-        return (self.__class__ == other.__class__ and
-                self._j_format_descriptor.equals(other._j_format_descriptor))
+        return self.__class__ == other.__class__ and self._j_format_descriptor.equals(
+            other._j_format_descriptor
+        )
 
     def __hash__(self):
         return self._j_format_descriptor.hashCode()
@@ -225,7 +228,7 @@ class FormatDescriptor(object):
         def __init__(self, j_builder):
             self._j_builder = j_builder
 
-        def option(self, key: Union[str, ConfigOption], value) -> 'FormatDescriptor.Builder':
+        def option(self, key: Union[str, ConfigOption], value) -> "FormatDescriptor.Builder":
             """
             Sets the given option on the format.
 
@@ -250,7 +253,7 @@ class FormatDescriptor(object):
                 self._j_builder.option(key._j_config_option, value)
             return self
 
-        def build(self) -> 'FormatDescriptor':
+        def build(self) -> "FormatDescriptor":
             """
             Returns an immutable instance of :class:`~pyflink.table.FormatDescriptor`.
             """

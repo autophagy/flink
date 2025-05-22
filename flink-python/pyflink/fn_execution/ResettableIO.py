@@ -37,11 +37,11 @@ class ResettableIO(io.RawIOBase):
         remaining = self._size - self._input_offset
 
         if remaining >= output_buffer_len:
-            b[:] = self._input_bytes[self._input_offset:self._input_offset + output_buffer_len]
+            b[:] = self._input_bytes[self._input_offset : self._input_offset + output_buffer_len]
             self._input_offset += output_buffer_len
             return output_buffer_len
         elif remaining > 0:
-            b[:remaining] = self._input_bytes[self._input_offset:self._input_offset + remaining]
+            b[:remaining] = self._input_bytes[self._input_offset : self._input_offset + remaining]
             self._input_offset = self._size
             return remaining
         else:

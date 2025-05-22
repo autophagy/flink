@@ -30,30 +30,87 @@ else:
     from pyflink.fn_execution import coder_impl_slow as coder_impl
 
 from pyflink.datastream.formats.avro import GenericRecordAvroTypeInfo, AvroSchema
-from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, DateTypeInfo, \
-    TimeTypeInfo, TimestampTypeInfo, PrimitiveArrayTypeInfo, BasicArrayTypeInfo, TupleTypeInfo, \
-    MapTypeInfo, ListTypeInfo, RowTypeInfo, PickledBytesTypeInfo, ObjectArrayTypeInfo, \
-    ExternalTypeInfo
-from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
-    FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
-    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType, MapType, \
-    BinaryType, NullType, CharType
+from pyflink.common.typeinfo import (
+    TypeInformation,
+    BasicTypeInfo,
+    BasicType,
+    DateTypeInfo,
+    TimeTypeInfo,
+    TimestampTypeInfo,
+    PrimitiveArrayTypeInfo,
+    BasicArrayTypeInfo,
+    TupleTypeInfo,
+    MapTypeInfo,
+    ListTypeInfo,
+    RowTypeInfo,
+    PickledBytesTypeInfo,
+    ObjectArrayTypeInfo,
+    ExternalTypeInfo,
+)
+from pyflink.table.types import (
+    TinyIntType,
+    SmallIntType,
+    IntType,
+    BigIntType,
+    BooleanType,
+    FloatType,
+    DoubleType,
+    VarCharType,
+    VarBinaryType,
+    DecimalType,
+    DateType,
+    TimeType,
+    LocalZonedTimestampType,
+    RowType,
+    RowField,
+    to_arrow_type,
+    TimestampType,
+    ArrayType,
+    MapType,
+    BinaryType,
+    NullType,
+    CharType,
+)
 
-__all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
-           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
-           'DateCoder', 'TimeCoder', 'TimestampCoder', 'LocalZonedTimestampCoder', 'InstantCoder',
-           'GenericArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder',
-           'BigDecimalCoder', 'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder',
-           'PickleCoder', 'CloudPickleCoder', 'DataViewFilterCoder']
+__all__ = [
+    "FlattenRowCoder",
+    "RowCoder",
+    "BigIntCoder",
+    "TinyIntCoder",
+    "BooleanCoder",
+    "SmallIntCoder",
+    "IntCoder",
+    "FloatCoder",
+    "DoubleCoder",
+    "BinaryCoder",
+    "CharCoder",
+    "DateCoder",
+    "TimeCoder",
+    "TimestampCoder",
+    "LocalZonedTimestampCoder",
+    "InstantCoder",
+    "GenericArrayCoder",
+    "PrimitiveArrayCoder",
+    "MapCoder",
+    "DecimalCoder",
+    "BigDecimalCoder",
+    "TupleCoder",
+    "TimeWindowCoder",
+    "CountWindowCoder",
+    "PickleCoder",
+    "CloudPickleCoder",
+    "DataViewFilterCoder",
+]
 
 
 #########################################################################
 #             Top-level coder: ValueCoder & IterableCoder
 #########################################################################
 
+
 # LengthPrefixBaseCoder is the top level coder and the other coders will be used as the field coder
 class LengthPrefixBaseCoder(ABC):
-    def __init__(self, field_coder: 'FieldCoder'):
+    def __init__(self, field_coder: "FieldCoder"):
         self._field_coder = field_coder
 
     @abstractmethod
@@ -74,27 +131,26 @@ class LengthPrefixBaseCoder(ABC):
 
     @classmethod
     def _to_field_coder(cls, coder_info_descriptor_proto):
-        if coder_info_descriptor_proto.HasField('flatten_row_type'):
+        if coder_info_descriptor_proto.HasField("flatten_row_type"):
             schema_proto = coder_info_descriptor_proto.flatten_row_type.schema
             field_coders = [from_proto(f.type) for f in schema_proto.fields]
             return FlattenRowCoder(field_coders)
-        elif coder_info_descriptor_proto.HasField('row_type'):
+        elif coder_info_descriptor_proto.HasField("row_type"):
             schema_proto = coder_info_descriptor_proto.row_type.schema
             field_coders = [from_proto(f.type) for f in schema_proto.fields]
             field_names = [f.name for f in schema_proto.fields]
             return RowCoder(field_coders, field_names)
-        elif coder_info_descriptor_proto.HasField('arrow_type'):
-            timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
+        elif coder_info_descriptor_proto.HasField("arrow_type"):
+            timezone = pytz.timezone(os.environ["TABLE_LOCAL_TIME_ZONE"])
             schema_proto = coder_info_descriptor_proto.arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
             return ArrowCoder(cls._to_arrow_schema(row_type), row_type, timezone)
-        elif coder_info_descriptor_proto.HasField('over_window_arrow_type'):
-            timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
+        elif coder_info_descriptor_proto.HasField("over_window_arrow_type"):
+            timezone = pytz.timezone(os.environ["TABLE_LOCAL_TIME_ZONE"])
             schema_proto = coder_info_descriptor_proto.over_window_arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
-            return OverWindowArrowCoder(
-                cls._to_arrow_schema(row_type), row_type, timezone)
-        elif coder_info_descriptor_proto.HasField('raw_type'):
+            return OverWindowArrowCoder(cls._to_arrow_schema(row_type), row_type, timezone)
+        elif coder_info_descriptor_proto.HasField("raw_type"):
             type_info_proto = coder_info_descriptor_proto.raw_type.type_info
             field_coder = from_type_info_proto(type_info_proto)
             return field_coder
@@ -105,8 +161,12 @@ class LengthPrefixBaseCoder(ABC):
     def _to_arrow_schema(cls, row_type):
         import pyarrow as pa
 
-        return pa.schema([pa.field(n, to_arrow_type(t), t._nullable)
-                          for n, t in zip(row_type.field_names(), row_type.field_types())])
+        return pa.schema(
+            [
+                pa.field(n, to_arrow_type(t), t._nullable)
+                for n, t in zip(row_type.field_names(), row_type.field_types())
+            ]
+        )
 
     @classmethod
     def _to_data_type(cls, field_type):
@@ -135,30 +195,39 @@ class LengthPrefixBaseCoder(ABC):
         elif field_type.type_name == flink_fn_execution_pb2.Schema.VARBINARY:
             return VarBinaryType(field_type.var_binary_info.length, field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.DECIMAL:
-            return DecimalType(field_type.decimal_info.precision,
-                               field_type.decimal_info.scale,
-                               field_type.nullable)
+            return DecimalType(
+                field_type.decimal_info.precision,
+                field_type.decimal_info.scale,
+                field_type.nullable,
+            )
         elif field_type.type_name == flink_fn_execution_pb2.Schema.DATE:
             return DateType(field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.TIME:
             return TimeType(field_type.time_info.precision, field_type.nullable)
-        elif field_type.type_name == \
-                flink_fn_execution_pb2.Schema.LOCAL_ZONED_TIMESTAMP:
-            return LocalZonedTimestampType(field_type.local_zoned_timestamp_info.precision,
-                                           field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.LOCAL_ZONED_TIMESTAMP:
+            return LocalZonedTimestampType(
+                field_type.local_zoned_timestamp_info.precision, field_type.nullable
+            )
         elif field_type.type_name == flink_fn_execution_pb2.Schema.TIMESTAMP:
             return TimestampType(field_type.timestamp_info.precision, field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.BASIC_ARRAY:
-            return ArrayType(cls._to_data_type(field_type.collection_element_type),
-                             field_type.nullable)
+            return ArrayType(
+                cls._to_data_type(field_type.collection_element_type), field_type.nullable
+            )
         elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.ROW:
             return RowType(
-                [RowField(f.name, cls._to_data_type(f.type), f.description)
-                 for f in field_type.row_schema.fields], field_type.nullable)
+                [
+                    RowField(f.name, cls._to_data_type(f.type), f.description)
+                    for f in field_type.row_schema.fields
+                ],
+                field_type.nullable,
+            )
         elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.MAP:
-            return MapType(cls._to_data_type(field_type.map_info.key_type),
-                           cls._to_data_type(field_type.map_info.value_type),
-                           field_type.nullable)
+            return MapType(
+                cls._to_data_type(field_type.map_info.key_type),
+                cls._to_data_type(field_type.map_info.value_type),
+                field_type.nullable,
+            )
         elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.NULL:
             return NullType()
         else:
@@ -174,13 +243,14 @@ class IterableCoder(LengthPrefixBaseCoder):
     Coder for iterable data.
     """
 
-    def __init__(self, field_coder: 'FieldCoder', separated_with_end_message):
+    def __init__(self, field_coder: "FieldCoder", separated_with_end_message):
         super(IterableCoder, self).__init__(field_coder)
         self._separated_with_end_message = separated_with_end_message
 
     def get_impl(self):
-        return coder_impl.IterableCoderImpl(self._field_coder.get_impl(),
-                                            self._separated_with_end_message)
+        return coder_impl.IterableCoderImpl(
+            self._field_coder.get_impl(), self._separated_with_end_message
+        )
 
 
 class ValueCoder(LengthPrefixBaseCoder):
@@ -188,7 +258,7 @@ class ValueCoder(LengthPrefixBaseCoder):
     Coder for single data.
     """
 
-    def __init__(self, field_coder: 'FieldCoder'):
+    def __init__(self, field_coder: "FieldCoder"):
         super(ValueCoder, self).__init__(field_coder)
 
     def get_impl(self):
@@ -201,7 +271,6 @@ class ValueCoder(LengthPrefixBaseCoder):
 
 
 class FieldCoder(ABC):
-
     def get_impl(self) -> coder_impl.FieldCoderImpl:
         pass
 
@@ -222,13 +291,17 @@ class FlattenRowCoder(FieldCoder):
         return coder_impl.FlattenRowCoderImpl([c.get_impl() for c in self._field_coders])
 
     def __repr__(self):
-        return 'FlattenRowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+        return "FlattenRowCoder[%s]" % ", ".join(str(c) for c in self._field_coders)
 
-    def __eq__(self, other: 'FlattenRowCoder'):
-        return (self.__class__ == other.__class__
-                and len(self._field_coders) == len(other._field_coders)
-                and [self._field_coders[i] == other._field_coders[i] for i in
-                     range(len(self._field_coders))])
+    def __eq__(self, other: "FlattenRowCoder"):
+        return (
+            self.__class__ == other.__class__
+            and len(self._field_coders) == len(other._field_coders)
+            and [
+                self._field_coders[i] == other._field_coders[i]
+                for i in range(len(self._field_coders))
+            ]
+        )
 
     def __ne__(self, other):
         return not self == other
@@ -251,7 +324,7 @@ class ArrowCoder(FieldCoder):
         return coder_impl.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
 
     def __repr__(self):
-        return 'ArrowCoder[%s]' % self._schema
+        return "ArrowCoder[%s]" % self._schema
 
 
 class OverWindowArrowCoder(FieldCoder):
@@ -266,7 +339,7 @@ class OverWindowArrowCoder(FieldCoder):
         return coder_impl.OverWindowArrowCoderImpl(self._arrow_coder.get_impl())
 
     def __repr__(self):
-        return 'OverWindowArrowCoder[%s]' % self._arrow_coder
+        return "OverWindowArrowCoder[%s]" % self._arrow_coder
 
 
 class RowCoder(FieldCoder):
@@ -279,17 +352,22 @@ class RowCoder(FieldCoder):
         self._field_names = field_names
 
     def get_impl(self):
-        return coder_impl.RowCoderImpl([c.get_impl() for c in self._field_coders],
-                                       self._field_names)
+        return coder_impl.RowCoderImpl(
+            [c.get_impl() for c in self._field_coders], self._field_names
+        )
 
     def __repr__(self):
-        return 'RowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+        return "RowCoder[%s]" % ", ".join(str(c) for c in self._field_coders)
 
-    def __eq__(self, other: 'RowCoder'):
-        return (self.__class__ == other.__class__
-                and self._field_names == other._field_names
-                and [self._field_coders[i] == other._field_coders[i] for i in
-                     range(len(self._field_coders))])
+    def __eq__(self, other: "RowCoder"):
+        return (
+            self.__class__ == other.__class__
+            and self._field_names == other._field_names
+            and [
+                self._field_coders[i] == other._field_coders[i]
+                for i in range(len(self._field_coders))
+            ]
+        )
 
     def __ne__(self, other):
         return not self == other
@@ -309,12 +387,11 @@ class CollectionCoder(FieldCoder):
     def is_deterministic(self):
         return self._elem_coder.is_deterministic()
 
-    def __eq__(self, other: 'CollectionCoder'):
-        return (self.__class__ == other.__class__
-                and self._elem_coder == other._elem_coder)
+    def __eq__(self, other: "CollectionCoder"):
+        return self.__class__ == other.__class__ and self._elem_coder == other._elem_coder
 
     def __repr__(self):
-        return '%s[%s]' % (self.__class__.__name__, repr(self._elem_coder))
+        return "%s[%s]" % (self.__class__.__name__, repr(self._elem_coder))
 
     def __ne__(self, other):
         return not self == other
@@ -363,12 +440,14 @@ class MapCoder(FieldCoder):
         return self._key_coder.is_deterministic() and self._value_coder.is_deterministic()
 
     def __repr__(self):
-        return 'MapCoder[%s]' % ','.join([repr(self._key_coder), repr(self._value_coder)])
+        return "MapCoder[%s]" % ",".join([repr(self._key_coder), repr(self._value_coder)])
 
-    def __eq__(self, other: 'MapCoder'):
-        return (self.__class__ == other.__class__
-                and self._key_coder == other._key_coder
-                and self._value_coder == other._value_coder)
+    def __eq__(self, other: "MapCoder"):
+        return (
+            self.__class__ == other.__class__
+            and self._key_coder == other._key_coder
+            and self._value_coder == other._value_coder
+        )
 
     def __ne__(self, other):
         return not self == other
@@ -452,10 +531,12 @@ class DecimalCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.DecimalCoderImpl(self.precision, self.scale)
 
-    def __eq__(self, other: 'DecimalCoder'):
-        return (self.__class__ == other.__class__ and
-                self.precision == other.precision and
-                self.scale == other.scale)
+    def __eq__(self, other: "DecimalCoder"):
+        return (
+            self.__class__ == other.__class__
+            and self.precision == other.precision
+            and self.scale == other.scale
+        )
 
 
 class BigDecimalCoder(FieldCoder):
@@ -514,7 +595,7 @@ class TimestampCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.TimestampCoderImpl(self.precision)
 
-    def __eq__(self, other: 'TimestampCoder'):
+    def __eq__(self, other: "TimestampCoder"):
         return self.__class__ == other.__class__ and self.precision == other.precision
 
 
@@ -530,16 +611,19 @@ class LocalZonedTimestampCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.LocalZonedTimestampCoderImpl(self.precision, self.timezone)
 
-    def __eq__(self, other: 'LocalZonedTimestampCoder'):
-        return (self.__class__ == other.__class__ and
-                self.precision == other.precision and
-                self.timezone == other.timezone)
+    def __eq__(self, other: "LocalZonedTimestampCoder"):
+        return (
+            self.__class__ == other.__class__
+            and self.precision == other.precision
+            and self.timezone == other.timezone
+        )
 
 
 class InstantCoder(FieldCoder):
     """
     Coder for Instant.
     """
+
     def get_impl(self) -> coder_impl.FieldCoderImpl:
         return coder_impl.InstantCoderImpl()
 
@@ -574,12 +658,12 @@ class TupleCoder(FieldCoder):
         return coder_impl.TupleCoderImpl([c.get_impl() for c in self._field_coders])
 
     def __repr__(self):
-        return 'TupleCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+        return "TupleCoder[%s]" % ", ".join(str(c) for c in self._field_coders)
 
-    def __eq__(self, other: 'TupleCoder'):
-        return (self.__class__ == other.__class__ and
-                [self._field_coders[i] == other._field_coders[i]
-                 for i in range(len(self._field_coders))])
+    def __eq__(self, other: "TupleCoder"):
+        return self.__class__ == other.__class__ and [
+            self._field_coders[i] == other._field_coders[i] for i in range(len(self._field_coders))
+        ]
 
 
 class TimeWindowCoder(FieldCoder):
@@ -622,33 +706,29 @@ class DataViewFilterCoder(FieldCoder):
 
 
 class AvroCoder(FieldCoder):
-
     def __init__(self, schema: Union[str, AvroSchema]):
         if isinstance(schema, str):
             self._schema_string = schema
         elif isinstance(schema, AvroSchema):
             self._schema_string = str(schema)
         else:
-            raise ValueError('schema for AvroCoder must be string or AvroSchema')
+            raise ValueError("schema for AvroCoder must be string or AvroSchema")
 
     def get_impl(self):
         return coder_impl.AvroCoderImpl(self._schema_string)
 
 
 class LocalDateCoder(FieldCoder):
-
     def get_impl(self):
         return coder_impl.LocalDateCoderImpl()
 
 
 class LocalTimeCoder(FieldCoder):
-
     def get_impl(self):
         return coder_impl.LocalTimeCoderImpl()
 
 
 class LocalDateTimeCoder(FieldCoder):
-
     def get_impl(self):
         return coder_impl.LocalDateTimeCoderImpl()
 
@@ -684,21 +764,23 @@ def from_proto(field_type):
     if coder is not None:
         return coder
     if field_type_name == type_name.ROW:
-        return RowCoder([from_proto(f.type) for f in field_type.row_schema.fields],
-                        [f.name for f in field_type.row_schema.fields])
+        return RowCoder(
+            [from_proto(f.type) for f in field_type.row_schema.fields],
+            [f.name for f in field_type.row_schema.fields],
+        )
     if field_type_name == type_name.TIMESTAMP:
         return TimestampCoder(field_type.timestamp_info.precision)
     if field_type_name == type_name.LOCAL_ZONED_TIMESTAMP:
-        timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
+        timezone = pytz.timezone(os.environ["TABLE_LOCAL_TIME_ZONE"])
         return LocalZonedTimestampCoder(field_type.local_zoned_timestamp_info.precision, timezone)
     elif field_type_name == type_name.BASIC_ARRAY:
         return GenericArrayCoder(from_proto(field_type.collection_element_type))
     elif field_type_name == type_name.MAP:
-        return MapCoder(from_proto(field_type.map_info.key_type),
-                        from_proto(field_type.map_info.value_type))
+        return MapCoder(
+            from_proto(field_type.map_info.key_type), from_proto(field_type.map_info.value_type)
+        )
     elif field_type_name == type_name.DECIMAL:
-        return DecimalCoder(field_type.decimal_info.precision,
-                            field_type.decimal_info.scale)
+        return DecimalCoder(field_type.decimal_info.precision, field_type.decimal_info.scale)
     else:
         raise ValueError("field_type %s is not supported." % field_type)
 
@@ -737,7 +819,8 @@ def from_type_info_proto(type_info):
         if field_type_name == type_info_name.ROW:
             return RowCoder(
                 [from_type_info_proto(f.field_type) for f in type_info.row_type_info.fields],
-                [f.field_name for f in type_info.row_type_info.fields])
+                [f.field_name for f in type_info.row_type_info.fields],
+            )
         elif field_type_name in (
             type_info_name.PRIMITIVE_ARRAY,
             type_info_name.LIST,
@@ -751,16 +834,22 @@ def from_type_info_proto(type_info):
         ):
             return GenericArrayCoder(from_type_info_proto(type_info.collection_element_type))
         elif field_type_name == type_info_name.TUPLE:
-            return TupleCoder([from_type_info_proto(field_type)
-                               for field_type in type_info.tuple_type_info.field_types])
+            return TupleCoder(
+                [
+                    from_type_info_proto(field_type)
+                    for field_type in type_info.tuple_type_info.field_types
+                ]
+            )
         elif field_type_name == type_info_name.MAP:
-            return MapCoder(from_type_info_proto(type_info.map_type_info.key_type),
-                            from_type_info_proto(type_info.map_type_info.value_type))
+            return MapCoder(
+                from_type_info_proto(type_info.map_type_info.key_type),
+                from_type_info_proto(type_info.map_type_info.value_type),
+            )
         elif field_type_name == type_info_name.AVRO:
             return AvroCoder(type_info.avro_type_info.schema)
         elif field_type_name == type_info_name.LOCAL_ZONED_TIMESTAMP:
             return LocalZonedTimestampCoder(
-                3, timezone=pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
+                3, timezone=pytz.timezone(os.environ["TABLE_LOCAL_TIME_ZONE"])
             )
         else:
             raise ValueError("Unsupported type_info %s." % type_info)
@@ -778,7 +867,7 @@ _basic_type_info_mappings = {
     BasicType.STRING: CharCoder(),
     BasicType.CHAR: CharCoder(),
     BasicType.BIG_DEC: BigDecimalCoder(),
-    BasicType.INSTANT: InstantCoder()
+    BasicType.INSTANT: InstantCoder(),
 }
 
 
@@ -809,14 +898,17 @@ def from_type_info(type_info: TypeInformation) -> FieldCoder:
         return GenericArrayCoder(from_type_info(type_info.elem_type))
     elif isinstance(type_info, MapTypeInfo):
         return MapCoder(
-            from_type_info(type_info._key_type_info), from_type_info(type_info._value_type_info))
+            from_type_info(type_info._key_type_info), from_type_info(type_info._value_type_info)
+        )
     elif isinstance(type_info, TupleTypeInfo):
-        return TupleCoder([from_type_info(field_type)
-                           for field_type in type_info.get_field_types()])
+        return TupleCoder(
+            [from_type_info(field_type) for field_type in type_info.get_field_types()]
+        )
     elif isinstance(type_info, RowTypeInfo):
         return RowCoder(
             [from_type_info(f) for f in type_info.get_field_types()],
-            [f for f in type_info.get_field_names()])
+            [f for f in type_info.get_field_names()],
+        )
     elif isinstance(type_info, ExternalTypeInfo):
         return from_type_info(type_info._type_info)
     elif isinstance(type_info, GenericRecordAvroTypeInfo):

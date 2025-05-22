@@ -25,6 +25,7 @@ class ExpressionsCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCas
     Tests whether the Python :module:`pyflink.table.expressions` is consistent with
     Java `org.apache.flink.table.api.Expressions`.
     """
+
     @classmethod
     def python_class(cls):
         return expressions
@@ -35,26 +36,25 @@ class ExpressionsCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCas
 
     @classmethod
     def java_method_name(cls, python_method_name):
-        return {'and_': 'and',
-                'or_': 'or',
-                'not_': 'not',
-                'range_': 'range',
-                'map_': 'map'}.get(python_method_name, python_method_name)
+        return {"and_": "and", "or_": "or", "not_": "not", "range_": "range", "map_": "map"}.get(
+            python_method_name, python_method_name
+        )
 
     @classmethod
     def excluded_methods(cls):
         return {
-            '$',
-            'descriptor',
+            "$",
+            "descriptor",
         }
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

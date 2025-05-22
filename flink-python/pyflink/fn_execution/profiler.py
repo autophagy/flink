@@ -29,5 +29,5 @@ class Profiler(object):
 
     def close(self):
         self._pr.disable()
-        ps = pstats.Stats(self._pr).sort_stats('cumulative')
+        ps = pstats.Stats(self._pr).sort_stats("cumulative")
         ps.print_stats()

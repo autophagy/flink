@@ -19,9 +19,9 @@ from typing import TypeVar, Generic
 
 from pyflink.java_gateway import get_gateway
 
-T = TypeVar('T')
+T = TypeVar("T")
 
-__all__ = ['ConfigOptions', 'ConfigOption']
+__all__ = ["ConfigOptions", "ConfigOption"]
 
 
 class ConfigOptions(object):
@@ -59,41 +59,41 @@ class ConfigOptions(object):
         def __init__(self, j_option_builder):
             self._j_option_builder = j_option_builder
 
-        def boolean_type(self) -> 'ConfigOptions.TypedConfigOptionBuilder[bool]':
+        def boolean_type(self) -> "ConfigOptions.TypedConfigOptionBuilder[bool]":
             """
             Defines that the value of the option should be of bool type.
             """
             return ConfigOptions.TypedConfigOptionBuilder(self._j_option_builder.booleanType())
 
-        def int_type(self) -> 'ConfigOptions.TypedConfigOptionBuilder[int]':
+        def int_type(self) -> "ConfigOptions.TypedConfigOptionBuilder[int]":
             """
             Defines that the value of the option should be of int type
             (from -2,147,483,648 to 2,147,483,647).
             """
             return ConfigOptions.TypedConfigOptionBuilder(self._j_option_builder.intType())
 
-        def long_type(self) -> 'ConfigOptions.TypedConfigOptionBuilder[int]':
+        def long_type(self) -> "ConfigOptions.TypedConfigOptionBuilder[int]":
             """
             Defines that the value of the option should be of int type
             (from -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807).
             """
             return ConfigOptions.TypedConfigOptionBuilder(self._j_option_builder.longType())
 
-        def float_type(self) -> 'ConfigOptions.TypedConfigOptionBuilder[float]':
+        def float_type(self) -> "ConfigOptions.TypedConfigOptionBuilder[float]":
             """
             Defines that the value of the option should be of float type
             (4-byte single precision floating point number).
             """
             return ConfigOptions.TypedConfigOptionBuilder(self._j_option_builder.floatType())
 
-        def double_type(self) -> 'ConfigOptions.TypedConfigOptionBuilder[float]':
+        def double_type(self) -> "ConfigOptions.TypedConfigOptionBuilder[float]":
             """
             Defines that the value of the option should be of float Double} type
             (8-byte double precision floating point number).
             """
             return ConfigOptions.TypedConfigOptionBuilder(self._j_option_builder.doubleType())
 
-        def string_type(self) -> 'ConfigOptions.TypedConfigOptionBuilder[str]':
+        def string_type(self) -> "ConfigOptions.TypedConfigOptionBuilder[str]":
             """
             Defines that the value of the option should be of str type.
             """
@@ -103,10 +103,10 @@ class ConfigOptions(object):
         def __init__(self, j_typed_config_option_builder):
             self._j_typed_config_option_builder = j_typed_config_option_builder
 
-        def default_value(self, value: T) -> 'ConfigOption[T]':
+        def default_value(self, value: T) -> "ConfigOption[T]":
             return ConfigOption(self._j_typed_config_option_builder.defaultValue(value))
 
-        def no_default_value(self) -> 'ConfigOption[str]':
+        def no_default_value(self) -> "ConfigOption[str]":
             return ConfigOption(self._j_typed_config_option_builder.noDefaultValue())
 
 

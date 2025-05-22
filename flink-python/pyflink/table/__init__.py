@@ -110,6 +110,7 @@ Other important classes:
       Defines the types of details for explain result.
 
 """
+
 from __future__ import absolute_import
 
 from pyflink.table.changelog_mode import ChangelogMode
@@ -124,54 +125,64 @@ from pyflink.table.result_kind import ResultKind
 from pyflink.table.schema import Schema
 from pyflink.table.sql_dialect import SqlDialect
 from pyflink.table.statement_set import StatementSet
-from pyflink.table.table import GroupWindowedTable, GroupedTable, OverWindowedTable, Table, \
-    WindowGroupedTable
+from pyflink.table.table import (
+    GroupWindowedTable,
+    GroupedTable,
+    OverWindowedTable,
+    Table,
+    WindowGroupedTable,
+)
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import TableDescriptor, FormatDescriptor
-from pyflink.table.table_environment import (TableEnvironment, StreamTableEnvironment)
+from pyflink.table.table_environment import TableEnvironment, StreamTableEnvironment
 from pyflink.table.table_pipeline import TablePipeline
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes, UserDefinedType, Row, RowKind
-from pyflink.table.udf import FunctionContext, ScalarFunction, TableFunction, AggregateFunction, \
-    TableAggregateFunction
+from pyflink.table.udf import (
+    FunctionContext,
+    ScalarFunction,
+    TableFunction,
+    AggregateFunction,
+    TableAggregateFunction,
+)
 
 __all__ = [
-    'TableEnvironment',
-    'StreamTableEnvironment',
-    'Table',
-    'StatementSet',
-    'EnvironmentSettings',
-    'TableConfig',
-    'GroupedTable',
-    'GroupWindowedTable',
-    'OverWindowedTable',
-    'WindowGroupedTable',
-    'ScalarFunction',
-    'TableFunction',
-    'AggregateFunction',
-    'TableAggregateFunction',
-    'FunctionContext',
-    'DataView',
-    'ListView',
-    'MapView',
-    'TableDescriptor',
-    'FormatDescriptor',
-    'Schema',
-    'Module',
-    'ModuleEntry',
-    'SqlDialect',
-    'DataTypes',
-    'UserDefinedType',
-    'Expression',
-    'TableSchema',
-    'TableResult',
-    'Row',
-    'RowKind',
-    'ChangelogMode',
-    'ExplainDetail',
-    'ResultKind',
-    'CompiledPlan',
-    'PlanReference',
-    'TablePipeline'
+    "TableEnvironment",
+    "StreamTableEnvironment",
+    "Table",
+    "StatementSet",
+    "EnvironmentSettings",
+    "TableConfig",
+    "GroupedTable",
+    "GroupWindowedTable",
+    "OverWindowedTable",
+    "WindowGroupedTable",
+    "ScalarFunction",
+    "TableFunction",
+    "AggregateFunction",
+    "TableAggregateFunction",
+    "FunctionContext",
+    "DataView",
+    "ListView",
+    "MapView",
+    "TableDescriptor",
+    "FormatDescriptor",
+    "Schema",
+    "Module",
+    "ModuleEntry",
+    "SqlDialect",
+    "DataTypes",
+    "UserDefinedType",
+    "Expression",
+    "TableSchema",
+    "TableResult",
+    "Row",
+    "RowKind",
+    "ChangelogMode",
+    "ExplainDetail",
+    "ResultKind",
+    "CompiledPlan",
+    "PlanReference",
+    "TablePipeline",
 ]

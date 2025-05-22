@@ -23,31 +23,54 @@ from typing import Tuple
 from pyflink import fn_execution
 
 if fn_execution.PYFLINK_CYTHON_ENABLED:
-    from pyflink.fn_execution.table.aggregate_fast import RowKeySelector, \
-        SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
-        SimpleTableAggsHandleFunction, GroupTableAggFunction
-    from pyflink.fn_execution.table.window_aggregate_fast import \
-        SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
+    from pyflink.fn_execution.table.aggregate_fast import (
+        RowKeySelector,
+        SimpleAggsHandleFunction,
+        GroupAggFunction,
+        DistinctViewDescriptor,
+        SimpleTableAggsHandleFunction,
+        GroupTableAggFunction,
+    )
+    from pyflink.fn_execution.table.window_aggregate_fast import (
+        SimpleNamespaceAggsHandleFunction,
+        GroupWindowAggFunction,
+    )
     from pyflink.fn_execution.coder_impl_fast import InternalRow
 else:
-    from pyflink.fn_execution.table.aggregate_slow import RowKeySelector, \
-        SimpleAggsHandleFunction, GroupAggFunction, DistinctViewDescriptor, \
-        SimpleTableAggsHandleFunction, GroupTableAggFunction
-    from pyflink.fn_execution.table.window_aggregate_slow import \
-        SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
+    from pyflink.fn_execution.table.aggregate_slow import (
+        RowKeySelector,
+        SimpleAggsHandleFunction,
+        GroupAggFunction,
+        DistinctViewDescriptor,
+        SimpleTableAggsHandleFunction,
+        GroupTableAggFunction,
+    )
+    from pyflink.fn_execution.table.window_aggregate_slow import (
+        SimpleNamespaceAggsHandleFunction,
+        GroupWindowAggFunction,
+    )
 
 from pyflink.fn_execution.coders import DataViewFilterCoder, PickleCoder
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.operations import Operation
 from pyflink.fn_execution.datastream.process.timerservice_impl import (
-    TimerOperandType, InternalTimerImpl)
+    TimerOperandType,
+    InternalTimerImpl,
+)
 from pyflink.fn_execution.table.state_data_view import extract_data_view_specs
 
-from pyflink.fn_execution.table.window_assigner import TumblingWindowAssigner, \
-    CountTumblingWindowAssigner, SlidingWindowAssigner, CountSlidingWindowAssigner, \
-    SessionWindowAssigner
-from pyflink.fn_execution.table.window_trigger import EventTimeTrigger, ProcessingTimeTrigger, \
-    CountTrigger
+from pyflink.fn_execution.table.window_assigner import (
+    TumblingWindowAssigner,
+    CountTumblingWindowAssigner,
+    SlidingWindowAssigner,
+    CountSlidingWindowAssigner,
+    SessionWindowAssigner,
+)
+from pyflink.fn_execution.table.window_trigger import (
+    EventTimeTrigger,
+    ProcessingTimeTrigger,
+    CountTrigger,
+)
 from pyflink.fn_execution.utils import operation_utils
 from pyflink.fn_execution.utils.operation_utils import extract_user_defined_aggregate_function
 from pyflink.fn_execution.metrics.process.metric_impl import GenericMetricGroup
@@ -68,8 +91,9 @@ STREAM_GROUP_WINDOW_AGGREGATE_URN = "flink:transform:stream_group_window_aggrega
 
 # Pandas UDAF
 PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1"
-PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
+PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = (
     "flink:transform:batch_over_window_aggregate_function:arrow:v1"
+)
 
 
 class BundleOperation(object):
@@ -103,12 +127,12 @@ class BaseOperation(Operation):
 
     def open(self):
         for user_defined_func in self.user_defined_funcs:
-            if hasattr(user_defined_func, 'open'):
+            if hasattr(user_defined_func, "open"):
                 user_defined_func.open(FunctionContext(self.base_metric_group, self.job_parameters))
 
     def close(self):
         for user_defined_func in self.user_defined_funcs:
-            if hasattr(user_defined_func, 'close'):
+            if hasattr(user_defined_func, "close"):
                 user_defined_func.close()
 
     @abc.abstractmethod
@@ -131,16 +155,21 @@ class ScalarFunctionOperation(BaseOperation):
         """
         scalar_functions, variable_dict, user_defined_funcs = reduce(
             lambda x, y: (
-                ','.join([x[0], y[0]]),
+                ",".join([x[0], y[0]]),
                 dict(chain(x[1].items(), y[1].items())),
-                x[2] + y[2]),
-            [operation_utils.extract_user_defined_function(
-                udf, one_arg_optimization=self._one_arg_optimization)
-                for udf in serialized_fn.udfs])
+                x[2] + y[2],
+            ),
+            [
+                operation_utils.extract_user_defined_function(
+                    udf, one_arg_optimization=self._one_arg_optimization
+                )
+                for udf in serialized_fn.udfs
+            ],
+        )
         if self._one_result_optimization:
-            func_str = 'lambda value: %s' % scalar_functions
+            func_str = "lambda value: %s" % scalar_functions
         else:
-            func_str = 'lambda value: [%s]' % scalar_functions
+            func_str = "lambda value: [%s]" % scalar_functions
         generate_func = eval(func_str, variable_dict)
         return generate_func, user_defined_funcs
 
@@ -156,12 +185,15 @@ class TableFunctionOperation(BaseOperation):
                               the Python :class:`TableFunction`
         :return: the generated lambda function
         """
-        table_function, variable_dict, user_defined_funcs = \
+        table_function, variable_dict, user_defined_funcs = (
             operation_utils.extract_user_defined_function(serialized_fn.udfs[0])
-        variable_dict['normalize_table_function_result'] = \
+        )
+        variable_dict["normalize_table_function_result"] = (
             operation_utils.normalize_table_function_result
-        generate_func = eval('lambda value: normalize_table_function_result(%s)' % table_function,
-                             variable_dict)
+        )
+        generate_func = eval(
+            "lambda value: normalize_table_function_result(%s)" % table_function, variable_dict
+        )
         return generate_func, user_defined_funcs
 
 
@@ -172,14 +204,19 @@ class PandasAggregateFunctionOperation(BaseOperation):
     def generate_func(self, serialized_fn):
         pandas_functions, variable_dict, user_defined_funcs = reduce(
             lambda x, y: (
-                ','.join([x[0], y[0]]),
+                ",".join([x[0], y[0]]),
                 dict(chain(x[1].items(), y[1].items())),
-                x[2] + y[2]),
-            [operation_utils.extract_user_defined_function(udf, True)
-             for udf in serialized_fn.udfs])
-        variable_dict['normalize_pandas_result'] = operation_utils.normalize_pandas_result
-        generate_func = eval('lambda value: normalize_pandas_result([%s])' %
-                             pandas_functions, variable_dict)
+                x[2] + y[2],
+            ),
+            [
+                operation_utils.extract_user_defined_function(udf, True)
+                for udf in serialized_fn.udfs
+            ],
+        )
+        variable_dict["normalize_pandas_result"] = operation_utils.normalize_pandas_result
+        generate_func = eval(
+            "lambda value: normalize_pandas_result([%s])" % pandas_functions, variable_dict
+        )
         return generate_func, user_defined_funcs
 
 
@@ -199,9 +236,11 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
         bounded_range_window_nums = 0
         for i, window in enumerate(self.windows):
             window_type = window.window_type
-            if (window_type == window_types.RANGE_UNBOUNDED_PRECEDING) or (
-                    window_type == window_types.RANGE_UNBOUNDED_FOLLOWING) or (
-                    window_type == window_types.RANGE_SLIDING):
+            if (
+                (window_type == window_types.RANGE_UNBOUNDED_PRECEDING)
+                or (window_type == window_types.RANGE_UNBOUNDED_FOLLOWING)
+                or (window_type == window_types.RANGE_SLIDING)
+            ):
                 self.bounded_range_window_index[i] = bounded_range_window_nums
                 self.is_bounded_range_window.append(True)
                 bounded_range_window_nums += 1
@@ -213,11 +252,12 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
         self.window_indexes = []
         self.mapper = []
         for udf in serialized_fn.udfs:
-            pandas_agg_function, variable_dict, user_defined_func, window_index = \
+            pandas_agg_function, variable_dict, user_defined_func, window_index = (
                 operation_utils.extract_over_window_user_defined_function(udf)
+            )
             user_defined_funcs.extend(user_defined_func)
             self.window_indexes.append(window_index)
-            self.mapper.append(eval('lambda value: %s' % pandas_agg_function, variable_dict))
+            self.mapper.append(eval("lambda value: %s" % pandas_agg_function, variable_dict))
         return self.wrapped_over_window_function, user_defined_funcs
 
     def wrapped_over_window_function(self, boundaries_series):
@@ -238,8 +278,7 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
             func = self.mapper[i]
             result = []
             if self.is_bounded_range_window[window_index]:
-                window_boundaries = boundaries_series[
-                    self.bounded_range_window_index[window_index]]
+                window_boundaries = boundaries_series[self.bounded_range_window_index[window_index]]
                 if window_type == OverWindow.RANGE_UNBOUNDED_PRECEDING:
                     # range unbounded preceding window
                     for j in range(input_cnt):
@@ -262,7 +301,8 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
             else:
                 # unbounded range window or unbounded row window
                 if (window_type == OverWindow.RANGE_UNBOUNDED) or (
-                        window_type == OverWindow.ROW_UNBOUNDED):
+                    window_type == OverWindow.ROW_UNBOUNDED
+                ):
                     series_slices = [s.iloc[:] for s in input_series]
                     func_result = func(series_slices)
                     result = [func_result for _ in range(input_cnt)]
@@ -271,14 +311,14 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
                     window_end = window.upper_boundary
                     for j in range(input_cnt):
                         end = min(j + window_end + 1, input_cnt)
-                        series_slices = [s.iloc[: end] for s in input_series]
+                        series_slices = [s.iloc[:end] for s in input_series]
                         result.append(func(series_slices))
                 elif window_type == OverWindow.ROW_UNBOUNDED_FOLLOWING:
                     # row unbounded following window
                     window_start = window.lower_boundary
                     for j in range(input_cnt):
                         start = max(j + window_start, 0)
-                        series_slices = [s.iloc[start: input_cnt] for s in input_series]
+                        series_slices = [s.iloc[start:input_cnt] for s in input_series]
                         result.append(func(series_slices))
                 else:
                     # row sliding window
@@ -287,14 +327,13 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
                     for j in range(input_cnt):
                         start = max(j + window_start, 0)
                         end = min(j + window_end + 1, input_cnt)
-                        series_slices = [s.iloc[start: end] for s in input_series]
+                        series_slices = [s.iloc[start:end] for s in input_series]
                         result.append(func(series_slices))
             results.append(pd.Series(result))
         return results
 
 
 class BaseStatefulOperation(BaseOperation, abc.ABC):
-
     def __init__(self, serialized_fn, keyed_state_backend):
         self.keyed_state_backend = keyed_state_backend
         super(BaseStatefulOperation, self).__init__(serialized_fn)
@@ -312,7 +351,6 @@ REGISTER_PROCESSING_TIMER = 1
 
 
 class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
-
     def __init__(self, serialized_fn, keyed_state_backend):
         self.generate_update_before = serialized_fn.generate_update_before
         self.grouping = [i for i in serialized_fn.grouping]
@@ -327,7 +365,8 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
         self.data_view_specs = extract_data_view_specs(serialized_fn.udfs)
         self.job_parameters = {p.key: p.value for p in serialized_fn.job_parameters}
         super(AbstractStreamGroupAggregateOperation, self).__init__(
-            serialized_fn, keyed_state_backend)
+            serialized_fn, keyed_state_backend
+        )
 
     def open(self):
         self.group_agg_function.open(FunctionContext(self.base_metric_group, self.job_parameters))
@@ -345,9 +384,11 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
         # and the filter args of them
         distinct_info_dict = {}
         for i in range(len(serialized_fn.udfs)):
-            user_defined_agg, input_extractor, filter_arg, distinct_index = \
+            user_defined_agg, input_extractor, filter_arg, distinct_index = (
                 extract_user_defined_aggregate_function(
-                    i, serialized_fn.udfs[i], distinct_info_dict)
+                    i, serialized_fn.udfs[i], distinct_info_dict
+                )
+            )
             user_defined_aggs.append(user_defined_agg)
             input_extractors.append(input_extractor)
             filter_args.append(filter_arg)
@@ -360,7 +401,8 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
                 filter_arg_list = []
             # use the agg index of the first function as the key of shared distinct view
             distinct_view_descriptors[agg_index_list[0]] = DistinctViewDescriptor(
-                input_extractors[agg_index_list[0]], filter_arg_list)
+                input_extractors[agg_index_list[0]], filter_arg_list
+            )
 
         key_selector = RowKeySelector(self.grouping)
         if len(self.data_view_specs) > 0:
@@ -369,8 +411,14 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
             state_value_coder = PickleCoder()
 
         self.group_agg_function = self.create_process_function(
-            user_defined_aggs, input_extractors, filter_args, distinct_indexes,
-            distinct_view_descriptors, key_selector, state_value_coder)
+            user_defined_aggs,
+            input_extractors,
+            filter_args,
+            distinct_indexes,
+            distinct_view_descriptors,
+            key_selector,
+            state_value_coder,
+        )
 
         return self.process_element_or_timer, []
 
@@ -392,23 +440,36 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
             self.group_agg_function.on_timer(timer)
 
     @abc.abstractmethod
-    def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
-                                distinct_indexes, distinct_view_descriptors, key_selector,
-                                state_value_coder):
+    def create_process_function(
+        self,
+        user_defined_aggs,
+        input_extractors,
+        filter_args,
+        distinct_indexes,
+        distinct_view_descriptors,
+        key_selector,
+        state_value_coder,
+    ):
         pass
 
 
 class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation, BundleOperation):
-
     def __init__(self, serialized_fn, keyed_state_backend):
         super(StreamGroupAggregateOperation, self).__init__(serialized_fn, keyed_state_backend)
 
     def finish_bundle(self):
         return self.group_agg_function.finish_bundle()
 
-    def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
-                                distinct_indexes, distinct_view_descriptors, key_selector,
-                                state_value_coder):
+    def create_process_function(
+        self,
+        user_defined_aggs,
+        input_extractors,
+        filter_args,
+        distinct_indexes,
+        distinct_view_descriptors,
+        key_selector,
+        state_value_coder,
+    ):
         aggs_handler_function = SimpleAggsHandleFunction(
             user_defined_aggs,
             input_extractors,
@@ -417,7 +478,8 @@ class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation, Bundl
             self.data_view_specs,
             filter_args,
             distinct_indexes,
-            distinct_view_descriptors)
+            distinct_view_descriptors,
+        )
 
         return GroupAggFunction(
             aggs_handler_function,
@@ -426,7 +488,8 @@ class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation, Bundl
             state_value_coder,
             self.generate_update_before,
             self.state_cleaning_enabled,
-            self.index_of_count_star)
+            self.index_of_count_star,
+        )
 
 
 class StreamGroupTableAggregateOperation(AbstractStreamGroupAggregateOperation, BundleOperation):
@@ -436,16 +499,24 @@ class StreamGroupTableAggregateOperation(AbstractStreamGroupAggregateOperation, 
     def finish_bundle(self):
         return self.group_agg_function.finish_bundle()
 
-    def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
-                                distinct_indexes, distinct_view_descriptors, key_selector,
-                                state_value_coder):
+    def create_process_function(
+        self,
+        user_defined_aggs,
+        input_extractors,
+        filter_args,
+        distinct_indexes,
+        distinct_view_descriptors,
+        key_selector,
+        state_value_coder,
+    ):
         aggs_handler_function = SimpleTableAggsHandleFunction(
             user_defined_aggs,
             input_extractors,
             self.data_view_specs,
             filter_args,
             distinct_indexes,
-            distinct_view_descriptors)
+            distinct_view_descriptors,
+        )
         return GroupTableAggFunction(
             aggs_handler_function,
             key_selector,
@@ -453,7 +524,8 @@ class StreamGroupTableAggregateOperation(AbstractStreamGroupAggregateOperation, 
             state_value_coder,
             self.generate_update_before,
             self.state_cleaning_enabled,
-            self.index_of_count_star)
+            self.index_of_count_star,
+        )
 
 
 class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation):
@@ -464,11 +536,19 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
         self._reuse_timer_data = Row()
         self._reuse_key_data = Row()
         super(StreamGroupWindowAggregateOperation, self).__init__(
-            serialized_fn, keyed_state_backend)
+            serialized_fn, keyed_state_backend
+        )
 
-    def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
-                                distinct_indexes, distinct_view_descriptors, key_selector,
-                                state_value_coder):
+    def create_process_function(
+        self,
+        user_defined_aggs,
+        input_extractors,
+        filter_args,
+        distinct_indexes,
+        distinct_view_descriptors,
+        key_selector,
+        state_value_coder,
+    ):
         from pyflink.fn_execution import flink_fn_execution_pb2
 
         self._is_time_window = self._window.is_time_window
@@ -476,20 +556,23 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
         if self._window.window_type == flink_fn_execution_pb2.GroupWindow.TUMBLING_GROUP_WINDOW:
             if self._is_time_window:
                 window_assigner = TumblingWindowAssigner(
-                    self._window.window_size, 0, self._window.is_row_time)
+                    self._window.window_size, 0, self._window.is_row_time
+                )
             else:
                 window_assigner = CountTumblingWindowAssigner(self._window.window_size)
         elif self._window.window_type == flink_fn_execution_pb2.GroupWindow.SLIDING_GROUP_WINDOW:
             if self._is_time_window:
                 window_assigner = SlidingWindowAssigner(
-                    self._window.window_size, self._window.window_slide, 0,
-                    self._window.is_row_time)
+                    self._window.window_size, self._window.window_slide, 0, self._window.is_row_time
+                )
             else:
                 window_assigner = CountSlidingWindowAssigner(
-                    self._window.window_size, self._window.window_slide)
+                    self._window.window_size, self._window.window_slide
+                )
         else:
             window_assigner = SessionWindowAssigner(
-                self._window.window_gap, self._window.is_row_time)
+                self._window.window_gap, self._window.is_row_time
+            )
         if self._is_time_window:
             if self._window.is_row_time:
                 trigger = EventTimeTrigger()
@@ -507,7 +590,8 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
             self.data_view_specs,
             filter_args,
             distinct_indexes,
-            distinct_view_descriptors)
+            distinct_view_descriptors,
+        )
         return GroupWindowAggFunction(
             self._window.allowedLateness,
             key_selector,
@@ -517,7 +601,8 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
             window_aggregator,
             trigger,
             self._window.time_field_index,
-            self._window.shift_timezone)
+            self._window.shift_timezone,
+        )
 
     def process_element_or_timer(self, input_data: Tuple[int, Row, int, int, Row]):
         if input_data[0] == NORMAL_RECORD:
@@ -537,8 +622,12 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
                 self._reuse_key_data._values = internal_timer.get_key()
                 timestamp = internal_timer.get_timestamp()
                 encoded_window = self._namespace_coder.encode(window)
-                self._reuse_timer_data._values = \
-                    [timer_operand_type.value, self._reuse_key_data, timestamp, encoded_window]
+                self._reuse_timer_data._values = [
+                    timer_operand_type.value,
+                    self._reuse_key_data,
+                    timestamp,
+                    encoded_window,
+                ]
                 yield [TRIGGER_TIMER, None, self._reuse_timer_data]
         else:
             timestamp = input_data[2]
@@ -569,8 +658,8 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
                 named_property_extractor_array.append("-1")
             else:
                 raise Exception("Unexpected property %s" % named_property)
-        named_property_extractor_str = ','.join(named_property_extractor_array)
+        named_property_extractor_str = ",".join(named_property_extractor_array)
         if named_property_extractor_str:
-            return eval('lambda value: [%s]' % named_property_extractor_str)
+            return eval("lambda value: [%s]" % named_property_extractor_str)
         else:
             return None

@@ -22,22 +22,28 @@ from typing import TypeVar, List, Tuple
 from pemja import findClass
 
 from pyflink.common import Row, RowKind, TypeInformation
-from pyflink.common.typeinfo import (PickledBytesTypeInfo, PrimitiveArrayTypeInfo,
-                                     BasicArrayTypeInfo, ObjectArrayTypeInfo, RowTypeInfo,
-                                     TupleTypeInfo, MapTypeInfo, ListTypeInfo)
+from pyflink.common.typeinfo import (
+    PickledBytesTypeInfo,
+    PrimitiveArrayTypeInfo,
+    BasicArrayTypeInfo,
+    ObjectArrayTypeInfo,
+    RowTypeInfo,
+    TupleTypeInfo,
+    MapTypeInfo,
+    ListTypeInfo,
+)
 from pyflink.datastream import TimeWindow, CountWindow, GlobalWindow
 
-IN = TypeVar('IN')
-OUT = TypeVar('OUT')
+IN = TypeVar("IN")
+OUT = TypeVar("OUT")
 
 # Java Window
-JTimeWindow = findClass('org.apache.flink.table.runtime.operators.window.TimeWindow')
-JCountWindow = findClass('org.apache.flink.table.runtime.operators.window.CountWindow')
-JGlobalWindow = findClass('org.apache.flink.table.runtime.operators.window.GlobalWindow')
+JTimeWindow = findClass("org.apache.flink.table.runtime.operators.window.TimeWindow")
+JCountWindow = findClass("org.apache.flink.table.runtime.operators.window.CountWindow")
+JGlobalWindow = findClass("org.apache.flink.table.runtime.operators.window.GlobalWindow")
 
 
 class DataConverter(ABC):
-
     @abstractmethod
     def to_internal(self, value) -> IN:
         pass
@@ -80,19 +86,20 @@ class FlattenRowDataConverter(DataConverter):
         if value is None:
             return None
 
-        return tuple([self._field_data_converters[i].to_internal(item)
-                      for i, item in enumerate(value)])
+        return tuple(
+            [self._field_data_converters[i].to_internal(item) for i, item in enumerate(value)]
+        )
 
     def to_external(self, value) -> OUT:
         if value is None:
             return None
 
-        return tuple([self._field_data_converters[i].to_external(item)
-                      for i, item in enumerate(value)])
+        return tuple(
+            [self._field_data_converters[i].to_external(item) for i, item in enumerate(value)]
+        )
 
 
 class RowDataConverter(DataConverter):
-
     def __init__(self, field_data_converters: List[DataConverter], field_names: List[str]):
         self._field_data_converters = field_data_converters
         self._field_names = field_names
@@ -102,8 +109,9 @@ class RowDataConverter(DataConverter):
             return None
 
         row = Row()
-        row._values = [self._field_data_converters[i].to_internal(item)
-                       for i, item in enumerate(value[1])]
+        row._values = [
+            self._field_data_converters[i].to_internal(item) for i, item in enumerate(value[1])
+        ]
         row.set_field_names(self._field_names)
         row.set_row_kind(RowKind(value[0]))
 
@@ -114,13 +122,13 @@ class RowDataConverter(DataConverter):
             return None
 
         values = value._values
-        fields = tuple([self._field_data_converters[i].to_external(values[i])
-                        for i in range(len(values))])
+        fields = tuple(
+            [self._field_data_converters[i].to_external(values[i]) for i in range(len(values))]
+        )
         return value.get_row_kind().value, fields
 
 
 class TupleDataConverter(DataConverter):
-
     def __init__(self, field_data_converters: List[DataConverter]):
         self._field_data_converters = field_data_converters
 
@@ -128,19 +136,20 @@ class TupleDataConverter(DataConverter):
         if value is None:
             return None
 
-        return tuple([self._field_data_converters[i].to_internal(item)
-                      for i, item in enumerate(value)])
+        return tuple(
+            [self._field_data_converters[i].to_internal(item) for i, item in enumerate(value)]
+        )
 
     def to_external(self, value: Tuple) -> OUT:
         if value is None:
             return None
 
-        return tuple([self._field_data_converters[i].to_external(item)
-                      for i, item in enumerate(value)])
+        return tuple(
+            [self._field_data_converters[i].to_external(item) for i, item in enumerate(value)]
+        )
 
 
 class ListDataConverter(DataConverter):
-
     def __init__(self, field_converter: DataConverter):
         self._field_converter = field_converter
 
@@ -177,15 +186,19 @@ class DictDataConverter(DataConverter):
         if value is None:
             return None
 
-        return {self._key_converter.to_internal(k): self._value_converter.to_internal(v)
-                for k, v in value.items()}
+        return {
+            self._key_converter.to_internal(k): self._value_converter.to_internal(v)
+            for k, v in value.items()
+        }
 
     def to_external(self, value) -> OUT:
         if value is None:
             return None
 
-        return {self._key_converter.to_external(k): self._value_converter.to_external(v)
-                for k, v in value.items()}
+        return {
+            self._key_converter.to_external(k): self._value_converter.to_external(v)
+            for k, v in value.items()
+        }
 
 
 class TimeWindowConverter(DataConverter):
@@ -197,7 +210,6 @@ class TimeWindowConverter(DataConverter):
 
 
 class CountWindowConverter(DataConverter):
-
     def to_internal(self, value) -> CountWindow:
         return CountWindow(value.getId())
 
@@ -206,7 +218,6 @@ class CountWindowConverter(DataConverter):
 
 
 class GlobalWindowConverter(DataConverter):
-
     def to_internal(self, value) -> IN:
         return GlobalWindow()
 
@@ -226,19 +237,24 @@ def from_type_info_proto(type_info):
     elif type_name == type_info_name.ROW:
         return RowDataConverter(
             [from_type_info_proto(f.field_type) for f in type_info.row_type_info.fields],
-            [f.field_name for f in type_info.row_type_info.fields])
+            [f.field_name for f in type_info.row_type_info.fields],
+        )
     elif type_name == type_info_name.TUPLE:
         return TupleDataConverter(
-            [from_type_info_proto(field_type)
-             for field_type in type_info.tuple_type_info.field_types])
-    elif type_name in (type_info_name.BASIC_ARRAY,
-                       type_info_name.OBJECT_ARRAY):
+            [
+                from_type_info_proto(field_type)
+                for field_type in type_info.tuple_type_info.field_types
+            ]
+        )
+    elif type_name in (type_info_name.BASIC_ARRAY, type_info_name.OBJECT_ARRAY):
         return ArrayDataConverter(from_type_info_proto(type_info.collection_element_type))
     elif type_info == type_info_name.LIST:
         return ListDataConverter(from_type_info_proto(type_info.collection_element_type))
     elif type_name == type_info_name.MAP:
-        return DictDataConverter(from_type_info_proto(type_info.map_type_info.key_type),
-                                 from_type_info_proto(type_info.map_type_info.value_type))
+        return DictDataConverter(
+            from_type_info_proto(type_info.map_type_info.key_type),
+            from_type_info_proto(type_info.map_type_info.value_type),
+        )
 
     return IdentityDataConverter()
 
@@ -260,12 +276,15 @@ def from_field_type_proto(field_type):
     if type_name == schema_type_name.ROW:
         return RowDataConverter(
             [from_field_type_proto(f.type) for f in field_type.row_schema.fields],
-            [f.name for f in field_type.row_schema.fields])
+            [f.name for f in field_type.row_schema.fields],
+        )
     elif type_name == schema_type_name.BASIC_ARRAY:
         return ArrayDataConverter(from_field_type_proto(field_type.collection_element_type))
     elif type_name == schema_type_name.MAP:
-        return DictDataConverter(from_field_type_proto(field_type.map_info.key_type),
-                                 from_field_type_proto(field_type.map_info.value_type))
+        return DictDataConverter(
+            from_field_type_proto(field_type.map_info.key_type),
+            from_field_type_proto(field_type.map_info.value_type),
+        )
 
     return IdentityDataConverter()
 
@@ -278,7 +297,8 @@ def from_type_info(type_info: TypeInformation):
     elif isinstance(type_info, ListTypeInfo):
         return ListDataConverter(from_type_info(type_info.elem_type))
     elif isinstance(type_info, MapTypeInfo):
-        return DictDataConverter(from_type_info(type_info._key_type_info),
-                                 from_type_info(type_info._value_type_info))
+        return DictDataConverter(
+            from_type_info(type_info._key_type_info), from_type_info(type_info._value_type_info)
+        )
 
     return IdentityDataConverter()

@@ -17,7 +17,4 @@
 ################################################################################
 from .avro import FlinkAvroDecoder, FlinkAvroDatumReader
 
-__all__ = [
-    "FlinkAvroDatumReader",
-    "FlinkAvroDecoder"
-]
+__all__ = ["FlinkAvroDatumReader", "FlinkAvroDecoder"]

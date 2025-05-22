@@ -25,39 +25,42 @@ from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table import expressions as expr
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import (PyFlinkTestCase)
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class DependencyTests(object):
-
     def test_add_python_file(self):
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_dependency_manage_lib.py")
-        with open(python_file_path, 'w') as f:
+        with open(python_file_path, "w") as f:
             f.write("def add_two(a):\n    raise Exception('This function should not be called!')")
         self.t_env.add_python_file(python_file_path)
 
         python_file_dir_with_higher_priority = os.path.join(
-            self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
+            self.tempdir, "python_file_dir_" + str(uuid.uuid4())
+        )
         os.mkdir(python_file_dir_with_higher_priority)
-        python_file_path_higher_priority = os.path.join(python_file_dir_with_higher_priority,
-                                                        "test_dependency_manage_lib.py")
-        with open(python_file_path_higher_priority, 'w') as f:
+        python_file_path_higher_priority = os.path.join(
+            python_file_dir_with_higher_priority, "test_dependency_manage_lib.py"
+        )
+        with open(python_file_path_higher_priority, "w") as f:
             f.write("def add_two(a):\n    return a + 2")
         self.t_env.add_python_file(python_file_path_higher_priority)
 
         def plus_two(i):
             from test_dependency_manage_lib import add_two
+
             return add_two(i)
 
         self.t_env.create_temporary_system_function(
-            "add_two", udf(plus_two, DataTypes.BIGINT(), DataTypes.BIGINT()))
+            "add_two", udf(plus_two, DataTypes.BIGINT(), DataTypes.BIGINT())
+        )
         sink_table_ddl = """
         CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
+        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ["a", "b"])
         t.select(expr.call("add_two", t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
@@ -67,27 +70,28 @@ class DependencyTests(object):
         tmp_dir = self.tempdir
         archive_dir_path = os.path.join(tmp_dir, "archive_" + str(uuid.uuid4()))
         os.mkdir(archive_dir_path)
-        with open(os.path.join(archive_dir_path, "data.txt"), 'w') as f:
+        with open(os.path.join(archive_dir_path, "data.txt"), "w") as f:
             f.write("2")
-        archive_file_path = \
-            shutil.make_archive(os.path.dirname(archive_dir_path), 'zip', archive_dir_path)
+        archive_file_path = shutil.make_archive(
+            os.path.dirname(archive_dir_path), "zip", archive_dir_path
+        )
         self.t_env.add_python_archive(archive_file_path, "data")
 
         def add_from_file(i):
-            with open("data/data.txt", 'r') as f:
+            with open("data/data.txt", "r") as f:
                 return i + int(f.read())
 
-        self.t_env.create_temporary_system_function("add_from_file",
-                                                    udf(add_from_file, DataTypes.BIGINT(),
-                                                        DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function(
+            "add_from_file", udf(add_from_file, DataTypes.BIGINT(), DataTypes.BIGINT())
+        )
 
         sink_table_ddl = """
         CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
 
-        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select(expr.call('add_from_file', t.a), t.a).execute_insert("Results").wait()
+        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ["a", "b"])
+        t.select(expr.call("add_from_file", t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
@@ -103,7 +107,6 @@ class EmbeddedThreadDependencyTests(DependencyTests, PyFlinkTestCase):
 
 
 class BatchDependencyTests(DependencyTests, PyFlinkTestCase):
-
     def setUp(self) -> None:
         super(BatchDependencyTests, self).setUp()
         self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
@@ -112,40 +115,40 @@ class BatchDependencyTests(DependencyTests, PyFlinkTestCase):
 
 
 class StreamDependencyTests(DependencyTests, PyFlinkTestCase):
-
     def setUp(self):
         super(StreamDependencyTests, self).setUp()
-        origin_execution_mode = os.environ['_python_worker_execution_mode']
-        os.environ['_python_worker_execution_mode'] = "loopback"
+        origin_execution_mode = os.environ["_python_worker_execution_mode"]
+        os.environ["_python_worker_execution_mode"] = "loopback"
         try:
             self.t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
             self.t_env.get_config().set("parallelism.default", "2")
             self.t_env.get_config().set("python.fn-execution.bundle.size", "1")
         finally:
             if origin_execution_mode is not None:
-                os.environ['_python_worker_execution_mode'] = origin_execution_mode
+                os.environ["_python_worker_execution_mode"] = origin_execution_mode
 
     def test_set_requirements_without_cached_directory(self):
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))
-        with open(requirements_txt_path, 'w') as f:
+        with open(requirements_txt_path, "w") as f:
             f.write("cloudpickle==2.2.0")
         self.t_env.set_python_requirements(requirements_txt_path)
 
         def check_requirements(i):
             import cloudpickle  # noqa # pylint: disable=unused-import
-            assert '_PYTHON_REQUIREMENTS_INSTALL_DIR' in os.environ
+
+            assert "_PYTHON_REQUIREMENTS_INSTALL_DIR" in os.environ
             return i
 
         self.t_env.create_temporary_system_function(
-            "check_requirements",
-            udf(check_requirements, DataTypes.BIGINT(), DataTypes.BIGINT()))
+            "check_requirements", udf(check_requirements, DataTypes.BIGINT(), DataTypes.BIGINT())
+        )
         sink_table_ddl = """
                 CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
                 """
         self.t_env.execute_sql(sink_table_ddl)
 
-        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select(expr.call('check_requirements', t.a), t.a).execute_insert("Results").wait()
+        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ["a", "b"])
+        t.select(expr.call("check_requirements", t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 1]", "+I[2, 2]", "+I[3, 3]"])
@@ -153,46 +156,51 @@ class StreamDependencyTests(DependencyTests, PyFlinkTestCase):
     def test_set_requirements_with_cached_directory(self):
         tmp_dir = self.tempdir
         requirements_txt_path = os.path.join(tmp_dir, "requirements_txt_" + str(uuid.uuid4()))
-        with open(requirements_txt_path, 'w') as f:
+        with open(requirements_txt_path, "w") as f:
             f.write("python-package1==0.0.0")
 
         requirements_dir_path = os.path.join(tmp_dir, "requirements_dir_" + str(uuid.uuid4()))
         os.mkdir(requirements_dir_path)
         package_file_name = "python-package1-0.0.0.tar.gz"
-        with open(os.path.join(requirements_dir_path, package_file_name), 'wb') as f:
+        with open(os.path.join(requirements_dir_path, package_file_name), "wb") as f:
             import base64
+
             # This base64 data is encoded from a python package file which includes a
             # "python_package1" module. The module contains a "plus(a, b)" function.
             # The base64 can be recomputed by following code:
             # base64.b64encode(open("python-package1-0.0.0.tar.gz", "rb").read()).decode("utf-8")
-            f.write(base64.b64decode(
-                "H4sICNefrV0C/2Rpc3QvcHl0aG9uLXBhY2thZ2UxLTAuMC4wLnRhcgDtmVtv2jAYhnPtX2H1CrRCY+ckI"
-                "XEx7axuUA11u5imyICTRc1JiVnHfv1MKKWjYxwKEdPehws7xkmUfH5f+3PyqfqWpa1cjG5EKFnLbOvfhX"
-                "FQTI3nOPPSdavS5Pa8nGMwy3Esi3ke9wyTObbnGNQxamBSKlFQavzUryG8ldG6frpbEGx4yNmDLMp/hPy"
-                "P8b+6fNN613vdP1z8XdteG3+ug/17/F3Hcw1qIv5H54NUYiyUaH2SRRllaYeytkl6IpEdujI2yH2XapCQ"
-                "wSRJRDHt0OveZa//uUfeZonUvUO5bHo+0ZcoVo9bMhFRvGx9H41kWj447aUsR0WUq+pui8arWKggK5Jli"
-                "wGOo/95q79ovXi6/nfyf246Dof/n078fT9KI+X77Xx6BP83bX4Xf5NxT7dz7toO/L8OxjKgeTwpG+KcDp"
-                "sdQjWFVJMipYI+o0MCk4X/t2UYtqI0yPabCHb3f861XcD/Ty/+Y5nLdCzT0dSPo/SmbKsf6un+b7KV+Ls"
-                "W4/D/OoC9w/930P9eGwM75//csrD+Q/6P/P/k9D/oX3988Wqw1bS/tf6tR+s/m3EG/ddBqXO9XKf15C8p"
-                "P9k4HZBtBgzZaVW5vrfKcj+W32W82ygEB9D/Xu9+4/qfP9L/rBv0X1v87yONKRX61/qfzwqjIDzIPTbv/"
-                "7or3/88i0H/tfBFW7s/s/avRInQH06ieEy7tDrQeYHUdRN7wP+n/vf62LOH/pld7f9xz7a5Pfufedy0oP"
-                "86iJI8KxStAq6yLC4JWdbbVbWRikR2z1ZGytk5vauW3QdnBFE6XqwmykazCesAAAAAAAAAAAAAAAAAAAA"
-                "AAAAAAAAAAAAAAOBw/AJw5CHBAFAAAA=="))
+            f.write(
+                base64.b64decode(
+                    "H4sICNefrV0C/2Rpc3QvcHl0aG9uLXBhY2thZ2UxLTAuMC4wLnRhcgDtmVtv2jAYhnPtX2H1CrRCY+ckI"
+                    "XEx7axuUA11u5imyICTRc1JiVnHfv1MKKWjYxwKEdPehws7xkmUfH5f+3PyqfqWpa1cjG5EKFnLbOvfhX"
+                    "FQTI3nOPPSdavS5Pa8nGMwy3Esi3ke9wyTObbnGNQxamBSKlFQavzUryG8ldG6frpbEGx4yNmDLMp/hPy"
+                    "P8b+6fNN613vdP1z8XdteG3+ug/17/F3Hcw1qIv5H54NUYiyUaH2SRRllaYeytkl6IpEdujI2yH2XapCQ"
+                    "wSRJRDHt0OveZa//uUfeZonUvUO5bHo+0ZcoVo9bMhFRvGx9H41kWj447aUsR0WUq+pui8arWKggK5Jli"
+                    "wGOo/95q79ovXi6/nfyf246Dof/n078fT9KI+X77Xx6BP83bX4Xf5NxT7dz7toO/L8OxjKgeTwpG+KcDp"
+                    "sdQjWFVJMipYI+o0MCk4X/t2UYtqI0yPabCHb3f861XcD/Ty/+Y5nLdCzT0dSPo/SmbKsf6un+b7KV+Ls"
+                    "W4/D/OoC9w/930P9eGwM75//csrD+Q/6P/P/k9D/oX3988Wqw1bS/tf6tR+s/m3EG/ddBqXO9XKf15C8p"
+                    "P9k4HZBtBgzZaVW5vrfKcj+W32W82ygEB9D/Xu9+4/qfP9L/rBv0X1v87yONKRX61/qfzwqjIDzIPTbv/"
+                    "7or3/88i0H/tfBFW7s/s/avRInQH06ieEy7tDrQeYHUdRN7wP+n/vf62LOH/pld7f9xz7a5Pfufedy0oP"
+                    "86iJI8KxStAq6yLC4JWdbbVbWRikR2z1ZGytk5vauW3QdnBFE6XqwmykazCesAAAAAAAAAAAAAAAAAAAA"
+                    "AAAAAAAAAAAAAAOBw/AJw5CHBAFAAAA=="
+                )
+            )
         self.t_env.set_python_requirements(requirements_txt_path, requirements_dir_path)
 
         def add_one(i):
             from python_package1 import plus
+
             return plus(i, 1)
 
         self.t_env.create_temporary_system_function(
-            "add_one",
-            udf(add_one, DataTypes.BIGINT(), DataTypes.BIGINT()))
+            "add_one", udf(add_one, DataTypes.BIGINT(), DataTypes.BIGINT())
+        )
         sink_table_ddl = """
         CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select(expr.call('add_one', t.a), t.a).execute_insert("Results").wait()
+        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ["a", "b"])
+        t.select(expr.call("add_one", t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[2, 1]", "+I[3, 2]", "+I[4, 3]"])
@@ -203,32 +211,33 @@ class StreamDependencyTests(DependencyTests, PyFlinkTestCase):
 
         def check_python_exec(i):
             import os
+
             assert os.environ["python"] == python_exec_link_path
             return i
 
         self.t_env.create_temporary_system_function(
-            "check_python_exec",
-            udf(check_python_exec, DataTypes.BIGINT(), DataTypes.BIGINT()))
+            "check_python_exec", udf(check_python_exec, DataTypes.BIGINT(), DataTypes.BIGINT())
+        )
 
         def check_pyflink_gateway_disabled(i):
             from pyflink.java_gateway import get_gateway
+
             get_gateway()
             return i
 
         self.t_env.create_temporary_system_function(
             "check_pyflink_gateway_disabled",
-            udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),
-                DataTypes.BIGINT()))
+            udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(), DataTypes.BIGINT()),
+        )
 
         sink_table_ddl = """
         CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
+        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ["a", "b"])
         t.select(
-            expr.call('check_python_exec', t.a),
-            expr.call('check_pyflink_gateway_disabled', t.a)) \
-            .execute_insert("Results").wait()
+            expr.call("check_python_exec", t.a), expr.call("check_pyflink_gateway_disabled", t.a)
+        ).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 1]", "+I[2, 2]", "+I[3, 3]"])
@@ -238,7 +247,7 @@ if __name__ == "__main__":
     try:
         import xmlrunner
 
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

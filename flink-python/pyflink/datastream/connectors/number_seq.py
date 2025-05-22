@@ -18,9 +18,7 @@
 from pyflink.datastream.connectors import Source
 from pyflink.java_gateway import get_gateway
 
-__all__ = [
-    'NumberSequenceSource'
-]
+__all__ = ["NumberSequenceSource"]
 
 
 class NumberSequenceSource(Source):
@@ -42,7 +40,8 @@ class NumberSequenceSource(Source):
         Creates a new NumberSequenceSource that produces parallel sequences covering the
         range start to end (both boundaries are inclusive).
         """
-        JNumberSequenceSource = get_gateway().jvm.org.apache.flink.api.connector.source.lib.\
-            NumberSequenceSource
+        JNumberSequenceSource = (
+            get_gateway().jvm.org.apache.flink.api.connector.source.lib.NumberSequenceSource
+        )
         j_seq_source = JNumberSequenceSource(start, end)
         super(NumberSequenceSource, self).__init__(source=j_seq_source)

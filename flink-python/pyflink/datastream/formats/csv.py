@@ -17,8 +17,12 @@
 ################################################################################
 from typing import Optional, TYPE_CHECKING
 
-from pyflink.common.serialization import BulkWriterFactory, RowDataBulkWriterFactory, \
-    SerializationSchema, DeserializationSchema
+from pyflink.common.serialization import (
+    BulkWriterFactory,
+    RowDataBulkWriterFactory,
+    SerializationSchema,
+    DeserializationSchema,
+)
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.connectors.file_system import StreamFormat
 from pyflink.java_gateway import get_gateway
@@ -27,12 +31,12 @@ if TYPE_CHECKING:
     from pyflink.table.types import DataType, RowType, NumericType
 
 __all__ = [
-    'CsvSchema',
-    'CsvSchemaBuilder',
-    'CsvReaderFormat',
-    'CsvBulkWriters',
-    'CsvRowDeserializationSchema',
-    'CsvRowSerializationSchema'
+    "CsvSchema",
+    "CsvSchemaBuilder",
+    "CsvReaderFormat",
+    "CsvBulkWriters",
+    "CsvRowDeserializationSchema",
+    "CsvRowSerializationSchema",
 ]
 
 
@@ -44,13 +48,13 @@ class CsvSchema(object):
     .. versionadded:: 1.16.0
     """
 
-    def __init__(self, j_schema, row_type: 'RowType'):
+    def __init__(self, j_schema, row_type: "RowType"):
         self._j_schema = j_schema
         self._row_type = row_type
         self._type_info = None
 
     @staticmethod
-    def builder() -> 'CsvSchemaBuilder':
+    def builder() -> "CsvSchemaBuilder":
         """
         Returns a :class:`CsvSchemaBuilder`.
         """
@@ -79,22 +83,20 @@ class CsvSchemaBuilder(object):
 
     def __init__(self):
         jvm = get_gateway().jvm
-        self._j_schema_builder = jvm.org.apache.flink.shaded.jackson2.com.fasterxml.jackson \
-            .dataformat.csv.CsvSchema.builder()
+        self._j_schema_builder = jvm.org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema.builder()
         self._fields = []
 
-    def build(self) -> 'CsvSchema':
+    def build(self) -> "CsvSchema":
         """
         Build the :class:`~CsvSchema`.
         """
         from pyflink.table.types import DataTypes
+
         return CsvSchema(self._j_schema_builder.build(), DataTypes.ROW(self._fields))
 
-    def add_array_column(self,
-                         name: str,
-                         separator: str = ';',
-                         element_type: Optional['DataType'] = None) \
-            -> 'CsvSchemaBuilder':
+    def add_array_column(
+        self, name: str, separator: str = ";", element_type: Optional["DataType"] = None
+    ) -> "CsvSchemaBuilder":
         """
         Add an array column to schema, the type of elements could be specified via ``element_type``,
         which should be primitive types.
@@ -104,26 +106,28 @@ class CsvSchemaBuilder(object):
         :param element_type: DataType of array elements, default to ``DataTypes.STRING()``.
         """
         from pyflink.table.types import DataTypes
+
         if element_type is None:
             element_type = DataTypes.STRING()
         self._j_schema_builder.addArrayColumn(name, separator)
         self._fields.append(DataTypes.FIELD(name, DataTypes.ARRAY(element_type)))
         return self
 
-    def add_boolean_column(self, name: str) -> 'CsvSchemaBuilder':
+    def add_boolean_column(self, name: str) -> "CsvSchemaBuilder":
         """
         Add a boolean column to schema, with type as ``DataTypes.BOOLEAN()``.
 
         :param name: Name of the column.
         """
         from pyflink.table.types import DataTypes
+
         self._j_schema_builder.addBooleanColumn(name)
         self._fields.append(DataTypes.FIELD(name, DataTypes.BOOLEAN()))
         return self
 
-    def add_number_column(self, name: str,
-                          number_type: Optional['NumericType'] = None) \
-            -> 'CsvSchemaBuilder':
+    def add_number_column(
+        self, name: str, number_type: Optional["NumericType"] = None
+    ) -> "CsvSchemaBuilder":
         """
         Add a number column to schema, the type of number could be specified via ``number_type``.
 
@@ -131,24 +135,26 @@ class CsvSchemaBuilder(object):
         :param number_type: DataType of the number, default to ``DataTypes.BIGINT()``.
         """
         from pyflink.table.types import DataTypes
+
         if number_type is None:
             number_type = DataTypes.BIGINT()
         self._j_schema_builder.addNumberColumn(name)
         self._fields.append(DataTypes.FIELD(name, number_type))
         return self
 
-    def add_string_column(self, name: str) -> 'CsvSchemaBuilder':
+    def add_string_column(self, name: str) -> "CsvSchemaBuilder":
         """
         Add a string column to schema, with type as ``DataTypes.STRING()``.
 
         :param name: Name of the column.
         """
         from pyflink.table.types import DataTypes
+
         self._j_schema_builder.addColumn(name)
         self._fields.append(DataTypes.FIELD(name, DataTypes.STRING()))
         return self
 
-    def add_columns_from(self, schema: 'CsvSchema') -> 'CsvSchemaBuilder':
+    def add_columns_from(self, schema: "CsvSchema") -> "CsvSchemaBuilder":
         """
         Add all columns in ``schema`` to current schema.
 
@@ -204,7 +210,7 @@ class CsvSchemaBuilder(object):
         Set column separator, ``char`` should be a single char, default to ``,``.
         """
         if len(char) != 1:
-            raise ValueError('Column separator must be a single char, got {}'.format(char))
+            raise ValueError("Column separator must be a single char, got {}".format(char))
         self._j_schema_builder.setColumnSeparator(char)
         return self
 
@@ -220,7 +226,7 @@ class CsvSchemaBuilder(object):
         Set escape char, ``char`` should be a single char, default to no-escaping.
         """
         if len(char) != 1:
-            raise ValueError('Escape char must be a single char, got {}'.format(char))
+            raise ValueError("Escape char must be a single char, got {}".format(char))
         self._j_schema_builder.setEscapeChar(char)
         return self
 
@@ -250,7 +256,7 @@ class CsvSchemaBuilder(object):
         Set quote char, default to ``"``.
         """
         if len(char) != 1:
-            raise ValueError('Quote char must be a single char, got {}'.format(char))
+            raise ValueError("Quote char must be a single char, got {}".format(char))
         self._j_schema_builder.setQuoteChar(char)
         return self
 
@@ -312,17 +318,16 @@ class CsvReaderFormat(StreamFormat):
         super().__init__(j_csv_format)
 
     @staticmethod
-    def for_schema(schema: 'CsvSchema') -> 'CsvReaderFormat':
+    def for_schema(schema: "CsvSchema") -> "CsvReaderFormat":
         """
         Builds a :class:`CsvReaderFormat` using `CsvSchema`.
         """
         from pyflink.table.types import _to_java_data_type
+
         jvm = get_gateway().jvm
-        j_csv_format = jvm.org.apache.flink.formats.csv.PythonCsvUtils \
-            .createCsvReaderFormat(
-                schema._j_schema,
-                _to_java_data_type(schema._row_type)
-            )
+        j_csv_format = jvm.org.apache.flink.formats.csv.PythonCsvUtils.createCsvReaderFormat(
+            schema._j_schema, _to_java_data_type(schema._row_type)
+        )
         return CsvReaderFormat(j_csv_format)
 
 
@@ -348,7 +353,7 @@ class CsvBulkWriters(object):
     """
 
     @staticmethod
-    def for_schema(schema: 'CsvSchema') -> 'BulkWriterFactory':
+    def for_schema(schema: "CsvSchema") -> "BulkWriterFactory":
         """
         Creates a :class:`~pyflink.common.serialization.BulkWriterFactory` for writing records to
         files in CSV format.
@@ -359,8 +364,8 @@ class CsvBulkWriters(object):
         csv = jvm.org.apache.flink.formats.csv
 
         j_factory = csv.PythonCsvUtils.createCsvBulkWriterFactory(
-            schema._j_schema,
-            _to_java_data_type(schema._row_type))
+            schema._j_schema, _to_java_data_type(schema._row_type)
+        )
         return RowDataBulkWriterFactory(j_factory, schema._row_type)
 
 
@@ -374,18 +379,22 @@ class CsvRowDeserializationSchema(DeserializationSchema):
 
     def __init__(self, j_deserialization_schema):
         super(CsvRowDeserializationSchema, self).__init__(
-            j_deserialization_schema=j_deserialization_schema)
+            j_deserialization_schema=j_deserialization_schema
+        )
 
     class Builder(object):
         """
         A builder for creating a CsvRowDeserializationSchema.
         """
+
         def __init__(self, type_info: TypeInformation):
             if type_info is None:
                 raise TypeError("Type information must not be None")
-            self._j_builder = get_gateway().jvm\
-                .org.apache.flink.formats.csv.CsvRowDeserializationSchema.Builder(
-                type_info.get_java_type_info())
+            self._j_builder = (
+                get_gateway().jvm.org.apache.flink.formats.csv.CsvRowDeserializationSchema.Builder(
+                    type_info.get_java_type_info()
+                )
+            )
 
         def set_field_delimiter(self, delimiter: str):
             self._j_builder = self._j_builder.setFieldDelimiter(delimiter)
@@ -418,7 +427,8 @@ class CsvRowDeserializationSchema(DeserializationSchema):
         def build(self):
             j_csv_row_deserialization_schema = self._j_builder.build()
             return CsvRowDeserializationSchema(
-                j_deserialization_schema=j_csv_row_deserialization_schema)
+                j_deserialization_schema=j_csv_row_deserialization_schema
+            )
 
 
 class CsvRowSerializationSchema(SerializationSchema):
@@ -428,6 +438,7 @@ class CsvRowSerializationSchema(SerializationSchema):
 
     Result byte[] messages can be deserialized using CsvRowDeserializationSchema.
     """
+
     def __init__(self, j_csv_row_serialization_schema):
         super(CsvRowSerializationSchema, self).__init__(j_csv_row_serialization_schema)
 
@@ -435,12 +446,15 @@ class CsvRowSerializationSchema(SerializationSchema):
         """
         A builder for creating a CsvRowSerializationSchema.
         """
+
         def __init__(self, type_info: TypeInformation):
             if type_info is None:
                 raise TypeError("Type information must not be None")
-            self._j_builder = get_gateway().jvm\
-                .org.apache.flink.formats.csv.CsvRowSerializationSchema.Builder(
-                type_info.get_java_type_info())
+            self._j_builder = (
+                get_gateway().jvm.org.apache.flink.formats.csv.CsvRowSerializationSchema.Builder(
+                    type_info.get_java_type_info()
+                )
+            )
 
         def set_field_delimiter(self, c: str):
             self._j_builder = self._j_builder.setFieldDelimiter(c)

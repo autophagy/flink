@@ -22,34 +22,35 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class StreamTableSchemaTests(PyFlinkStreamTableTestCase):
-
     def test_print_schema(self):
-        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by(t.c).select(t.a.sum, t.c.alias('b'))
+        t = self.t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"])
+        result = t.group_by(t.c).select(t.a.sum, t.c.alias("b"))
         result.print_schema()
 
     def test_get_schema(self):
-        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by(t.c).select(t.a.sum.alias('a'), t.c.alias('b'))
+        t = self.t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"])
+        result = t.group_by(t.c).select(t.a.sum.alias("a"), t.c.alias("b"))
         schema = result.get_schema()
 
         assert schema == TableSchema(["a", "b"], [DataTypes.BIGINT(), DataTypes.STRING()])
 
     def test_get_resolved_schema(self):
-        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
+        t = self.t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"])
         resolved_schema = t.get_resolved_schema()
         expected_schema = ResolvedSchema.physical(
-            ['a', 'b', 'c'],
+            ["a", "b", "c"],
             [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()],
         )
         assert resolved_schema == expected_schema
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

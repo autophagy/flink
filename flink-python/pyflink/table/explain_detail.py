@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-__all__ = ['ExplainDetail']
+__all__ = ["ExplainDetail"]
 
 
 class ExplainDetail(object):

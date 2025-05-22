@@ -28,15 +28,16 @@ from pyflink.datastream.formats.csv import CsvRowSerializationSchema, CsvRowDese
 # created before executing this job.
 def write_to_kafka(env):
     type_info = Types.ROW([Types.INT(), Types.STRING()])
-    ds = env.from_collection([
-        (1, 'hi'), (2, 'hello'), (3, 'hi'), (4, 'hello'), (5, 'hi'), (6, 'hello'), (6, 'hello')],
-        type_info=type_info)
+    ds = env.from_collection(
+        [(1, "hi"), (2, "hello"), (3, "hi"), (4, "hello"), (5, "hi"), (6, "hello"), (6, "hello")],
+        type_info=type_info,
+    )
 
     serialization_schema = CsvRowSerializationSchema.Builder(type_info).build()
     kafka_producer = FlinkKafkaProducer(
-        topic='test_csv_topic',
+        topic="test_csv_topic",
         serialization_schema=serialization_schema,
-        producer_config={'bootstrap.servers': 'localhost:9092', 'group.id': 'test_group'}
+        producer_config={"bootstrap.servers": "localhost:9092", "group.id": "test_group"},
     )
 
     # note that the output type of ds must be RowTypeInfo
@@ -49,9 +50,9 @@ def read_from_kafka(env):
     deserialization_schema = CsvRowDeserializationSchema.Builder(type_info).build()
 
     kafka_consumer = FlinkKafkaConsumer(
-        topics='test_csv_topic',
+        topics="test_csv_topic",
         deserialization_schema=deserialization_schema,
-        properties={'bootstrap.servers': 'localhost:9092', 'group.id': 'test_group_1'}
+        properties={"bootstrap.servers": "localhost:9092", "group.id": "test_group_1"},
     )
     kafka_consumer.set_start_from_earliest()
 
@@ -59,7 +60,7 @@ def read_from_kafka(env):
     env.execute()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
     env = StreamExecutionEnvironment.get_execution_environment()

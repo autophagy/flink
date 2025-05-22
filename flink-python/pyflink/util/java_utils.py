@@ -72,16 +72,17 @@ def is_instance_of(java_object, java_class):
         else:
             param = java_class
     else:
-        raise TypeError(
-            "java_class must be a string, a JavaClass, or a JavaObject")
+        raise TypeError("java_class must be a string, a JavaClass, or a JavaObject")
 
     return gateway.jvm.org.apache.flink.api.python.shaded.py4j.reflection.TypeUtil.isInstanceOf(
-        param, java_object)
+        param, java_object
+    )
 
 
 def get_j_env_configuration(j_env):
     env_clazz = load_java_class(
-        "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
+        "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment"
+    )
     field = env_clazz.getDeclaredField("configuration")
     field.setAccessible(True)
     return field.get(j_env)
@@ -113,8 +114,9 @@ def invoke_method(obj, object_type, method_name, args=None, arg_types=None):
     method = env_clazz.getDeclaredMethod(
         method_name,
         to_jarray(
-            get_gateway().jvm.Class,
-            [load_java_class(arg_type) for arg_type in arg_types or []]))
+            get_gateway().jvm.Class, [load_java_class(arg_type) for arg_type in arg_types or []]
+        ),
+    )
     method.setAccessible(True)
     return method.invoke(obj, to_jarray(get_gateway().jvm.Object, args or []))
 
@@ -122,9 +124,12 @@ def invoke_method(obj, object_type, method_name, args=None, arg_types=None):
 def is_local_deployment(j_configuration):
     jvm = get_gateway().jvm
     JDeploymentOptions = jvm.org.apache.flink.configuration.DeploymentOptions
-    return j_configuration.containsKey(JDeploymentOptions.TARGET.key()) \
-        and j_configuration.getString(JDeploymentOptions.TARGET.key(), None) in \
-        ("local", "minicluster")
+    return j_configuration.containsKey(
+        JDeploymentOptions.TARGET.key()
+    ) and j_configuration.getString(JDeploymentOptions.TARGET.key(), None) in (
+        "local",
+        "minicluster",
+    )
 
 
 def add_jars_to_context_class_loader(jar_urls):
@@ -150,17 +155,17 @@ def add_jars_to_context_class_loader(jar_urls):
 
     URLClassLoaderClass = load_java_class("java.net.URLClassLoader")
     if is_instance_of(context_classloader, URLClassLoaderClass):
-        if class_loader_name == "org.apache.flink.runtime.execution.librarycache." \
-                                "FlinkUserCodeClassLoaders$SafetyNetWrapperClassLoader":
+        if (
+            class_loader_name == "org.apache.flink.runtime.execution.librarycache."
+            "FlinkUserCodeClassLoaders$SafetyNetWrapperClassLoader"
+        ):
             ensureInner = context_classloader.getClass().getDeclaredMethod("ensureInner", None)
             ensureInner.setAccessible(True)
             context_classloader = ensureInner.invoke(context_classloader, None)
 
         addURL = URLClassLoaderClass.getDeclaredMethod(
-            "addURL",
-            to_jarray(
-                gateway.jvm.Class,
-                [load_java_class("java.net.URL")]))
+            "addURL", to_jarray(gateway.jvm.Class, [load_java_class("java.net.URL")])
+        )
         addURL.setAccessible(True)
 
         for url in jar_urls:
@@ -175,6 +180,7 @@ def to_j_explain_detail_arr(p_extra_details):
     # sphinx will check "import loop" when generating doc,
     # use local import to avoid above error
     from pyflink.table.explain_detail import ExplainDetail
+
     gateway = get_gateway()
 
     def to_j_explain_detail(p_extra_detail):
@@ -198,5 +204,6 @@ def to_j_explain_detail_arr(p_extra_details):
 def create_url_class_loader(urls, parent_class_loader):
     gateway = get_gateway()
     url_class_loader = gateway.jvm.java.net.URLClassLoader(
-        to_jarray(gateway.jvm.java.net.URL, urls), parent_class_loader)
+        to_jarray(gateway.jvm.java.net.URL, urls), parent_class_loader
+    )
     return url_class_loader

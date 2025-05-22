@@ -29,23 +29,22 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class MetricTests(PyFlinkTestCase):
-
     base_metric_group = GenericMetricGroup(None, None)
 
     @staticmethod
     def print_metric_group_path(mg: MetricGroup) -> str:
         if mg._parent is None:
-            return 'root'
+            return "root"
         else:
-            return MetricTests.print_metric_group_path(mg._parent) + '.' + mg._name
+            return MetricTests.print_metric_group_path(mg._parent) + "." + mg._name
 
     def test_add_group(self):
-        new_group = MetricTests.base_metric_group.add_group('my_group')
-        self.assertEqual(MetricTests.print_metric_group_path(new_group), 'root.my_group')
+        new_group = MetricTests.base_metric_group.add_group("my_group")
+        self.assertEqual(MetricTests.print_metric_group_path(new_group), "root.my_group")
 
     def test_add_group_with_variable(self):
-        new_group = MetricTests.base_metric_group.add_group('key', 'value')
-        self.assertEqual(MetricTests.print_metric_group_path(new_group), 'root.key.value')
+        new_group = MetricTests.base_metric_group.add_group("key", "value")
+        self.assertEqual(MetricTests.print_metric_group_path(new_group), "root.key.value")
 
     def test_metric_not_enabled(self):
         fc = FunctionContext(None, None)
@@ -53,19 +52,18 @@ class MetricTests(PyFlinkTestCase):
             fc.get_metric_group()
 
     def test_get_metric_name(self):
-        new_group = MetricTests.base_metric_group.add_group('my_group')
+        new_group = MetricTests.base_metric_group.add_group("my_group")
+        self.assertEqual('["my_group", "MetricGroupType.generic"]', new_group._get_namespace())
         self.assertEqual(
-            '["my_group", "MetricGroupType.generic"]',
-            new_group._get_namespace())
-        self.assertEqual(
-            '["my_group", "MetricGroupType.generic", "60"]',
-            new_group._get_namespace('60'))
+            '["my_group", "MetricGroupType.generic", "60"]', new_group._get_namespace("60")
+        )
 
     def test_metrics(self):
-        sampler = statesampler.StateSampler('', counters.CounterFactory())
+        sampler = statesampler.StateSampler("", counters.CounterFactory())
         statesampler.set_current_tracker(sampler)
         state1 = sampler.scoped_state(
-            'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
+            "mystep", "myState", metrics_container=MetricsContainer("mystep")
+        )
 
         try:
             sampler.start()
@@ -78,10 +76,11 @@ class MetricTests(PyFlinkTestCase):
                 self.assertEqual(0, counter.get_count())
                 self.assertEqual(0, meter.get_count())
                 self.assertEqual(
-                    DistributionData(
-                        0, 0, 0, 0), container.get_distribution(
-                        MetricName(
-                            '[]', 'my_distribution')).get_cumulative())
+                    DistributionData(0, 0, 0, 0),
+                    container.get_distribution(
+                        MetricName("[]", "my_distribution")
+                    ).get_cumulative(),
+                )
                 counter.inc(-2)
                 meter.mark_event(3)
                 distribution.update(10)
@@ -89,9 +88,10 @@ class MetricTests(PyFlinkTestCase):
                 self.assertEqual(-2, counter.get_count())
                 self.assertEqual(3, meter.get_count())
                 self.assertEqual(
-                    DistributionData(
-                        12, 2, 2, 10), container.get_distribution(
-                        MetricName(
-                            '[]', 'my_distribution')).get_cumulative())
+                    DistributionData(12, 2, 2, 10),
+                    container.get_distribution(
+                        MetricName("[]", "my_distribution")
+                    ).get_cumulative(),
+                )
         finally:
             sampler.stop()

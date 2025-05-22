@@ -37,8 +37,15 @@ class EnvironmentSettingsCompletenessTests(PythonAPICompletenessTestCase, PyFlin
     @classmethod
     def excluded_methods(cls):
         # internal interfaces, no need to expose to users.
-        return {'getPlanner', 'getExecutor', 'getUserClassLoader', 'getCatalogStore',
-                'toConfiguration', 'fromConfiguration', 'getSqlFactory'}
+        return {
+            "getPlanner",
+            "getExecutor",
+            "getUserClassLoader",
+            "getCatalogStore",
+            "toConfiguration",
+            "fromConfiguration",
+            "getSqlFactory",
+        }
 
 
 class EnvironmentSettingsBuilderCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
@@ -59,14 +66,16 @@ class EnvironmentSettingsBuilderCompletenessTests(PythonAPICompletenessTestCase,
     def excluded_methods(cls):
         # internal interfaces, no need to expose to users.
         # withSqlFactory - needs to be implemented
-        return {'withClassLoader', 'withCatalogStore', 'withSqlFactory'}
+        return {"withClassLoader", "withCatalogStore", "withSqlFactory"}
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

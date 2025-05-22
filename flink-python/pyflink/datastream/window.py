@@ -26,45 +26,52 @@ from pyflink.common.constants import MAX_LONG_VALUE, MIN_LONG_VALUE
 from pyflink.common.serializer import TypeSerializer
 from pyflink.datastream.functions import RuntimeContext, InternalWindowFunction, ReduceFunction
 from pyflink.datastream.output_tag import OutputTag
-from pyflink.datastream.state import StateDescriptor, ReducingStateDescriptor, \
-    ValueStateDescriptor, State, ReducingState
+from pyflink.datastream.state import (
+    StateDescriptor,
+    ReducingStateDescriptor,
+    ValueStateDescriptor,
+    State,
+    ReducingState,
+)
 from pyflink.metrics import MetricGroup
 
-__all__ = ['Window',
-           'TimeWindow',
-           'CountWindow',
-           'GlobalWindow',
-           'WindowAssigner',
-           'TumblingProcessingTimeWindows',
-           'TumblingEventTimeWindows',
-           'SlidingProcessingTimeWindows',
-           'SlidingEventTimeWindows',
-           'ProcessingTimeSessionWindows',
-           'EventTimeSessionWindows',
-           'DynamicProcessingTimeSessionWindows',
-           'DynamicEventTimeSessionWindows',
-           'GlobalWindows',
-           'MergingWindowAssigner',
-           'CountTumblingWindowAssigner',
-           'CountSlidingWindowAssigner',
-           'TriggerResult',
-           'Trigger',
-           'EventTimeTrigger',
-           'ProcessingTimeTrigger',
-           'ContinuousEventTimeTrigger',
-           'ContinuousProcessingTimeTrigger',
-           'NeverTrigger',
-           'PurgingTrigger',
-           'CountTrigger',
-           'TimeWindowSerializer',
-           'CountWindowSerializer',
-           'GlobalWindowSerializer',
-           'SessionWindowTimeGapExtractor']
+__all__ = [
+    "Window",
+    "TimeWindow",
+    "CountWindow",
+    "GlobalWindow",
+    "WindowAssigner",
+    "TumblingProcessingTimeWindows",
+    "TumblingEventTimeWindows",
+    "SlidingProcessingTimeWindows",
+    "SlidingEventTimeWindows",
+    "ProcessingTimeSessionWindows",
+    "EventTimeSessionWindows",
+    "DynamicProcessingTimeSessionWindows",
+    "DynamicEventTimeSessionWindows",
+    "GlobalWindows",
+    "MergingWindowAssigner",
+    "CountTumblingWindowAssigner",
+    "CountSlidingWindowAssigner",
+    "TriggerResult",
+    "Trigger",
+    "EventTimeTrigger",
+    "ProcessingTimeTrigger",
+    "ContinuousEventTimeTrigger",
+    "ContinuousProcessingTimeTrigger",
+    "NeverTrigger",
+    "PurgingTrigger",
+    "CountTrigger",
+    "TimeWindowSerializer",
+    "CountWindowSerializer",
+    "GlobalWindowSerializer",
+    "SessionWindowTimeGapExtractor",
+]
 
 
 def long_to_int_with_bit_mixing(x: int) -> int:
-    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9
-    x = (x ^ (x >> 27)) * 0x94d049bb133111eb
+    x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9
+    x = (x ^ (x >> 27)) * 0x94D049BB133111EB
     x = x ^ (x >> 31)
     return x
 
@@ -101,13 +108,13 @@ class TimeWindow(Window):
     def max_timestamp(self) -> int:
         return self.end - 1
 
-    def intersects(self, other: 'TimeWindow') -> bool:
+    def intersects(self, other: "TimeWindow") -> bool:
         """
         Returns True if this window intersects the given window.
         """
         return self.start <= other.end and self.end >= other.start
 
-    def cover(self, other: 'TimeWindow') -> 'TimeWindow':
+    def cover(self, other: "TimeWindow") -> "TimeWindow":
         """
         Returns the minimal window covers both this window and the given window.
         """
@@ -126,8 +133,9 @@ class TimeWindow(Window):
         return timestamp - (timestamp - offset + window_size) % window_size
 
     @staticmethod
-    def merge_windows(windows: Iterable['TimeWindow'],
-                      callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
+    def merge_windows(
+        windows: Iterable["TimeWindow"], callback: "MergingWindowAssigner.MergeCallback[TimeWindow]"
+    ) -> None:
         """
         Merge overlapping :class`TimeWindow`.
         """
@@ -161,16 +169,19 @@ class TimeWindow(Window):
         return self.start + mod_inverse((self.end << 1) + 1)
 
     def __eq__(self, other):
-        return self.__class__ == other.__class__ and self.end == other.end \
+        return (
+            self.__class__ == other.__class__
+            and self.end == other.end
             and self.start == other.start
+        )
 
-    def __lt__(self, other: 'TimeWindow'):
+    def __lt__(self, other: "TimeWindow"):
         if not isinstance(other, TimeWindow):
             raise Exception("Does not support comparison with non-TimeWindow %s" % other)
 
         return self.start == other.start and self.end < other.end or self.start < other.start
 
-    def __le__(self, other: 'TimeWindow'):
+    def __le__(self, other: "TimeWindow"):
         return self.__eq__(other) and self.__lt__(other)
 
     def __repr__(self):
@@ -205,11 +216,12 @@ class GlobalWindow(Window):
     """
     The default window into which all data is placed GlobalWindows.
     """
+
     def __init__(self):
         super(GlobalWindow, self).__init__()
 
     @staticmethod
-    def get() -> 'GlobalWindow':
+    def get() -> "GlobalWindow":
         return GlobalWindow()
 
     def max_timestamp(self) -> int:
@@ -247,11 +259,11 @@ class TimeWindowSerializer(TypeSerializer[TimeWindow]):
 
     def _get_coder(self):
         from pyflink.fn_execution import coders
+
         return coders.TimeWindowCoder()
 
 
 class CountWindowSerializer(TypeSerializer[CountWindow]):
-
     def __init__(self):
         self._underlying_coder = None
 
@@ -269,6 +281,7 @@ class CountWindowSerializer(TypeSerializer[CountWindow]):
 
     def _get_coder(self):
         from pyflink.fn_execution import coders
+
         return coders.CountWindowCoder()
 
 
@@ -294,15 +307,16 @@ class GlobalWindowSerializer(TypeSerializer[GlobalWindow]):
 
     def _get_coder(self):
         from pyflink.fn_execution import coders
+
         return coders.GlobalWindowCoder()
 
 
-T = TypeVar('T')
-W = TypeVar('W')
-W2 = TypeVar('W2')
-IN = TypeVar('IN')
-OUT = TypeVar('OUT')
-KEY = TypeVar('KEY')
+T = TypeVar("T")
+W = TypeVar("W")
+W2 = TypeVar("W2")
+IN = TypeVar("IN")
+OUT = TypeVar("OUT")
+KEY = TypeVar("KEY")
 
 
 class TriggerResult(Enum):
@@ -321,6 +335,7 @@ class TriggerResult(Enum):
       - PURGE: All elements in the window are cleared and the window is discarded, without
                evaluating the window function or emitting any elements.
     """
+
     CONTINUE = (False, False)
     FIRE_AND_PURGE = (True, True)
     FIRE = (True, False)
@@ -437,11 +452,9 @@ class Trigger(ABC, Generic[T, W]):
             pass
 
     @abstractmethod
-    def on_element(self,
-                   element: T,
-                   timestamp: int,
-                   window: W,
-                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_element(
+        self, element: T, timestamp: int, window: W, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         """
         Called for every element that gets added to a pane. The result of this will determine
         whether the pane is evaluated to emit results.
@@ -454,10 +467,9 @@ class Trigger(ABC, Generic[T, W]):
         pass
 
     @abstractmethod
-    def on_processing_time(self,
-                           time: int,
-                           window: W,
-                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_processing_time(
+        self, time: int, window: W, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         """
         Called when a processing-time timer that was set using the trigger context fires.
 
@@ -468,7 +480,7 @@ class Trigger(ABC, Generic[T, W]):
         pass
 
     @abstractmethod
-    def on_event_time(self, time: int, window: W, ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_event_time(self, time: int, window: W, ctx: "Trigger.TriggerContext") -> TriggerResult:
         """
         Called when an event-time timer that was set using the trigger context fires.
 
@@ -488,7 +500,7 @@ class Trigger(ABC, Generic[T, W]):
         return False
 
     @abstractmethod
-    def on_merge(self, window: W, ctx: 'Trigger.OnMergeContext') -> None:
+    def on_merge(self, window: W, ctx: "Trigger.OnMergeContext") -> None:
         """
         Called when several windows have been merged into one window by the :class:`WindowAssigner`.
 
@@ -498,7 +510,7 @@ class Trigger(ABC, Generic[T, W]):
         pass
 
     @abstractmethod
-    def clear(self, window: W, ctx: 'Trigger.TriggerContext') -> None:
+    def clear(self, window: W, ctx: "Trigger.TriggerContext") -> None:
         """
         Clears any state that the trigger might still hold for the given window. This is called when
         a window is purged. Timers set using :func:`~TriggerContext.register_event_time_timer` and
@@ -539,10 +551,9 @@ class WindowAssigner(ABC, Generic[T, W]):
             pass
 
     @abstractmethod
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[W]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: "WindowAssigner.WindowAssignerContext"
+    ) -> Collection[W]:
         """
         :param element: The element to which windows should be assigned.
         :param timestamp: The timestamp of the element.
@@ -596,9 +607,9 @@ class MergingWindowAssigner(WindowAssigner[T, W]):
             pass
 
     @abstractmethod
-    def merge_windows(self,
-                      windows: Iterable[W],
-                      callback: 'MergingWindowAssigner.MergeCallback[W]') -> None:
+    def merge_windows(
+        self, windows: Iterable[W], callback: "MergingWindowAssigner.MergeCallback[W]"
+    ) -> None:
         """
         Determines which windows (if any) should be merged.
 
@@ -609,15 +620,16 @@ class MergingWindowAssigner(WindowAssigner[T, W]):
 
 
 class WindowOperationDescriptor(object):
-
-    def __init__(self,
-                 assigner: WindowAssigner,
-                 trigger: Trigger,
-                 allowed_lateness: int,
-                 late_data_output_tag: Optional[OutputTag],
-                 window_state_descriptor: StateDescriptor,
-                 window_serializer: TypeSerializer,
-                 internal_window_function: InternalWindowFunction):
+    def __init__(
+        self,
+        assigner: WindowAssigner,
+        trigger: Trigger,
+        allowed_lateness: int,
+        late_data_output_tag: Optional[OutputTag],
+        window_state_descriptor: StateDescriptor,
+        window_serializer: TypeSerializer,
+        internal_window_function: InternalWindowFunction,
+    ):
         self.assigner = assigner
         self.trigger = trigger
         self.allowed_lateness = allowed_lateness
@@ -631,7 +643,11 @@ class WindowOperationDescriptor(object):
 
     def generate_op_desc(self, windowed_stream_type, func_desc):
         return "%s(%s, %s, %s)" % (
-            windowed_stream_type, self.assigner, type(self.trigger).__name__, func_desc)
+            windowed_stream_type,
+            self.assigner,
+            type(self.trigger).__name__,
+            func_desc,
+        )
 
 
 class SessionWindowTimeGapExtractor(ABC):
@@ -656,11 +672,9 @@ class EventTimeTrigger(Trigger[T, TimeWindow]):
     A Trigger that fires once the watermark passes the end of the window to which a pane belongs.
     """
 
-    def on_element(self,
-                   element: T,
-                   timestamp: int,
-                   window: TimeWindow,
-                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_element(
+        self, element: T, timestamp: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         if window.max_timestamp() <= ctx.get_current_watermark():
             return TriggerResult.FIRE
         else:
@@ -668,17 +682,15 @@ class EventTimeTrigger(Trigger[T, TimeWindow]):
             # No action is taken on the window.
             return TriggerResult.CONTINUE
 
-    def on_processing_time(self,
-                           time: int,
-                           window: TimeWindow,
-                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_processing_time(
+        self, time: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         # No action is taken on the window.
         return TriggerResult.CONTINUE
 
-    def on_event_time(self,
-                      time: int,
-                      window: TimeWindow,
-                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_event_time(
+        self, time: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         if time == window.max_timestamp():
             return TriggerResult.FIRE
         else:
@@ -688,20 +700,16 @@ class EventTimeTrigger(Trigger[T, TimeWindow]):
     def can_merge(self) -> bool:
         return True
 
-    def on_merge(self,
-                 window: TimeWindow,
-                 ctx: 'Trigger.OnMergeContext') -> None:
+    def on_merge(self, window: TimeWindow, ctx: "Trigger.OnMergeContext") -> None:
         window_max_timestamp = window.max_timestamp()
         if window_max_timestamp > ctx.get_current_watermark():
             ctx.register_event_time_timer(window_max_timestamp)
 
-    def clear(self,
-              window: TimeWindow,
-              ctx: 'Trigger.TriggerContext') -> None:
+    def clear(self, window: TimeWindow, ctx: "Trigger.TriggerContext") -> None:
         ctx.delete_event_time_timer(window.max_timestamp())
 
     @staticmethod
-    def create() -> 'EventTimeTrigger':
+    def create() -> "EventTimeTrigger":
         return EventTimeTrigger()
 
 
@@ -716,14 +724,12 @@ class ContinuousEventTimeTrigger(Trigger[T, TimeWindow]):
         self.fire_timestamp_state = None
 
     @staticmethod
-    def of(interval: Time) -> 'ContinuousEventTimeTrigger':
+    def of(interval: Time) -> "ContinuousEventTimeTrigger":
         return ContinuousEventTimeTrigger(interval.to_milliseconds())
 
-    def on_element(self,
-                   element: T,
-                   timestamp: int,
-                   window: TimeWindow,
-                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_element(
+        self, element: T, timestamp: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         if window.max_timestamp() <= ctx.get_current_watermark():
             # if the watermark is already past the window fire immediately
             return TriggerResult.FIRE
@@ -732,21 +738,20 @@ class ContinuousEventTimeTrigger(Trigger[T, TimeWindow]):
 
         fire_timestamp_state = cast(ReducingState, ctx.get_partitioned_state(self.state_desc))
         if fire_timestamp_state.get() is None:
-            self.register_next_fire_timestamp(timestamp - (timestamp % self.interval), window, ctx,
-                                              fire_timestamp_state)
+            self.register_next_fire_timestamp(
+                timestamp - (timestamp % self.interval), window, ctx, fire_timestamp_state
+            )
 
         return TriggerResult.CONTINUE
 
-    def on_processing_time(self,
-                           time: int,
-                           window: TimeWindow,
-                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_processing_time(
+        self, time: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         return TriggerResult.CONTINUE
 
-    def on_event_time(self,
-                      time: int,
-                      window: TimeWindow,
-                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_event_time(
+        self, time: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         if time == window.max_timestamp():
             return TriggerResult.FIRE
 
@@ -759,13 +764,13 @@ class ContinuousEventTimeTrigger(Trigger[T, TimeWindow]):
 
         return TriggerResult.CONTINUE
 
-    def on_merge(self, window: TimeWindow, ctx: 'Trigger.OnMergeContext') -> None:
+    def on_merge(self, window: TimeWindow, ctx: "Trigger.OnMergeContext") -> None:
         ctx.merge_partitioned_state(self.state_desc)
         next_fire_timestamp = cast(ReducingState, ctx.get_partitioned_state(self.state_desc)).get()
         if next_fire_timestamp is not None:
             ctx.register_event_time_timer(next_fire_timestamp)
 
-    def clear(self, window: TimeWindow, ctx: 'Trigger.TriggerContext') -> None:
+    def clear(self, window: TimeWindow, ctx: "Trigger.TriggerContext") -> None:
         fire_timestamp = cast(ReducingState, ctx.get_partitioned_state(self.state_desc))
         timestamp = fire_timestamp.get()
         if timestamp is not None:
@@ -775,18 +780,19 @@ class ContinuousEventTimeTrigger(Trigger[T, TimeWindow]):
     def can_merge(self) -> bool:
         return True
 
-    def register_next_fire_timestamp(self,
-                                     time: int,
-                                     window: TimeWindow,
-                                     ctx: 'Trigger.TriggerContext',
-                                     fire_timestamp_state: ReducingState):
+    def register_next_fire_timestamp(
+        self,
+        time: int,
+        window: TimeWindow,
+        ctx: "Trigger.TriggerContext",
+        fire_timestamp_state: ReducingState,
+    ):
         next_fire_timestamp = min(time + self.interval, window.max_timestamp())
         fire_timestamp_state.add(next_fire_timestamp)
         ctx.register_event_time_timer(next_fire_timestamp)
 
 
 class Min(ReduceFunction):
-
     def reduce(self, value1, value2):
         return min(value1, value2)
 
@@ -797,43 +803,35 @@ class ProcessingTimeTrigger(Trigger[T, TimeWindow]):
     which a pane belongs.
     """
 
-    def on_element(self,
-                   element: T,
-                   timestamp: int,
-                   window: TimeWindow,
-                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_element(
+        self, element: T, timestamp: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         ctx.register_processing_time_timer(window.max_timestamp())
         return TriggerResult.CONTINUE
 
-    def on_processing_time(self,
-                           time: int,
-                           window: TimeWindow,
-                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_processing_time(
+        self, time: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         return TriggerResult.FIRE
 
-    def on_event_time(self,
-                      time: int,
-                      window: TimeWindow,
-                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_event_time(
+        self, time: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         return TriggerResult.CONTINUE
 
     def can_merge(self) -> bool:
         return True
 
-    def on_merge(self,
-                 window: TimeWindow,
-                 ctx: 'Trigger.OnMergeContext') -> None:
+    def on_merge(self, window: TimeWindow, ctx: "Trigger.OnMergeContext") -> None:
         window_max_timestamp = window.max_timestamp()
         if window_max_timestamp > ctx.get_current_processing_time():
             ctx.register_processing_time_timer(window_max_timestamp)
 
-    def clear(self,
-              window: TimeWindow,
-              ctx: 'Trigger.TriggerContext') -> None:
+    def clear(self, window: TimeWindow, ctx: "Trigger.TriggerContext") -> None:
         ctx.delete_processing_time_timer(window.max_timestamp())
 
     @staticmethod
-    def create() -> 'ProcessingTimeTrigger':
+    def create() -> "ProcessingTimeTrigger":
         return ProcessingTimeTrigger()
 
 
@@ -849,26 +847,24 @@ class ContinuousProcessingTimeTrigger(Trigger[T, TimeWindow]):
         self.fire_timestamp_state = None
 
     @staticmethod
-    def of(interval: Time) -> 'ContinuousProcessingTimeTrigger':
+    def of(interval: Time) -> "ContinuousProcessingTimeTrigger":
         return ContinuousProcessingTimeTrigger(interval.to_milliseconds())
 
-    def on_element(self,
-                   element: T,
-                   timestamp: int,
-                   window: TimeWindow,
-                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_element(
+        self, element: T, timestamp: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         fire_timestamp_state = cast(ReducingState, ctx.get_partitioned_state(self.state_desc))
         timestamp = ctx.get_current_processing_time()
         if fire_timestamp_state.get() is None:
-            self.register_next_fire_timestamp(timestamp - (timestamp % self.interval), window, ctx,
-                                              fire_timestamp_state)
+            self.register_next_fire_timestamp(
+                timestamp - (timestamp % self.interval), window, ctx, fire_timestamp_state
+            )
 
         return TriggerResult.CONTINUE
 
-    def on_processing_time(self,
-                           time: int,
-                           window: TimeWindow,
-                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_processing_time(
+        self, time: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         fire_timestamp_state = cast(ReducingState, ctx.get_partitioned_state(self.state_desc))
         if fire_timestamp_state.get() == time:
             fire_timestamp_state.clear()
@@ -877,13 +873,12 @@ class ContinuousProcessingTimeTrigger(Trigger[T, TimeWindow]):
 
         return TriggerResult.CONTINUE
 
-    def on_event_time(self,
-                      time: int,
-                      window: TimeWindow,
-                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_event_time(
+        self, time: int, window: TimeWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         return TriggerResult.CONTINUE
 
-    def on_merge(self, window: TimeWindow, ctx: 'Trigger.OnMergeContext') -> None:
+    def on_merge(self, window: TimeWindow, ctx: "Trigger.OnMergeContext") -> None:
         # States for old windows will lose after the call.
         ctx.merge_partitioned_state(self.state_desc)
 
@@ -892,7 +887,7 @@ class ContinuousProcessingTimeTrigger(Trigger[T, TimeWindow]):
         if next_fire_timestamp is not None:
             ctx.register_processing_time_timer(next_fire_timestamp)
 
-    def clear(self, window: TimeWindow, ctx: 'Trigger.TriggerContext') -> None:
+    def clear(self, window: TimeWindow, ctx: "Trigger.TriggerContext") -> None:
         fire_timestamp_state = cast(ReducingState, ctx.get_partitioned_state(self.state_desc))
         timestamp = fire_timestamp_state.get()
         if timestamp is not None:
@@ -902,11 +897,13 @@ class ContinuousProcessingTimeTrigger(Trigger[T, TimeWindow]):
     def can_merge(self) -> bool:
         return True
 
-    def register_next_fire_timestamp(self,
-                                     time: int,
-                                     window: TimeWindow,
-                                     ctx: 'Trigger.TriggerContext',
-                                     fire_timestamp_state: ReducingState):
+    def register_next_fire_timestamp(
+        self,
+        time: int,
+        window: TimeWindow,
+        ctx: "Trigger.TriggerContext",
+        fire_timestamp_state: ReducingState,
+    ):
         next_fire_timestamp = min(time + self.interval, window.max_timestamp())
         fire_timestamp_state.add(next_fire_timestamp)
         ctx.register_processing_time_timer(next_fire_timestamp)
@@ -922,51 +919,43 @@ class PurgingTrigger(Trigger[T, Window]):
         self.nested_trigger = nested_trigger
 
     @staticmethod
-    def of(nested_trigger: Trigger[T, Window]) -> 'PurgingTrigger':
+    def of(nested_trigger: Trigger[T, Window]) -> "PurgingTrigger":
         return PurgingTrigger(nested_trigger)
 
-    def on_element(self,
-                   element: T,
-                   timestamp: int,
-                   window: Window,
-                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_element(
+        self, element: T, timestamp: int, window: Window, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         trigger_result = self.nested_trigger.on_element(element, timestamp, window, ctx)
         if trigger_result.is_fire() is True:
             return TriggerResult.FIRE_AND_PURGE
         else:
             return trigger_result
 
-    def on_event_time(self,
-                      time: int,
-                      window: Window,
-                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_event_time(
+        self, time: int, window: Window, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         trigger_result = self.nested_trigger.on_event_time(time, window, ctx)
         if trigger_result.is_fire() is True:
             return TriggerResult.FIRE_AND_PURGE
         else:
             return trigger_result
 
-    def on_processing_time(self,
-                           time: int,
-                           window: Window,
-                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_processing_time(
+        self, time: int, window: Window, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         trigger_result = self.nested_trigger.on_processing_time(time, window, ctx)
         if trigger_result.is_fire() is True:
             return TriggerResult.FIRE_AND_PURGE
         else:
             return trigger_result
 
-    def clear(self,
-              window: Window,
-              ctx: 'Trigger.TriggerContext') -> None:
+    def clear(self, window: Window, ctx: "Trigger.TriggerContext") -> None:
         self.nested_trigger.clear(window, ctx)
 
     def can_merge(self) -> bool:
         return self.nested_trigger.can_merge()
 
-    def on_merge(self,
-                 window: Window,
-                 ctx: 'Trigger.OnMergeContext') -> None:
+    def on_merge(self, window: Window, ctx: "Trigger.OnMergeContext") -> None:
         self.nested_trigger.on_merge(window, ctx)
 
 
@@ -978,17 +967,16 @@ class CountTrigger(Trigger[T, CountWindow]):
     def __init__(self, window_size: int):
         self._window_size = window_size
         self._count_state_descriptor = ReducingStateDescriptor(
-            "count", lambda a, b: a + b, Types.LONG())
+            "count", lambda a, b: a + b, Types.LONG()
+        )
 
     @staticmethod
-    def of(window_size: int) -> 'CountTrigger':
+    def of(window_size: int) -> "CountTrigger":
         return CountTrigger(window_size)
 
-    def on_element(self,
-                   element: T,
-                   timestamp: int,
-                   window: CountWindow,
-                   ctx: Trigger.TriggerContext) -> TriggerResult:
+    def on_element(
+        self, element: T, timestamp: int, window: CountWindow, ctx: Trigger.TriggerContext
+    ) -> TriggerResult:
         count_state = cast(ReducingState, ctx.get_partitioned_state(self._count_state_descriptor))
         count_state.add(1)
         if count_state.get() >= self._window_size:
@@ -1000,17 +988,15 @@ class CountTrigger(Trigger[T, CountWindow]):
             # No action is taken on the window.
             return TriggerResult.CONTINUE
 
-    def on_processing_time(self,
-                           time: int,
-                           window: CountWindow,
-                           ctx: Trigger.TriggerContext) -> TriggerResult:
+    def on_processing_time(
+        self, time: int, window: CountWindow, ctx: Trigger.TriggerContext
+    ) -> TriggerResult:
         # No action is taken on the window.
         return TriggerResult.CONTINUE
 
-    def on_event_time(self,
-                      time: int,
-                      window: CountWindow,
-                      ctx: Trigger.TriggerContext) -> TriggerResult:
+    def on_event_time(
+        self, time: int, window: CountWindow, ctx: Trigger.TriggerContext
+    ) -> TriggerResult:
         # No action is taken on the window.
         return TriggerResult.CONTINUE
 
@@ -1030,33 +1016,25 @@ class NeverTrigger(Trigger[T, GlobalWindow]):
     A trigger that never fires, as default Trigger for GlobalWindows.
     """
 
-    def on_element(self,
-                   element: T,
-                   timestamp: int,
-                   window: GlobalWindow,
-                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_element(
+        self, element: T, timestamp: int, window: GlobalWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         return TriggerResult.CONTINUE
 
-    def on_processing_time(self,
-                           time: int,
-                           window: GlobalWindow,
-                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_processing_time(
+        self, time: int, window: GlobalWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         return TriggerResult.CONTINUE
 
-    def on_event_time(self,
-                      time: int,
-                      window: GlobalWindow,
-                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+    def on_event_time(
+        self, time: int, window: GlobalWindow, ctx: "Trigger.TriggerContext"
+    ) -> TriggerResult:
         return TriggerResult.CONTINUE
 
-    def on_merge(self,
-                 window: GlobalWindow,
-                 ctx: 'Trigger.OnMergeContext') -> None:
+    def on_merge(self, window: GlobalWindow, ctx: "Trigger.OnMergeContext") -> None:
         pass
 
-    def clear(self,
-              window: GlobalWindow,
-              ctx: 'Trigger.TriggerContext') -> None:
+    def clear(self, window: GlobalWindow, ctx: "Trigger.TriggerContext") -> None:
         pass
 
 
@@ -1071,16 +1049,15 @@ class CountTumblingWindowAssigner(WindowAssigner[T, CountWindow]):
         :param window_size: The size of the windows in number of elements.
         """
         self._window_size = window_size
-        self._count_descriptor = ValueStateDescriptor('tumble-count-assigner', Types.LONG())
+        self._count_descriptor = ValueStateDescriptor("tumble-count-assigner", Types.LONG())
 
     @staticmethod
-    def of(window_size: int) -> 'CountTumblingWindowAssigner':
+    def of(window_size: int) -> "CountTumblingWindowAssigner":
         return CountTumblingWindowAssigner(window_size)
 
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[CountWindow]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: "WindowAssigner.WindowAssignerContext"
+    ) -> Collection[CountWindow]:
         count_state = context.get_runtime_context().get_state(self._count_descriptor)
         count_value = count_state.value()
         if count_value is None:
@@ -1116,16 +1093,15 @@ class CountSlidingWindowAssigner(WindowAssigner[T, CountWindow]):
         """
         self._window_size = window_size
         self._window_slide = window_slide
-        self._count_descriptor = ValueStateDescriptor('slide-count-assigner', Types.LONG())
+        self._count_descriptor = ValueStateDescriptor("slide-count-assigner", Types.LONG())
 
     @staticmethod
-    def of(window_size: int, window_slide: int) -> 'CountSlidingWindowAssigner':
+    def of(window_size: int, window_slide: int) -> "CountSlidingWindowAssigner":
         return CountSlidingWindowAssigner(window_size, window_slide)
 
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[CountWindow]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: "WindowAssigner.WindowAssignerContext"
+    ) -> Collection[CountWindow]:
         count_state = context.get_runtime_context().get_state(self._count_descriptor)
         count_value = count_state.value()
         if count_value is None:
@@ -1170,16 +1146,18 @@ class TumblingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
         >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
         ...     .window(TumblingProcessingTimeWindows.of(Time.minutes(1), Time.seconds(10)))
     """
+
     def __init__(self, size: int, offset: int):
         if abs(offset) >= size:
-            raise Exception("TumblingProcessingTimeWindows parameters must satisfy "
-                            "abs(offset) < size")
+            raise Exception(
+                "TumblingProcessingTimeWindows parameters must satisfy " "abs(offset) < size"
+            )
 
         self._size = size
         self._offset = offset
 
     @staticmethod
-    def of(size: Time, offset: Time = None) -> 'TumblingProcessingTimeWindows':
+    def of(size: Time, offset: Time = None) -> "TumblingProcessingTimeWindows":
         """
         Creates a new :class:`TumblingProcessingTimeWindows` :class:`WindowAssigner` that assigns
         elements to time windows based on the element timestamp and offset.
@@ -1202,13 +1180,13 @@ class TumblingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
         else:
             return TumblingProcessingTimeWindows(size.to_milliseconds(), offset.to_milliseconds())
 
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: WindowAssigner.WindowAssignerContext) -> Collection[TimeWindow]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: WindowAssigner.WindowAssignerContext
+    ) -> Collection[TimeWindow]:
         current_processing_time = context.get_current_processing_time()
-        start = TimeWindow.get_window_start_with_offset(current_processing_time, self._offset,
-                                                        self._size)
+        start = TimeWindow.get_window_start_with_offset(
+            current_processing_time, self._offset, self._size
+        )
         return [TimeWindow(start, start + self._size)]
 
     def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
@@ -1245,7 +1223,7 @@ class TumblingEventTimeWindows(WindowAssigner[T, TimeWindow]):
         self._offset = offset
 
     @staticmethod
-    def of(size: Time, offset: Time = None) -> 'TumblingEventTimeWindows':
+    def of(size: Time, offset: Time = None) -> "TumblingEventTimeWindows":
         """
         Creates a new TumblingEventTimeWindows WindowAssigner that assigns elements
         to time windows based on the element timestamp, offset and a staggering offset, depending on
@@ -1259,18 +1237,19 @@ class TumblingEventTimeWindows(WindowAssigner[T, TimeWindow]):
         else:
             return TumblingEventTimeWindows(size.to_milliseconds(), offset.to_milliseconds())
 
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: WindowAssigner.WindowAssignerContext) -> Collection[TimeWindow]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: WindowAssigner.WindowAssignerContext
+    ) -> Collection[TimeWindow]:
         if timestamp > MIN_LONG_VALUE:
             start = TimeWindow.get_window_start_with_offset(timestamp, self._offset, self._size)
             return [TimeWindow(start, start + self._size)]
         else:
-            raise Exception("Record has Java Long.MIN_VALUE timestamp (= no timestamp marker). "
-                            + "Is the time characteristic set to 'ProcessingTime', "
-                            + "or did you forget to call "
-                            + "'data_stream.assign_timestamps_and_watermarks(...)'?")
+            raise Exception(
+                "Record has Java Long.MIN_VALUE timestamp (= no timestamp marker). "
+                + "Is the time characteristic set to 'ProcessingTime', "
+                + "or did you forget to call "
+                + "'data_stream.assign_timestamps_and_watermarks(...)'?"
+            )
 
     def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
         return EventTimeTrigger()
@@ -1300,8 +1279,10 @@ class SlidingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
 
     def __init__(self, size: int, slide: int, offset: int):
         if abs(offset) >= slide or size <= 0:
-            raise Exception("SlidingProcessingTimeWindows parameters must satisfy "
-                            + "abs(offset) < slide and size > 0")
+            raise Exception(
+                "SlidingProcessingTimeWindows parameters must satisfy "
+                + "abs(offset) < slide and size > 0"
+            )
 
         self._size = size
         self._slide = slide
@@ -1309,7 +1290,7 @@ class SlidingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
         self._pane_size = math.gcd(size, slide)
 
     @staticmethod
-    def of(size: Time, slide: Time, offset: Time = None) -> 'SlidingProcessingTimeWindows':
+    def of(size: Time, slide: Time, offset: Time = None) -> "SlidingProcessingTimeWindows":
         """
         Creates a new :class:`SlidingProcessingTimeWindows` :class:`WindowAssigner` that assigns
         elements to time windows based on the element timestamp and offset.
@@ -1331,19 +1312,21 @@ class SlidingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
         if offset is None:
             return SlidingProcessingTimeWindows(size.to_milliseconds(), slide.to_milliseconds(), 0)
         else:
-            return SlidingProcessingTimeWindows(size.to_milliseconds(), slide.to_milliseconds(),
-                                                offset.to_milliseconds())
+            return SlidingProcessingTimeWindows(
+                size.to_milliseconds(), slide.to_milliseconds(), offset.to_milliseconds()
+            )
 
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: "WindowAssigner.WindowAssignerContext"
+    ) -> Collection[TimeWindow]:
         current_processing_time = context.get_current_processing_time()
         last_start = TimeWindow.get_window_start_with_offset(
-            current_processing_time, self._offset, self._slide)
-        windows = [TimeWindow(start, start + self._size)
-                   for start in range(last_start,
-                                      current_processing_time - self._size, -self._slide)]
+            current_processing_time, self._offset, self._slide
+        )
+        windows = [
+            TimeWindow(start, start + self._size)
+            for start in range(last_start, current_processing_time - self._size, -self._slide)
+        ]
         return windows
 
     def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
@@ -1374,8 +1357,10 @@ class SlidingEventTimeWindows(WindowAssigner[T, TimeWindow]):
 
     def __init__(self, size: int, slide: int, offset: int):
         if abs(offset) >= slide or size <= 0:
-            raise Exception("SlidingEventTimeWindows parameters must satisfy "
-                            + "abs(offset) < slide and size > 0")
+            raise Exception(
+                "SlidingEventTimeWindows parameters must satisfy "
+                + "abs(offset) < slide and size > 0"
+            )
 
         self._size = size
         self._slide = slide
@@ -1383,7 +1368,7 @@ class SlidingEventTimeWindows(WindowAssigner[T, TimeWindow]):
         self._pane_size = math.gcd(size, slide)
 
     @staticmethod
-    def of(size: Time, slide: Time, offset: Time = None) -> 'SlidingEventTimeWindows':
+    def of(size: Time, slide: Time, offset: Time = None) -> "SlidingEventTimeWindows":
         """
         Creates a new :class:`SlidingEventTimeWindows` :class:`WindowAssigner` that assigns elements
         to time windows based on the element timestamp and offset.
@@ -1405,24 +1390,29 @@ class SlidingEventTimeWindows(WindowAssigner[T, TimeWindow]):
         if offset is None:
             return SlidingEventTimeWindows(size.to_milliseconds(), slide.to_milliseconds(), 0)
         else:
-            return SlidingEventTimeWindows(size.to_milliseconds(), slide.to_milliseconds(),
-                                           offset.to_milliseconds())
+            return SlidingEventTimeWindows(
+                size.to_milliseconds(), slide.to_milliseconds(), offset.to_milliseconds()
+            )
 
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: "WindowAssigner.WindowAssignerContext"
+    ) -> Collection[TimeWindow]:
         if timestamp > MIN_LONG_VALUE:
-            last_start = TimeWindow.get_window_start_with_offset(timestamp,
-                                                                 self._offset, self._slide)
-            windows = [TimeWindow(start, start + self._size)
-                       for start in range(last_start, timestamp - self._size, -self._slide)]
+            last_start = TimeWindow.get_window_start_with_offset(
+                timestamp, self._offset, self._slide
+            )
+            windows = [
+                TimeWindow(start, start + self._size)
+                for start in range(last_start, timestamp - self._size, -self._slide)
+            ]
             return windows
         else:
-            raise Exception("Record has Java Long.MIN_VALUE timestamp (= no timestamp marker). "
-                            + "Is the time characteristic set to 'ProcessingTime', "
-                              "or did you forget to call "
-                            + "'data_stream.assign_timestamps_and_watermarks(...)'?")
+            raise Exception(
+                "Record has Java Long.MIN_VALUE timestamp (= no timestamp marker). "
+                + "Is the time characteristic set to 'ProcessingTime', "
+                "or did you forget to call "
+                + "'data_stream.assign_timestamps_and_watermarks(...)'?"
+            )
 
     def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
         return EventTimeTrigger()
@@ -1457,7 +1447,7 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         self._session_gap = session_gap
 
     @staticmethod
-    def with_gap(size: Time) -> 'ProcessingTimeSessionWindows':
+    def with_gap(size: Time) -> "ProcessingTimeSessionWindows":
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on
         the element timestamp.
@@ -1469,7 +1459,8 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     @staticmethod
     def with_dynamic_gap(
-            extractor: SessionWindowTimeGapExtractor) -> 'DynamicProcessingTimeSessionWindows':
+        extractor: SessionWindowTimeGapExtractor,
+    ) -> "DynamicProcessingTimeSessionWindows":
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on the
         element timestamp.
@@ -1479,15 +1470,16 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         """
         return DynamicProcessingTimeSessionWindows(extractor)
 
-    def merge_windows(self,
-                      windows: Iterable[TimeWindow],
-                      callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
+    def merge_windows(
+        self,
+        windows: Iterable[TimeWindow],
+        callback: "MergingWindowAssigner.MergeCallback[TimeWindow]",
+    ) -> None:
         TimeWindow.merge_windows(windows, callback)
 
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: "WindowAssigner.WindowAssignerContext"
+    ) -> Collection[TimeWindow]:
         timestamp = context.get_current_processing_time()
         return [TimeWindow(timestamp, timestamp + self._session_gap)]
 
@@ -1524,7 +1516,7 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         self._session_gap = session_gap
 
     @staticmethod
-    def with_gap(size: Time) -> 'EventTimeSessionWindows':
+    def with_gap(size: Time) -> "EventTimeSessionWindows":
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions
         based on the element timestamp.
@@ -1536,7 +1528,8 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     @staticmethod
     def with_dynamic_gap(
-            extractor: SessionWindowTimeGapExtractor) -> 'DynamicEventTimeSessionWindows':
+        extractor: SessionWindowTimeGapExtractor,
+    ) -> "DynamicEventTimeSessionWindows":
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on
         the element timestamp.
@@ -1546,15 +1539,16 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         """
         return DynamicEventTimeSessionWindows(extractor)
 
-    def merge_windows(self,
-                      windows: Iterable[TimeWindow],
-                      callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
+    def merge_windows(
+        self,
+        windows: Iterable[TimeWindow],
+        callback: "MergingWindowAssigner.MergeCallback[TimeWindow]",
+    ) -> None:
         TimeWindow.merge_windows(windows, callback)
 
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: "WindowAssigner.WindowAssignerContext"
+    ) -> Collection[TimeWindow]:
         return [TimeWindow(timestamp, timestamp + self._session_gap)]
 
     def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
@@ -1583,14 +1577,14 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         ...     .window(DynamicProcessingTimeSessionWindows.with_dynamic_gap(extractor))
     """
 
-    def __init__(self,
-                 session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
+    def __init__(self, session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
         self._session_gap = 0
         self._session_window_time_gap_extractor = session_window_time_gap_extractor
 
     @staticmethod
     def with_dynamic_gap(
-            extractor: SessionWindowTimeGapExtractor) -> 'DynamicProcessingTimeSessionWindows':
+        extractor: SessionWindowTimeGapExtractor,
+    ) -> "DynamicProcessingTimeSessionWindows":
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions based
         on the element timestamp.
@@ -1600,15 +1594,16 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         """
         return DynamicProcessingTimeSessionWindows(extractor)
 
-    def merge_windows(self,
-                      windows: Iterable[TimeWindow],
-                      callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
+    def merge_windows(
+        self,
+        windows: Iterable[TimeWindow],
+        callback: "MergingWindowAssigner.MergeCallback[TimeWindow]",
+    ) -> None:
         TimeWindow.merge_windows(windows, callback)
 
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: "WindowAssigner.WindowAssignerContext"
+    ) -> Collection[TimeWindow]:
         timestamp = context.get_current_processing_time()
         self._session_gap = self._session_window_time_gap_extractor.extract(element)
         if self._session_gap <= 0:
@@ -1641,14 +1636,15 @@ class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
         ...     .window(DynamicEventTimeSessionWindows.with_dynamic_gap(extractor))
     """
-    def __init__(self,
-                 session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
+
+    def __init__(self, session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
         self._session_gap = 0
         self._session_window_time_gap_extractor = session_window_time_gap_extractor
 
     @staticmethod
     def with_dynamic_gap(
-            extractor: SessionWindowTimeGapExtractor) -> 'DynamicEventTimeSessionWindows':
+        extractor: SessionWindowTimeGapExtractor,
+    ) -> "DynamicEventTimeSessionWindows":
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions
         based on the element timestamp.
@@ -1658,15 +1654,16 @@ class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         """
         return DynamicEventTimeSessionWindows(extractor)
 
-    def merge_windows(self,
-                      windows: Iterable[TimeWindow],
-                      callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
+    def merge_windows(
+        self,
+        windows: Iterable[TimeWindow],
+        callback: "MergingWindowAssigner.MergeCallback[TimeWindow]",
+    ) -> None:
         TimeWindow.merge_windows(windows, callback)
 
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: "WindowAssigner.WindowAssignerContext"
+    ) -> Collection[TimeWindow]:
         self._session_gap = self._session_window_time_gap_extractor.extract(element)
         if self._session_gap <= 0:
             raise Exception("Dynamic session time gap must satisfy 0 < gap")
@@ -1694,14 +1691,13 @@ class GlobalWindows(WindowAssigner[T, GlobalWindow]):
     def __init__(self) -> None:
         super().__init__()
 
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[GlobalWindow]:
+    def assign_windows(
+        self, element: T, timestamp: int, context: "WindowAssigner.WindowAssignerContext"
+    ) -> Collection[GlobalWindow]:
         return [GlobalWindow.get()]
 
     @staticmethod
-    def create() -> 'GlobalWindows':
+    def create() -> "GlobalWindows":
         """
         Creates a new GlobalWindows WindowAssigner that assigns all elements to the
         same GlobalWindow.

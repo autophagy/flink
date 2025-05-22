@@ -20,7 +20,7 @@ from typing import List
 
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['Row', 'RowKind']
+__all__ = ["Row", "RowKind"]
 
 
 class RowKind(Enum):
@@ -31,13 +31,13 @@ class RowKind(Enum):
 
     def __str__(self):
         if self.value == RowKind.INSERT.value:
-            return '+I'
+            return "+I"
         elif self.value == RowKind.UPDATE_BEFORE.value:
-            return '-U'
+            return "-U"
         elif self.value == RowKind.UPDATE_AFTER.value:
-            return '+U'
+            return "+U"
         else:
-            return '-D'
+            return "-D"
 
     def to_j_row_kind(self):
         JRowKind = get_gateway().jvm.org.apache.flink.types.RowKind
@@ -100,8 +100,7 @@ class Row(object):
 
     def __init__(self, *args, **kwargs):
         if args and kwargs:
-            raise ValueError("Can not use both args "
-                             "and kwargs to create Row")
+            raise ValueError("Can not use both args " "and kwargs to create Row")
         if kwargs:
             self._fields = list(kwargs.keys())
             self._values = [kwargs[n] for n in self._fields]
@@ -132,6 +131,7 @@ class Row(object):
             raise TypeError("Cannot convert a Row class into dict")
 
         if recursive:
+
             def conv(obj):
                 if isinstance(obj, Row):
                     return obj.as_dict(True)
@@ -156,7 +156,7 @@ class Row(object):
         self._fields = field_names
 
     def get_fields_by_names(self, names: List[str]):
-        if not hasattr(self, '_fields') or names == self._fields:
+        if not hasattr(self, "_fields") or names == self._fields:
             return self._values
 
         difference = list(set(names).difference(set(self._fields)))
@@ -189,8 +189,10 @@ class Row(object):
         Creates new Row object
         """
         if len(args) > len(self):
-            raise ValueError("Can not create Row with fields %s, expected %d values "
-                             "but got %s" % (self, len(self), args))
+            raise ValueError(
+                "Can not create Row with fields %s, expected %d values "
+                "but got %s" % (self, len(self), args)
+            )
         return _create_row(self._values, args, self._row_kind)
 
     def __getitem__(self, item):
@@ -234,7 +236,7 @@ class Row(object):
             raise AttributeError(item)
 
     def __setattr__(self, key, value):
-        if key != '_fields' and key != "_from_dict" and key != "_row_kind" and key != "_values":
+        if key != "_fields" and key != "_from_dict" and key != "_row_kind" and key != "_values":
             raise AttributeError(key)
         self.__dict__[key] = value
 
@@ -252,8 +254,9 @@ class Row(object):
         Printable representation of Row used in Python REPL.
         """
         if hasattr(self, "_fields"):
-            return "Row(%s)" % ", ".join("%s=%r" % (k, v)
-                                         for k, v in zip(self._fields, tuple(self)))
+            return "Row(%s)" % ", ".join(
+                "%s=%r" % (k, v) for k, v in zip(self._fields, tuple(self))
+            )
         else:
             return "<Row(%s)>" % ", ".join(repr(field) for field in self)
 
@@ -266,16 +269,20 @@ class Row(object):
             if sorted(self._fields) != sorted(other._fields):
                 return False
             sorted_fields = sorted(self._fields)
-            return (self.__class__ == other.__class__ and
-                    self._row_kind == other._row_kind and
-                    [self._values[self._fields.index(name)] for name in sorted_fields] ==
-                    [other._values[other._fields.index(name)] for name in sorted_fields])
+            return (
+                self.__class__ == other.__class__
+                and self._row_kind == other._row_kind
+                and [self._values[self._fields.index(name)] for name in sorted_fields]
+                == [other._values[other._fields.index(name)] for name in sorted_fields]
+            )
         else:
             if hasattr(other, "_fields"):
                 return False
-            return (self.__class__ == other.__class__ and
-                    self._row_kind == other._row_kind and
-                    self._values == other._values)
+            return (
+                self.__class__ == other.__class__
+                and self._row_kind == other._row_kind
+                and self._values == other._values
+            )
 
     def __hash__(self):
         return tuple(self).__hash__()

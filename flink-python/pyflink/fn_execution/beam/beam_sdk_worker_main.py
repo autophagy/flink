@@ -21,15 +21,16 @@ import sys
 # force to register the operations to SDK Harness
 from apache_beam.options.pipeline_options import DebugOptions, PipelineOptions
 
-import pyflink.fn_execution.beam.beam_operations # noqa # pylint: disable=unused-import
+import pyflink.fn_execution.beam.beam_operations  # noqa # pylint: disable=unused-import
 
 # force to register the coders to SDK Harness
-import pyflink.fn_execution.beam.beam_coders # noqa # pylint: disable=unused-import
+import pyflink.fn_execution.beam.beam_coders  # noqa # pylint: disable=unused-import
 
 import apache_beam
 
 # disable bundle processor shutdown
 from apache_beam.runners.worker import sdk_worker, sdk_worker_main, statecache
+
 sdk_worker.DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 86400 * 30
 
 
@@ -49,10 +50,12 @@ def get_state_cache_size(options):
 
     for experiment in experiments:
         # There should only be 1 match so returning from the loop
-        if re.match(r'state_cache_size=', experiment):
+        if re.match(r"state_cache_size=", experiment):
             return int(
-                re.match(r'state_cache_size=(?P<state_cache_size>.*)',
-                         experiment).group('state_cache_size'))
+                re.match(r"state_cache_size=(?P<state_cache_size>.*)", experiment).group(
+                    "state_cache_size"
+                )
+            )
     return 0
 
 
@@ -63,7 +66,7 @@ sdk_worker_main._get_state_cache_size_bytes = get_state_cache_size
 
 
 def print_to_logging(logging_func, msg, *args, **kwargs):
-    if msg != '\n':
+    if msg != "\n":
         logging_func(msg, *args, **kwargs)
 
 
@@ -72,17 +75,17 @@ class CustomPrint(object):
         self._msg_buffer = []
         self._print = _print
 
-    def print(self, *args, sep=' ', end='\n', file=None):
+    def print(self, *args, sep=" ", end="\n", file=None):
         self._msg_buffer.append(sep.join([str(arg) for arg in args]))
-        if end == '\n':
-            self._print(''.join(self._msg_buffer), sep=sep, end=end, file=file)
+        if end == "\n":
+            self._print("".join(self._msg_buffer), sep=sep, end=end, file=file)
             self._msg_buffer.clear()
         else:
             self._msg_buffer.append(end)
 
     def close(self):
         if self._msg_buffer:
-            self._print(''.join(self._msg_buffer), sep='', end='\n')
+            self._print("".join(self._msg_buffer), sep="", end="\n")
             self._msg_buffer.clear()
 
 

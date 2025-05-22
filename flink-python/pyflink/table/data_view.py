@@ -18,11 +18,11 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, Iterable, List, Any, Iterator, Dict, Tuple
 
-T = TypeVar('T')
-K = TypeVar('K')
-V = TypeVar('V')
+T = TypeVar("T")
+K = TypeVar("K")
+V = TypeVar("V")
 
-__all__ = ['DataView', 'ListView', 'MapView']
+__all__ = ["DataView", "ListView", "MapView"]
 
 
 class DataView(ABC):

@@ -19,7 +19,7 @@ from enum import Enum
 
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['JobStatus']
+__all__ = ["JobStatus"]
 
 
 class JobStatus(Enum):
@@ -112,7 +112,7 @@ class JobStatus(Enum):
         return self._to_j_job_status().isTerminalState()
 
     @staticmethod
-    def _from_j_job_status(j_job_status) -> 'JobStatus':
+    def _from_j_job_status(j_job_status) -> "JobStatus":
         return JobStatus[j_job_status.name()]
 
     def _to_j_job_status(self):

@@ -75,25 +75,22 @@ class DeliveryGuarantee(Enum):
     but it may happen that records are lost or duplicated.
     """
 
-    EXACTLY_ONCE = 0,
-    AT_LEAST_ONCE = 1,
+    EXACTLY_ONCE = (0,)
+    AT_LEAST_ONCE = (1,)
     NONE = 2
 
     def _to_j_delivery_guarantee(self):
-        JDeliveryGuarantee = get_gateway().jvm \
-            .org.apache.flink.connector.base.DeliveryGuarantee
+        JDeliveryGuarantee = get_gateway().jvm.org.apache.flink.connector.base.DeliveryGuarantee
         return getattr(JDeliveryGuarantee, self.name)
 
 
 class StreamTransformer(ABC):
-
     @abstractmethod
     def apply(self, ds):
         pass
 
 
 class SupportsPreprocessing(ABC):
-
     @abstractmethod
     def get_transformer(self) -> Optional[StreamTransformer]:
         pass

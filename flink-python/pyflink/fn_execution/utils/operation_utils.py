@@ -28,8 +28,12 @@ from pyflink.common import Row
 from pyflink.fn_execution import pickle
 from pyflink.serializers import PickleSerializer
 from pyflink.table import functions
-from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction, \
-    ImperativeAggregateFunction, PandasAggregateFunctionWrapper
+from pyflink.table.udf import (
+    DelegationTableFunction,
+    DelegatingScalarFunction,
+    ImperativeAggregateFunction,
+    PandasAggregateFunctionWrapper,
+)
 
 _func_num = 0
 _constant_num = 0
@@ -48,25 +52,31 @@ def normalize_table_function_result(it):
             return [value]
 
     if it is None:
+
         def func():
             for i in []:
                 yield i
+
         return func()
 
     if isinstance(it, (list, range, Generator)):
+
         def func():
             for item in it:
                 yield normalize_one_row(item)
 
         return func()
     else:
+
         def func():
             yield normalize_one_row(it)
+
         return func()
 
 
 def normalize_pandas_result(it):
     import pandas as pd
+
     arrays = []
     for result in it:
         if isinstance(result, (Row, Tuple)):
@@ -78,18 +88,22 @@ def normalize_pandas_result(it):
 
 def wrap_input_series_as_dataframe(*args):
     import pandas as pd
+
     return pd.concat(args, axis=1)
 
 
 def check_pandas_udf_result(f, *input_args):
     output = f(*input_args)
     import pandas as pd
-    assert type(output) == pd.Series or type(output) == pd.DataFrame, \
-        "The result type of Pandas UDF '%s' must be pandas.Series or pandas.DataFrame, got %s" \
+
+    assert type(output) == pd.Series or type(output) == pd.DataFrame, (
+        "The result type of Pandas UDF '%s' must be pandas.Series or pandas.DataFrame, got %s"
         % (f.__name__, type(output))
-    assert len(output) == len(input_args[0]), \
-        "The result length '%d' of Pandas UDF '%s' is not equal to the input length '%d'" \
+    )
+    assert len(output) == len(input_args[0]), (
+        "The result length '%d' of Pandas UDF '%s' is not equal to the input length '%d'"
         % (len(output), f.__name__, len(input_args[0]))
+    )
     return output
 
 
@@ -98,9 +112,9 @@ def extract_over_window_user_defined_function(user_defined_function_proto):
     return (*extract_user_defined_function(user_defined_function_proto, True), window_index)
 
 
-def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False,
-                                  one_arg_optimization=False)\
-        -> Tuple[str, Dict, List]:
+def extract_user_defined_function(
+    user_defined_function_proto, pandas_udaf=False, one_arg_optimization=False
+) -> Tuple[str, Dict, List]:
     """
     Extracts user-defined-function from the proto representation of a
     :class:`UserDefinedFunction`.
@@ -124,7 +138,8 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
             if arg.HasField("udf"):
                 # for chaining Python UDF input: the input argument is a Python ScalarFunction
                 udf_arg, udf_variable_dict, udf_funcs = extract_user_defined_function(
-                    arg.udf, one_arg_optimization=one_arg_optimization)
+                    arg.udf, one_arg_optimization=one_arg_optimization
+                )
                 args_str.append(udf_arg)
                 local_variable_dict.update(udf_variable_dict)
                 local_funcs.extend(udf_funcs)
@@ -136,8 +151,9 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
                     args_str.append("value[%s]" % arg.inputOffset)
             else:
                 # the input argument is a constant value
-                constant_value_name, parsed_constant_value = \
-                    _parse_constant_value(arg.inputConstant)
+                constant_value_name, parsed_constant_value = _parse_constant_value(
+                    arg.inputConstant
+                )
                 args_str.append(constant_value_name)
                 local_variable_dict[constant_value_name] = parsed_constant_value
         return ",".join(args_str), local_variable_dict, local_funcs
@@ -148,9 +164,10 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
     user_defined_func = pickle.loads(user_defined_function_proto.payload)
     if pandas_udaf:
         user_defined_func = PandasAggregateFunctionWrapper(user_defined_func)
-    func_name = 'f%s' % _next_func_num()
-    if isinstance(user_defined_func, DelegatingScalarFunction) \
-            or isinstance(user_defined_func, DelegationTableFunction):
+    func_name = "f%s" % _next_func_num()
+    if isinstance(user_defined_func, DelegatingScalarFunction) or isinstance(
+        user_defined_func, DelegationTableFunction
+    ):
         if user_defined_function_proto.is_pandas_udf:
             variable_dict[func_name] = partial(check_pandas_udf_result, user_defined_func.func)
         else:
@@ -169,7 +186,7 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
         elif user_defined_function_proto.is_pandas_udf or pandas_udaf:
             # for pandas udf/udaf, the input data structure is a List of Pandas.Series
             # we need to merge these Pandas.Series into a Pandas.DataFrame
-            variable_dict['wrap_input_series_as_dataframe'] = wrap_input_series_as_dataframe
+            variable_dict["wrap_input_series_as_dataframe"] = wrap_input_series_as_dataframe
             func_str = "%s(wrap_input_series_as_dataframe(%s))" % (func_name, func_args)
         else:
             # directly use `value` as input argument
@@ -194,8 +211,9 @@ def _parse_constant_value(constant_value) -> Tuple[str, Any]:
         parsed_constant_value = pickled_data
     # the type is DATE
     elif j_type == 1:
-        parsed_constant_value = \
-            datetime.date(year=1970, month=1, day=1) + datetime.timedelta(days=pickled_data)
+        parsed_constant_value = datetime.date(year=1970, month=1, day=1) + datetime.timedelta(
+            days=pickled_data
+        )
     # the type is TIME
     elif j_type == 2:
         seconds, milliseconds = divmod(pickled_data, 1000)
@@ -204,9 +222,9 @@ def _parse_constant_value(constant_value) -> Tuple[str, Any]:
         parsed_constant_value = datetime.time(hours, minutes, seconds, milliseconds * 1000)
     # the type is TIMESTAMP
     elif j_type == 3:
-        parsed_constant_value = \
-            datetime.datetime(year=1970, month=1, day=1, hour=0, minute=0, second=0) \
-            + datetime.timedelta(milliseconds=pickled_data)
+        parsed_constant_value = datetime.datetime(
+            year=1970, month=1, day=1, hour=0, minute=0, second=0
+        ) + datetime.timedelta(milliseconds=pickled_data)
     else:
         raise Exception("Unknown type %s, should never happen" % str(j_type))
 
@@ -215,14 +233,15 @@ def _parse_constant_value(constant_value) -> Tuple[str, Any]:
         _constant_num = _constant_num + 1
         return _constant_num
 
-    constant_value_name = 'c%s' % _next_constant_num()
+    constant_value_name = "c%s" % _next_constant_num()
     return constant_value_name, parsed_constant_value
 
 
 def extract_user_defined_aggregate_function(
-        current_index,
-        user_defined_function_proto,
-        distinct_info_dict: Dict[Tuple[List[str]], Tuple[List[int], List[int]]]):
+    current_index,
+    user_defined_function_proto,
+    distinct_info_dict: Dict[Tuple[List[str]], Tuple[List[int], List[int]]],
+):
     user_defined_agg = load_aggregate_function(user_defined_function_proto.payload)
     assert isinstance(user_defined_agg, ImperativeAggregateFunction)
     args_str = []
@@ -233,8 +252,7 @@ def extract_user_defined_aggregate_function(
             args_str.append("value[%s]" % arg.inputOffset)
         else:
             # the input argument is a constant value
-            constant_value_name, parsed_constant_value = \
-                _parse_constant_value(arg.inputConstant)
+            constant_value_name, parsed_constant_value = _parse_constant_value(arg.inputConstant)
             for key, value in local_variable_dict.items():
                 if value == parsed_constant_value:
                     constant_value_name = key
@@ -249,8 +267,10 @@ def extract_user_defined_aggregate_function(
             distinct_info_dict[tuple(args_str)][1].append(user_defined_function_proto.filter_arg)
             distinct_index = distinct_info_dict[tuple(args_str)][0][0]
         else:
-            distinct_info_dict[tuple(args_str)] = \
-                ([current_index], [user_defined_function_proto.filter_arg])
+            distinct_info_dict[tuple(args_str)] = (
+                [current_index],
+                [user_defined_function_proto.filter_arg],
+            )
             distinct_index = current_index
     else:
         distinct_index = -1
@@ -263,11 +283,12 @@ def extract_user_defined_aggregate_function(
         func_str = "lambda value : [value]"
     else:
         func_str = "lambda value : (%s,)" % ",".join(args_str)
-    return user_defined_agg, \
-        eval(func_str, local_variable_dict) \
-        if args_str else lambda v: tuple(), \
-        user_defined_function_proto.filter_arg, \
-        distinct_index
+    return (
+        user_defined_agg,
+        eval(func_str, local_variable_dict) if args_str else lambda v: tuple(),
+        user_defined_function_proto.filter_arg,
+        distinct_index,
+    )
 
 
 def is_built_in_function(payload):
@@ -289,12 +310,7 @@ def load_aggregate_function(payload):
 class PeriodicThread(threading.Thread):
     """Call a function periodically with the specified number of seconds"""
 
-    def __init__(self,
-                 interval,
-                 function,
-                 args=None,
-                 kwargs=None
-                 ) -> None:
+    def __init__(self, interval, function, args=None, kwargs=None) -> None:
         threading.Thread.__init__(self)
         self._interval = interval
         self._function = function
@@ -305,8 +321,9 @@ class PeriodicThread(threading.Thread):
     def run(self) -> None:
         now = time.time()
         next_call = now + self._interval
-        while (next_call <= now and not self._finished.is_set()) or \
-                (next_call > now and not self._finished.wait(next_call - now)):
+        while (next_call <= now and not self._finished.is_set()) or (
+            next_call > now and not self._finished.wait(next_call - now)
+        ):
             if next_call <= now:
                 next_call = now + self._interval
             else:

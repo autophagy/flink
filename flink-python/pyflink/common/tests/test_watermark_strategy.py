@@ -24,27 +24,36 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class WatermarkStrategyTests(PyFlinkTestCase):
-
     def test_with_idleness(self):
         jvm = get_gateway().jvm
-        j_watermark_strategy = WatermarkStrategy.no_watermarks().with_idleness(
-            Duration.of_seconds(5)
-        )._j_watermark_strategy
-        self.assertTrue(is_instance_of(
-            j_watermark_strategy,
-            jvm.org.apache.flink.api.common.eventtime.WatermarkStrategyWithIdleness
-        ))
+        j_watermark_strategy = (
+            WatermarkStrategy.no_watermarks()
+            .with_idleness(Duration.of_seconds(5))
+            ._j_watermark_strategy
+        )
+        self.assertTrue(
+            is_instance_of(
+                j_watermark_strategy,
+                jvm.org.apache.flink.api.common.eventtime.WatermarkStrategyWithIdleness,
+            )
+        )
         self.assertEqual(get_field_value(j_watermark_strategy, "idlenessTimeout").toMillis(), 5000)
 
     def test_with_watermark_alignment(self):
         jvm = get_gateway().jvm
-        j_watermark_strategy = WatermarkStrategy.no_watermarks().with_watermark_alignment(
-            "alignment-group-1", Duration.of_seconds(20), Duration.of_seconds(10)
-        )._j_watermark_strategy
-        self.assertTrue(is_instance_of(
-            j_watermark_strategy,
-            jvm.org.apache.flink.api.common.eventtime.WatermarksWithWatermarkAlignment
-        ))
+        j_watermark_strategy = (
+            WatermarkStrategy.no_watermarks()
+            .with_watermark_alignment(
+                "alignment-group-1", Duration.of_seconds(20), Duration.of_seconds(10)
+            )
+            ._j_watermark_strategy
+        )
+        self.assertTrue(
+            is_instance_of(
+                j_watermark_strategy,
+                jvm.org.apache.flink.api.common.eventtime.WatermarksWithWatermarkAlignment,
+            )
+        )
         alignment_parameters = j_watermark_strategy.getAlignmentParameters()
         self.assertEqual(alignment_parameters.getWatermarkGroup(), "alignment-group-1")
         self.assertEqual(alignment_parameters.getMaxAllowedWatermarkDrift(), 20000)
@@ -53,10 +62,12 @@ class WatermarkStrategyTests(PyFlinkTestCase):
     def test_for_monotonous_timestamps(self):
         jvm = get_gateway().jvm
         j_watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()._j_watermark_strategy
-        self.assertTrue(is_instance_of(
-            j_watermark_strategy.createWatermarkGenerator(None),
-            jvm.org.apache.flink.api.common.eventtime.AscendingTimestampsWatermarks
-        ))
+        self.assertTrue(
+            is_instance_of(
+                j_watermark_strategy.createWatermarkGenerator(None),
+                jvm.org.apache.flink.api.common.eventtime.AscendingTimestampsWatermarks,
+            )
+        )
 
     def test_for_bounded_out_of_orderness(self):
         jvm = get_gateway().jvm
@@ -64,16 +75,20 @@ class WatermarkStrategyTests(PyFlinkTestCase):
             Duration.of_seconds(3)
         )._j_watermark_strategy
         j_watermark_generator = j_watermark_strategy.createWatermarkGenerator(None)
-        self.assertTrue(is_instance_of(
-            j_watermark_generator,
-            jvm.org.apache.flink.api.common.eventtime.BoundedOutOfOrdernessWatermarks
-        ))
+        self.assertTrue(
+            is_instance_of(
+                j_watermark_generator,
+                jvm.org.apache.flink.api.common.eventtime.BoundedOutOfOrdernessWatermarks,
+            )
+        )
         self.assertEqual(get_field_value(j_watermark_generator, "outOfOrdernessMillis"), 3000)
 
     def test_no_watermarks(self):
         jvm = get_gateway().jvm
         j_watermark_strategy = WatermarkStrategy.no_watermarks()._j_watermark_strategy
-        self.assertTrue(is_instance_of(
-            j_watermark_strategy.createWatermarkGenerator(None),
-            jvm.org.apache.flink.api.common.eventtime.NoWatermarksGenerator
-        ))
+        self.assertTrue(
+            is_instance_of(
+                j_watermark_strategy.createWatermarkGenerator(None),
+                jvm.org.apache.flink.api.common.eventtime.NoWatermarksGenerator,
+            )
+        )

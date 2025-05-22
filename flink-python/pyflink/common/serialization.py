@@ -20,12 +20,12 @@ from pyflink.common.utils import JavaObjectWrapper
 from pyflink.java_gateway import get_gateway
 
 __all__ = [
-    'SerializationSchema',
-    'DeserializationSchema',
-    'SimpleStringSchema',
-    'ByteArraySchema',
-    'Encoder',
-    'BulkWriterFactory'
+    "SerializationSchema",
+    "DeserializationSchema",
+    "SimpleStringSchema",
+    "ByteArraySchema",
+    "Encoder",
+    "BulkWriterFactory",
 ]
 
 
@@ -35,6 +35,7 @@ class SerializationSchema(object):
     into a different serialized representation. Most data sinks (for example Apache Kafka) require
     the data to be handed to them in a specific format (for example as byte strings).
     """
+
     def __init__(self, j_serialization_schema=None):
         self._j_serialization_schema = j_serialization_schema
 
@@ -48,6 +49,7 @@ class DeserializationSchema(object):
     In addition, the DeserializationSchema describes the produced type which lets Flink create
     internal serializers and structures to handle the type.
     """
+
     def __init__(self, j_deserialization_schema=None):
         self._j_deserialization_schema = j_deserialization_schema
 
@@ -58,15 +60,18 @@ class SimpleStringSchema(SerializationSchema, DeserializationSchema):
     'UTF-8' for string/byte conversion.
     """
 
-    def __init__(self, charset: str = 'UTF-8'):
+    def __init__(self, charset: str = "UTF-8"):
         gate_way = get_gateway()
         j_char_set = gate_way.jvm.java.nio.charset.Charset.forName(charset)
-        j_simple_string_serialization_schema = gate_way \
-            .jvm.org.apache.flink.api.common.serialization.SimpleStringSchema(j_char_set)
-        SerializationSchema.__init__(self,
-                                     j_serialization_schema=j_simple_string_serialization_schema)
+        j_simple_string_serialization_schema = (
+            gate_way.jvm.org.apache.flink.api.common.serialization.SimpleStringSchema(j_char_set)
+        )
+        SerializationSchema.__init__(
+            self, j_serialization_schema=j_simple_string_serialization_schema
+        )
         DeserializationSchema.__init__(
-            self, j_deserialization_schema=j_simple_string_serialization_schema)
+            self, j_deserialization_schema=j_simple_string_serialization_schema
+        )
 
 
 class ByteArraySchema(SerializationSchema, DeserializationSchema):
@@ -76,12 +81,15 @@ class ByteArraySchema(SerializationSchema, DeserializationSchema):
 
     def __init__(self):
         gate_way = get_gateway()
-        j_simple_byte_serialization_schema = gate_way \
-            .jvm.org.apache.flink.api.common.serialization.ByteArraySchema()
-        SerializationSchema.__init__(self,
-                                     j_serialization_schema=j_simple_byte_serialization_schema)
+        j_simple_byte_serialization_schema = (
+            gate_way.jvm.org.apache.flink.api.common.serialization.ByteArraySchema()
+        )
+        SerializationSchema.__init__(
+            self, j_serialization_schema=j_simple_byte_serialization_schema
+        )
         DeserializationSchema.__init__(
-            self, j_deserialization_schema=j_simple_byte_serialization_schema)
+            self, j_deserialization_schema=j_simple_byte_serialization_schema
+        )
 
 
 class Encoder(object):
@@ -94,13 +102,14 @@ class Encoder(object):
         self._j_encoder = j_encoder
 
     @staticmethod
-    def simple_string_encoder(charset_name: str = "UTF-8") -> 'Encoder':
+    def simple_string_encoder(charset_name: str = "UTF-8") -> "Encoder":
         """
         A simple Encoder that uses toString() on the input elements and writes them to
         the output bucket file separated by newline.
         """
-        j_encoder = get_gateway().jvm.org.apache.flink.api.common.serialization.\
-            SimpleStringEncoder(charset_name)
+        j_encoder = get_gateway().jvm.org.apache.flink.api.common.serialization.SimpleStringEncoder(
+            charset_name
+        )
         return Encoder(j_encoder)
 
 

@@ -49,27 +49,30 @@ def find_file_path(pattern):
     return files[0]
 
 
-in_flink_source = os.path.isfile("../../flink-runtime/src/main/java/org/apache/flink/streaming"
-                                 "/api/environment/StreamExecutionEnvironment.java")
+in_flink_source = os.path.isfile(
+    "../../flink-runtime/src/main/java/org/apache/flink/streaming"
+    "/api/environment/StreamExecutionEnvironment.java"
+)
 this_directory = os.path.abspath(os.path.dirname(__file__))
 pyflink_directory = os.path.join(this_directory, "pyflink")
 if in_flink_source:
     remove_if_exists(pyflink_directory)
     os.mkdir(pyflink_directory)
-    version_file = os.path.join(this_directory, '../pyflink/version.py')
+    version_file = os.path.join(this_directory, "../pyflink/version.py")
 else:
-    version_file = os.path.join(this_directory, 'pyflink/version.py')
+    version_file = os.path.join(this_directory, "pyflink/version.py")
 
 try:
     exec(open(version_file).read())
 except IOError:
-    print("Failed to load PyFlink version file for packaging. " +
-          "'%s' not found!" % version_file,
-          file=sys.stderr)
+    print(
+        "Failed to load PyFlink version file for packaging. " + "'%s' not found!" % version_file,
+        file=sys.stderr,
+    )
     sys.exit(-1)
 VERSION = __version__  # noqa
 
-with io.open(os.path.join(this_directory, 'README.md'), 'r', encoding='utf-8') as f:
+with io.open(os.path.join(this_directory, "README.md"), "r", encoding="utf-8") as f:
     long_description = f.read()
 
 TEMP_PATH = "deps"
@@ -91,24 +94,27 @@ VERSION_FILE_TEMP_PATH = os.path.join("pyflink", "version.py")
 exist_licenses = None
 try:
     if in_flink_source:
-
         try:
             os.mkdir(TEMP_PATH)
         except:
-            print("Temp path for symlink to parent already exists {0}".format(TEMP_PATH),
-                  file=sys.stderr)
+            print(
+                "Temp path for symlink to parent already exists {0}".format(TEMP_PATH),
+                file=sys.stderr,
+            )
             sys.exit(-1)
-        flink_version = ET.parse("../../pom.xml").getroot().find(
-            'POM:version',
-            namespaces={
-                'POM': 'http://maven.apache.org/POM/4.0.0'
-            }).text
+        flink_version = (
+            ET.parse("../../pom.xml")
+            .getroot()
+            .find("POM:version", namespaces={"POM": "http://maven.apache.org/POM/4.0.0"})
+            .text
+        )
         if not flink_version:
             print("Not able to get flink version", file=sys.stderr)
             sys.exit(-1)
         print("Detected flink version: {0}".format(flink_version))
         FLINK_HOME = os.path.abspath(
-            "../../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version))
+            "../../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version)
+        )
 
         incorrect_invocation_message = """
 If you are installing pyflink from flink source, you must first build Flink and
@@ -125,9 +131,11 @@ run sdist.
         LIB_PATH = os.path.join(FLINK_HOME, "lib")
         OPT_PATH = os.path.join(FLINK_HOME, "opt")
         OPT_PYTHON_JAR_NAME = os.path.basename(
-            find_file_path(os.path.join(OPT_PATH, "flink-python*.jar")))
+            find_file_path(os.path.join(OPT_PATH, "flink-python*.jar"))
+        )
         OPT_SQL_CLIENT_JAR_NAME = os.path.basename(
-            find_file_path(os.path.join(OPT_PATH, "flink-sql-client*.jar")))
+            find_file_path(os.path.join(OPT_PATH, "flink-sql-client*.jar"))
+        )
         LICENSES_PATH = os.path.join(FLINK_HOME, "licenses")
         PLUGINS_PATH = os.path.join(FLINK_HOME, "plugins")
         SCRIPTS_PATH = os.path.join(FLINK_HOME, "bin")
@@ -149,20 +157,28 @@ run sdist.
 
         os.mkdir(OPT_TEMP_PATH)
         if support_symlinks:
-            os.symlink(os.path.join(OPT_PATH, OPT_PYTHON_JAR_NAME),
-                       os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME))
-            os.symlink(os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
-                       os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME))
+            os.symlink(
+                os.path.join(OPT_PATH, OPT_PYTHON_JAR_NAME),
+                os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME),
+            )
+            os.symlink(
+                os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
+                os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME),
+            )
             os.symlink(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             os.symlink(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
             os.symlink(README_FILE_PATH, README_FILE_TEMP_PATH)
             os.symlink(VERSION_FILE_PATH, VERSION_FILE_TEMP_PATH)
         else:
             copytree(LIB_PATH, LIB_TEMP_PATH)
-            copy(os.path.join(OPT_PATH, OPT_PYTHON_JAR_NAME),
-                 os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME))
-            copy(os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
-                 os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME))
+            copy(
+                os.path.join(OPT_PATH, OPT_PYTHON_JAR_NAME),
+                os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME),
+            )
+            copy(
+                os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
+                os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME),
+            )
             copytree(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             copy(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
             copy(README_FILE_PATH, README_FILE_TEMP_PATH)
@@ -176,66 +192,70 @@ run sdist.
         if exist_licenses and platform.system() != "Windows":
             # regenerate the licenses directory and NOTICE file as we only copy part of the
             # flink binary distribution.
-            collect_licenses_file_sh = os.path.abspath(os.path.join(
-                this_directory, "..", "..", "tools", "releasing", "collect_license_files.sh"))
+            collect_licenses_file_sh = os.path.abspath(
+                os.path.join(
+                    this_directory, "..", "..", "tools", "releasing", "collect_license_files.sh"
+                )
+            )
             subprocess.check_output([collect_licenses_file_sh, TEMP_PATH, TEMP_PATH])
             # move the NOTICE file to the root of the package
             GENERATED_NOTICE_FILE_PATH = os.path.join(TEMP_PATH, "NOTICE")
             os.rename(GENERATED_NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
     else:
         if not os.path.isdir(LIB_TEMP_PATH) or not os.path.isdir(OPT_TEMP_PATH):
-            print("The flink core files are not found. Please make sure your installation package "
-                  "is complete, or do this in the flink-python directory of the flink source "
-                  "directory.")
+            print(
+                "The flink core files are not found. Please make sure your installation package "
+                "is complete, or do this in the flink-python directory of the flink source "
+                "directory."
+            )
             sys.exit(-1)
         exist_licenses = os.path.exists(LICENSES_TEMP_PATH)
 
-    PACKAGES = ['pyflink',
-                'pyflink.bin',
-                'pyflink.lib',
-                'pyflink.opt',
-                'pyflink.plugins']
+    PACKAGES = ["pyflink", "pyflink.bin", "pyflink.lib", "pyflink.opt", "pyflink.plugins"]
 
     PACKAGE_DIR = {
-        'pyflink.bin': TEMP_PATH + '/bin',
-        'pyflink.lib': TEMP_PATH + '/lib',
-        'pyflink.opt': TEMP_PATH + '/opt',
-        'pyflink.plugins': TEMP_PATH + '/plugins'}
+        "pyflink.bin": TEMP_PATH + "/bin",
+        "pyflink.lib": TEMP_PATH + "/lib",
+        "pyflink.opt": TEMP_PATH + "/opt",
+        "pyflink.plugins": TEMP_PATH + "/plugins",
+    }
 
     PACKAGE_DATA = {
-        'pyflink': ['README.txt', 'version.py'],
-        'pyflink.bin': ['*.jar'],
-        'pyflink.lib': ['*.jar'],
-        'pyflink.opt': ['*.*', '*/*'],
-        'pyflink.plugins': ['*', '*/*']}
+        "pyflink": ["README.txt", "version.py"],
+        "pyflink.bin": ["*.jar"],
+        "pyflink.lib": ["*.jar"],
+        "pyflink.opt": ["*.*", "*/*"],
+        "pyflink.plugins": ["*", "*/*"],
+    }
 
     if exist_licenses and platform.system() != "Windows":
-        PACKAGES.append('pyflink.licenses')
-        PACKAGE_DIR['pyflink.licenses'] = TEMP_PATH + '/licenses'
-        PACKAGE_DATA['pyflink.licenses'] = ['*']
+        PACKAGES.append("pyflink.licenses")
+        PACKAGE_DIR["pyflink.licenses"] = TEMP_PATH + "/licenses"
+        PACKAGE_DATA["pyflink.licenses"] = ["*"]
 
     setup(
-        name='apache-flink-libraries',
+        name="apache-flink-libraries",
         version=VERSION,
         packages=PACKAGES,
         include_package_data=True,
         package_dir=PACKAGE_DIR,
         package_data=PACKAGE_DATA,
-        url='https://flink.apache.org',
-        license='https://www.apache.org/licenses/LICENSE-2.0',
-        author='Apache Software Foundation',
-        author_email='dev@flink.apache.org',
-        python_requires='>=3.9',
-        description='Apache Flink Libraries',
+        url="https://flink.apache.org",
+        license="https://www.apache.org/licenses/LICENSE-2.0",
+        author="Apache Software Foundation",
+        author_email="dev@flink.apache.org",
+        python_requires=">=3.9",
+        description="Apache Flink Libraries",
         long_description=long_description,
-        long_description_content_type='text/markdown',
+        long_description_content_type="text/markdown",
         classifiers=[
-            'Development Status :: 5 - Production/Stable',
-            'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.9',
-            'Programming Language :: Python :: 3.10',
-            'Programming Language :: Python :: 3.11',
-            'Programming Language :: Python :: 3.12'],
+            "Development Status :: 5 - Production/Stable",
+            "License :: OSI Approved :: Apache Software License",
+            "Programming Language :: Python :: 3.9",
+            "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
+            "Programming Language :: Python :: 3.12",
+        ],
     )
 finally:
     if in_flink_source:

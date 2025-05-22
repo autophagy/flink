@@ -38,11 +38,16 @@ from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
-from pyflink.util.java_utils import add_jars_to_context_class_loader, \
-    invoke_method, get_field_value, is_local_deployment, get_j_env_configuration
+from pyflink.util.java_utils import (
+    add_jars_to_context_class_loader,
+    invoke_method,
+    get_field_value,
+    is_local_deployment,
+    get_j_env_configuration,
+)
 
 
-__all__ = ['StreamExecutionEnvironment']
+__all__ = ["StreamExecutionEnvironment"]
 
 
 class StreamExecutionEnvironment(object):
@@ -69,7 +74,7 @@ class StreamExecutionEnvironment(object):
         """
         return ExecutionConfig(self._j_stream_execution_environment.getConfig())
 
-    def set_parallelism(self, parallelism: int) -> 'StreamExecutionEnvironment':
+    def set_parallelism(self, parallelism: int) -> "StreamExecutionEnvironment":
         """
         Sets the parallelism for operations executed through this environment.
         Setting a parallelism of x here will cause all operators (such as map,
@@ -83,11 +88,12 @@ class StreamExecutionEnvironment(object):
         :param parallelism: The parallelism.
         :return: This object.
         """
-        self._j_stream_execution_environment = \
-            self._j_stream_execution_environment.setParallelism(parallelism)
+        self._j_stream_execution_environment = self._j_stream_execution_environment.setParallelism(
+            parallelism
+        )
         return self
 
-    def set_max_parallelism(self, max_parallelism: int) -> 'StreamExecutionEnvironment':
+    def set_max_parallelism(self, max_parallelism: int) -> "StreamExecutionEnvironment":
         """
         Sets the maximum degree of parallelism defined for the program. The upper limit (inclusive)
         is 32768.
@@ -99,12 +105,14 @@ class StreamExecutionEnvironment(object):
                                 with 0 < maxParallelism <= 2^15.
         :return: This object.
         """
-        self._j_stream_execution_environment = \
+        self._j_stream_execution_environment = (
             self._j_stream_execution_environment.setMaxParallelism(max_parallelism)
+        )
         return self
 
-    def register_slot_sharing_group(self, slot_sharing_group: SlotSharingGroup) \
-            -> 'StreamExecutionEnvironment':
+    def register_slot_sharing_group(
+        self, slot_sharing_group: SlotSharingGroup
+    ) -> "StreamExecutionEnvironment":
         """
         Register a slot sharing group with its resource spec.
 
@@ -116,9 +124,11 @@ class StreamExecutionEnvironment(object):
         :param slot_sharing_group: Which contains name and its resource spec.
         :return: This object.
         """
-        self._j_stream_execution_environment = \
+        self._j_stream_execution_environment = (
             self._j_stream_execution_environment.registerSlotSharingGroup(
-                slot_sharing_group.get_java_slot_sharing_group())
+                slot_sharing_group.get_java_slot_sharing_group()
+            )
+        )
         return self
 
     def get_parallelism(self) -> int:
@@ -160,9 +170,10 @@ class StreamExecutionEnvironment(object):
         .. versionadded:: 1.13.0
         """
         return self._j_stream_execution_environment.setRuntimeMode(
-            execution_mode._to_j_execution_mode())
+            execution_mode._to_j_execution_mode()
+        )
 
-    def set_buffer_timeout(self, timeout_millis: int) -> 'StreamExecutionEnvironment':
+    def set_buffer_timeout(self, timeout_millis: int) -> "StreamExecutionEnvironment":
         """
         Sets the maximum time frequency (milliseconds) for the flushing of the
         output buffers. By default the output buffers flush frequently to provide
@@ -176,8 +187,9 @@ class StreamExecutionEnvironment(object):
         :param timeout_millis: The maximum time between two output flushes.
         :return: This object.
         """
-        self._j_stream_execution_environment = \
+        self._j_stream_execution_environment = (
             self._j_stream_execution_environment.setBufferTimeout(timeout_millis)
+        )
         return self
 
     def get_buffer_timeout(self) -> int:
@@ -190,7 +202,7 @@ class StreamExecutionEnvironment(object):
         """
         return self._j_stream_execution_environment.getBufferTimeout()
 
-    def disable_operator_chaining(self) -> 'StreamExecutionEnvironment':
+    def disable_operator_chaining(self) -> "StreamExecutionEnvironment":
         """
         Disables operator chaining for streaming operators. Operator chaining
         allows non-shuffle operations to be co-located in the same thread fully
@@ -198,8 +210,9 @@ class StreamExecutionEnvironment(object):
 
         :return: This object.
         """
-        self._j_stream_execution_environment = \
+        self._j_stream_execution_environment = (
             self._j_stream_execution_environment.disableOperatorChaining()
+        )
         return self
 
     def is_chaining_enabled(self) -> bool:
@@ -216,8 +229,7 @@ class StreamExecutionEnvironment(object):
 
         :return: True if chaining is enabled, false otherwise
         """
-        return self._j_stream_execution_environment\
-            .isChainingOfOperatorsWithDifferentMaxParallelismEnabled()
+        return self._j_stream_execution_environment.isChainingOfOperatorsWithDifferentMaxParallelismEnabled()
 
     def get_checkpoint_config(self) -> CheckpointConfig:
         """
@@ -229,8 +241,9 @@ class StreamExecutionEnvironment(object):
         j_checkpoint_config = self._j_stream_execution_environment.getCheckpointConfig()
         return CheckpointConfig(j_checkpoint_config)
 
-    def enable_checkpointing(self, interval: int, mode: CheckpointingMode = None) \
-            -> 'StreamExecutionEnvironment':
+    def enable_checkpointing(
+        self, interval: int, mode: CheckpointingMode = None
+    ) -> "StreamExecutionEnvironment":
         """
         Enables checkpointing for the streaming job. The distributed state of the streaming
         dataflow will be periodically snapshotted. In case of a failure, the streaming
@@ -256,13 +269,12 @@ class StreamExecutionEnvironment(object):
         :return: This object.
         """
         if mode is None:
-            self._j_stream_execution_environment = \
+            self._j_stream_execution_environment = (
                 self._j_stream_execution_environment.enableCheckpointing(interval)
+            )
         else:
             j_checkpointing_mode = CheckpointingMode._to_j_checkpointing_mode(mode)
-            self._j_stream_execution_environment.enableCheckpointing(
-                interval,
-                j_checkpointing_mode)
+            self._j_stream_execution_environment.enableCheckpointing(interval, j_checkpointing_mode)
         return self
 
     def get_checkpoint_interval(self) -> int:
@@ -293,11 +305,12 @@ class StreamExecutionEnvironment(object):
 
         :return: The :class:`~pyflink.datastream.CheckpointingMode`.
         """
-        j_checkpointing_mode = \
+        j_checkpointing_mode = (
             self._j_stream_execution_environment.getCheckpointingConsistencyMode()
+        )
         return CheckpointingMode._from_j_checkpointing_mode(j_checkpointing_mode)
 
-    def enable_changelog_state_backend(self, enabled: bool) -> 'StreamExecutionEnvironment':
+    def enable_changelog_state_backend(self, enabled: bool) -> "StreamExecutionEnvironment":
         """
         Enable the change log for current state backend. This change log allows operators to persist
         state changes in a very fine-grained manner. Currently, the change log only applies to keyed
@@ -329,8 +342,9 @@ class StreamExecutionEnvironment(object):
 
         .. versionadded:: 1.14.0
         """
-        self._j_stream_execution_environment = \
+        self._j_stream_execution_environment = (
             self._j_stream_execution_environment.enableChangelogStateBackend(enabled)
+        )
         return self
 
     def is_changelog_state_backend_enabled(self) -> Optional[bool]:
@@ -348,7 +362,7 @@ class StreamExecutionEnvironment(object):
         j_ternary_boolean = self._j_stream_execution_environment.isChangelogStateBackendEnabled()
         return j_ternary_boolean.getAsBoolean()
 
-    def set_default_savepoint_directory(self, directory: str) -> 'StreamExecutionEnvironment':
+    def set_default_savepoint_directory(self, directory: str) -> "StreamExecutionEnvironment":
         """
         Sets the default savepoint directory, where savepoints will be written to if none
         is explicitly provided when triggered.
@@ -389,9 +403,10 @@ class StreamExecutionEnvironment(object):
 
         .. versionadded:: 1.15.0
         """
-        self._j_stream_execution_environment.configure(configuration._j_configuration,
-                                                       get_gateway().jvm.Thread.currentThread()
-                                                       .getContextClassLoader())
+        self._j_stream_execution_environment.configure(
+            configuration._j_configuration,
+            get_gateway().jvm.Thread.currentThread().getContextClassLoader(),
+        )
 
     def add_python_file(self, file_path: str):
         """
@@ -402,8 +417,9 @@ class StreamExecutionEnvironment(object):
         :param file_path: The path of the python dependency.
         """
         jvm = get_gateway().jvm
-        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil\
-            .getEnvironmentConfig(self._j_stream_execution_environment)
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil.getEnvironmentConfig(
+            self._j_stream_execution_environment
+        )
         python_files = env_config.getString(jvm.PythonOptions.PYTHON_FILES.key(), None)
         if python_files is not None:
             python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([file_path, python_files])
@@ -411,8 +427,9 @@ class StreamExecutionEnvironment(object):
             python_files = file_path
         env_config.setString(jvm.PythonOptions.PYTHON_FILES.key(), python_files)
 
-    def set_python_requirements(self, requirements_file_path: str,
-                                requirements_cache_dir: str = None):
+    def set_python_requirements(
+        self, requirements_file_path: str, requirements_cache_dir: str = None
+    ):
         """
         Specifies a requirements.txt file which defines the third-party dependencies.
         These dependencies will be installed to a temporary directory and added to the
@@ -448,9 +465,11 @@ class StreamExecutionEnvironment(object):
         python_requirements = requirements_file_path
         if requirements_cache_dir is not None:
             python_requirements = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
-                [python_requirements, requirements_cache_dir])
-        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
-            .getEnvironmentConfig(self._j_stream_execution_environment)
+                [python_requirements, requirements_cache_dir]
+            )
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil.getEnvironmentConfig(
+            self._j_stream_execution_environment
+        )
         env_config.setString(jvm.PythonOptions.PYTHON_REQUIREMENTS.key(), python_requirements)
 
     def add_python_archive(self, archive_path: str, target_dir: str = None):
@@ -505,13 +524,16 @@ class StreamExecutionEnvironment(object):
         jvm = get_gateway().jvm
         if target_dir is not None:
             archive_path = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
-                [archive_path, target_dir])
-        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
-            .getEnvironmentConfig(self._j_stream_execution_environment)
+                [archive_path, target_dir]
+            )
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil.getEnvironmentConfig(
+            self._j_stream_execution_environment
+        )
         python_archives = env_config.getString(jvm.PythonOptions.PYTHON_ARCHIVES.key(), None)
         if python_archives is not None:
             python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join(
-                [python_archives, archive_path])
+                [python_archives, archive_path]
+            )
         else:
             python_files = archive_path
         env_config.setString(jvm.PythonOptions.PYTHON_ARCHIVES.key(), python_files)
@@ -551,8 +573,9 @@ class StreamExecutionEnvironment(object):
         :param python_exec: The path of python interpreter.
         """
         jvm = get_gateway().jvm
-        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
-            .getEnvironmentConfig(self._j_stream_execution_environment)
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil.getEnvironmentConfig(
+            self._j_stream_execution_environment
+        )
         env_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), python_exec)
 
     def add_jars(self, *jars_path: str):
@@ -564,8 +587,9 @@ class StreamExecutionEnvironment(object):
         add_jars_to_context_class_loader(jars_path)
         jvm = get_gateway().jvm
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
-        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
-            .getEnvironmentConfig(self._j_stream_execution_environment)
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil.getEnvironmentConfig(
+            self._j_stream_execution_environment
+        )
         old_jars_path = env_config.getString(jars_key, None)
         old_jars_list = Configuration.parse_list_value(old_jars_path)
         joined_jars_list = [*old_jars_list, *jars_path]
@@ -581,8 +605,9 @@ class StreamExecutionEnvironment(object):
         add_jars_to_context_class_loader(classpaths)
         jvm = get_gateway().jvm
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
-        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
-            .getEnvironmentConfig(self._j_stream_execution_environment)
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil.getEnvironmentConfig(
+            self._j_stream_execution_environment
+        )
         old_classpaths = env_config.getString(classpaths_key, None)
         old_classpaths_list = Configuration.parse_list_value(old_classpaths)
         joined_classpaths_list = [*old_classpaths_list, *classpaths]
@@ -619,7 +644,7 @@ class StreamExecutionEnvironment(object):
         j_stream_graph = self._generate_stream_graph(clear_transformations=True, job_name=job_name)
         return JobExecutionResult(self._j_stream_execution_environment.execute(j_stream_graph))
 
-    def execute_async(self, job_name: str = 'Flink Streaming Job') -> JobClient:
+    def execute_async(self, job_name: str = "Flink Streaming Job") -> JobClient:
         """
         Triggers the program asynchronously. The environment will execute all parts of the program
         that have resulted in a "sink" operation. Sink operations are for example printing results
@@ -666,8 +691,9 @@ class StreamExecutionEnvironment(object):
         self._j_stream_execution_environment.registerCachedFile(file_path, name, executable)
 
     @staticmethod
-    def get_execution_environment(configuration: Configuration = None) \
-            -> 'StreamExecutionEnvironment':
+    def get_execution_environment(
+        configuration: Configuration = None,
+    ) -> "StreamExecutionEnvironment":
         """
         Creates an execution environment that represents the context in which the
         program is currently executed. If the program is invoked standalone, this
@@ -681,19 +707,20 @@ class StreamExecutionEnvironment(object):
         :return: The execution environment of the context in which the program is executed.
         """
         gateway = get_gateway()
-        JStreamExecutionEnvironment = gateway.jvm.org.apache.flink.streaming.api.environment \
-            .StreamExecutionEnvironment
+        JStreamExecutionEnvironment = (
+            gateway.jvm.org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+        )
 
         if configuration:
             j_stream_exection_environment = JStreamExecutionEnvironment.getExecutionEnvironment(
-                configuration._j_configuration)
+                configuration._j_configuration
+            )
         else:
             j_stream_exection_environment = JStreamExecutionEnvironment.getExecutionEnvironment()
 
         return StreamExecutionEnvironment(j_stream_exection_environment)
 
-    def create_input(self, input_format: InputFormat,
-                     type_info: Optional[TypeInformation] = None):
+    def create_input(self, input_format: InputFormat, type_info: Optional[TypeInformation] = None):
         """
         Create an input data stream with InputFormat.
 
@@ -721,8 +748,12 @@ class StreamExecutionEnvironment(object):
             )
         return DataStream(j_data_stream=j_data_stream)
 
-    def add_source(self, source_func: SourceFunction, source_name: str = 'Custom Source',
-                   type_info: TypeInformation = None) -> 'DataStream':
+    def add_source(
+        self,
+        source_func: SourceFunction,
+        source_name: str = "Custom Source",
+        type_info: TypeInformation = None,
+    ) -> "DataStream":
         """
         Adds a data source to the streaming topology.
 
@@ -735,17 +766,18 @@ class StreamExecutionEnvironment(object):
             j_type_info = type_info.get_java_type_info()
         else:
             j_type_info = None
-        j_data_stream = self._j_stream_execution_environment.addSource(source_func
-                                                                       .get_java_function(),
-                                                                       source_name,
-                                                                       j_type_info)
+        j_data_stream = self._j_stream_execution_environment.addSource(
+            source_func.get_java_function(), source_name, j_type_info
+        )
         return DataStream(j_data_stream=j_data_stream)
 
-    def from_source(self,
-                    source: Source,
-                    watermark_strategy: WatermarkStrategy,
-                    source_name: str,
-                    type_info: TypeInformation = None) -> 'DataStream':
+    def from_source(
+        self,
+        source: Source,
+        watermark_strategy: WatermarkStrategy,
+        source_name: str,
+        type_info: TypeInformation = None,
+    ) -> "DataStream":
         """
         Adds a data :class:`~pyflink.datastream.connectors.Source` to the environment to get a
         :class:`~pyflink.datastream.DataStream`.
@@ -769,11 +801,13 @@ class StreamExecutionEnvironment(object):
             source.get_java_function(),
             watermark_strategy._j_watermark_strategy,
             source_name,
-            j_type_info)
+            j_type_info,
+        )
         return DataStream(j_data_stream=j_data_stream)
 
-    def from_collection(self, collection: List[Any],
-                        type_info: TypeInformation = None) -> DataStream:
+    def from_collection(
+        self, collection: List[Any], type_info: TypeInformation = None
+    ) -> DataStream:
         """
         Creates a data stream from the given non-empty collection. The type of the data stream is
         that of the elements in the collection.
@@ -789,8 +823,9 @@ class StreamExecutionEnvironment(object):
             collection = [type_info.to_internal_type(element) for element in collection]
         return self._from_collection(collection, type_info)
 
-    def _from_collection(self, elements: List[Any],
-                         type_info: TypeInformation = None) -> DataStream:
+    def _from_collection(
+        self, elements: List[Any], type_info: TypeInformation = None
+    ) -> DataStream:
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
         serializer = self.serializer
         try:
@@ -807,48 +842,54 @@ class StreamExecutionEnvironment(object):
                 j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name)
                 out_put_type_info = type_info
 
-            PythonTypeUtils = gateway.jvm\
-                .org.apache.flink.streaming.api.utils.PythonTypeUtils
+            PythonTypeUtils = gateway.jvm.org.apache.flink.streaming.api.utils.PythonTypeUtils
             execution_config = self._j_stream_execution_environment.getConfig()
             j_input_format = PythonTypeUtils.getCollectionInputFormat(
-                j_objs,
-                out_put_type_info.get_java_type_info(),
-                execution_config
+                j_objs, out_put_type_info.get_java_type_info(), execution_config
             )
 
-            JInputFormatSourceFunction = gateway.jvm.org.apache.flink.streaming.api.functions.\
-                source.legacy.InputFormatSourceFunction
+            JInputFormatSourceFunction = gateway.jvm.org.apache.flink.streaming.api.functions.source.legacy.InputFormatSourceFunction
             JBoundedness = gateway.jvm.org.apache.flink.api.connector.source.Boundedness
 
             j_data_stream_source = invoke_method(
                 self._j_stream_execution_environment,
                 "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment",
                 "addSource",
-                [JInputFormatSourceFunction(j_input_format, out_put_type_info.get_java_type_info()),
-                 "Collection Source",
-                 out_put_type_info.get_java_type_info(),
-                 JBoundedness.BOUNDED],
-                ["org.apache.flink.streaming.api.functions.source.legacy.SourceFunction",
-                 "java.lang.String",
-                 "org.apache.flink.api.common.typeinfo.TypeInformation",
-                 "org.apache.flink.api.connector.source.Boundedness"])
+                [
+                    JInputFormatSourceFunction(
+                        j_input_format, out_put_type_info.get_java_type_info()
+                    ),
+                    "Collection Source",
+                    out_put_type_info.get_java_type_info(),
+                    JBoundedness.BOUNDED,
+                ],
+                [
+                    "org.apache.flink.streaming.api.functions.source.legacy.SourceFunction",
+                    "java.lang.String",
+                    "org.apache.flink.api.common.typeinfo.TypeInformation",
+                    "org.apache.flink.api.connector.source.Boundedness",
+                ],
+            )
             j_data_stream_source.forceNonParallel()
             return DataStream(j_data_stream=j_data_stream_source)
         finally:
             os.unlink(temp_file.name)
 
-    def _generate_stream_graph(self, clear_transformations: bool = False, job_name: str = None) \
-            -> JavaObject:
+    def _generate_stream_graph(
+        self, clear_transformations: bool = False, job_name: str = None
+    ) -> JavaObject:
         gateway = get_gateway()
         JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
 
         JPythonConfigUtil.configPythonOperator(self._j_stream_execution_environment)
 
         gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(
-            self._j_stream_execution_environment)
+            self._j_stream_execution_environment
+        )
 
         JPythonConfigUtil.setPartitionCustomOperatorNumPartitions(
-            get_field_value(self._j_stream_execution_environment, "transformations"))
+            get_field_value(self._j_stream_execution_environment, "transformations")
+        )
 
         j_stream_graph = self._j_stream_execution_environment.getStreamGraph(clear_transformations)
         if job_name is not None:
@@ -861,27 +902,33 @@ class StreamExecutionEnvironment(object):
 
         def startup_loopback_server():
             from pyflink.common import Configuration
-            from pyflink.fn_execution.beam.beam_worker_pool_service import \
-                BeamFnLoopbackWorkerPoolServicer
+            from pyflink.fn_execution.beam.beam_worker_pool_service import (
+                BeamFnLoopbackWorkerPoolServicer,
+            )
+
             config = Configuration(j_configuration=j_configuration)
             config.set_string(
-                "python.loopback-server.address", BeamFnLoopbackWorkerPoolServicer().start())
+                "python.loopback-server.address", BeamFnLoopbackWorkerPoolServicer().start()
+            )
 
-        python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
+        python_worker_execution_mode = os.environ.get("_python_worker_execution_mode")
 
         if python_worker_execution_mode is None:
             if is_local_deployment(j_configuration):
                 startup_loopback_server()
-        elif python_worker_execution_mode == 'loopback':
+        elif python_worker_execution_mode == "loopback":
             if is_local_deployment(j_configuration):
                 startup_loopback_server()
             else:
-                raise ValueError("Loopback mode is enabled, however the job wasn't configured to "
-                                 "run in local deployment mode")
-        elif python_worker_execution_mode != 'process':
+                raise ValueError(
+                    "Loopback mode is enabled, however the job wasn't configured to "
+                    "run in local deployment mode"
+                )
+        elif python_worker_execution_mode != "process":
             raise ValueError(
                 "It only supports to execute the Python worker in 'loopback' mode and 'process' "
-                "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
+                "mode, unknown mode '%s' is configured" % python_worker_execution_mode
+            )
 
     def is_unaligned_checkpoints_enabled(self):
         """

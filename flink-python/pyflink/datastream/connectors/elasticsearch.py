@@ -24,11 +24,13 @@ from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import to_jarray
 
 
-__all__ = ['FlushBackoffType',
-           'ElasticsearchEmitter',
-           'Elasticsearch6SinkBuilder',
-           'Elasticsearch7SinkBuilder',
-           'ElasticsearchSink']
+__all__ = [
+    "FlushBackoffType",
+    "ElasticsearchEmitter",
+    "Elasticsearch6SinkBuilder",
+    "Elasticsearch7SinkBuilder",
+    "ElasticsearchSink",
+]
 
 
 class FlushBackoffType(Enum):
@@ -50,13 +52,14 @@ class FlushBackoffType(Enum):
     The failure is not retried.
     """
 
-    CONSTANT = 0,
-    EXPONENTIAL = 1,
-    NONE = 2,
+    CONSTANT = (0,)
+    EXPONENTIAL = (1,)
+    NONE = (2,)
 
     def _to_j_flush_backoff_type(self):
-        JFlushBackoffType = get_gateway().jvm \
-            .org.apache.flink.connector.elasticsearch.sink.FlushBackoffType
+        JFlushBackoffType = (
+            get_gateway().jvm.org.apache.flink.connector.elasticsearch.sink.FlushBackoffType
+        )
         return getattr(JFlushBackoffType, self.name)
 
 
@@ -69,26 +72,30 @@ class ElasticsearchEmitter(object):
         self._j_emitter = j_emitter
 
     @staticmethod
-    def static_index(index: str, key_field: str = None, doc_type: str = None) \
-            -> 'ElasticsearchEmitter':
+    def static_index(
+        index: str, key_field: str = None, doc_type: str = None
+    ) -> "ElasticsearchEmitter":
         """
         Creates an emitter with static index which is invoked on every record to convert it to
         Elasticsearch actions.
         """
-        JMapElasticsearchEmitter = get_gateway().jvm \
-            .org.apache.flink.connector.elasticsearch.sink.MapElasticsearchEmitter
+        JMapElasticsearchEmitter = (
+            get_gateway().jvm.org.apache.flink.connector.elasticsearch.sink.MapElasticsearchEmitter
+        )
         j_emitter = JMapElasticsearchEmitter(index, doc_type, key_field, False)
         return ElasticsearchEmitter(j_emitter)
 
     @staticmethod
-    def dynamic_index(index_field: str, key_field: str = None, doc_type: str = None) \
-            -> 'ElasticsearchEmitter':
+    def dynamic_index(
+        index_field: str, key_field: str = None, doc_type: str = None
+    ) -> "ElasticsearchEmitter":
         """
         Creates an emitter with dynamic index which is invoked on every record to convert it to
         Elasticsearch actions.
         """
-        JMapElasticsearchEmitter = get_gateway().jvm \
-            .org.apache.flink.connector.elasticsearch.sink.MapElasticsearchEmitter
+        JMapElasticsearchEmitter = (
+            get_gateway().jvm.org.apache.flink.connector.elasticsearch.sink.MapElasticsearchEmitter
+        )
         j_emitter = JMapElasticsearchEmitter(index_field, doc_type, key_field, True)
         return ElasticsearchEmitter(j_emitter)
 
@@ -110,7 +117,7 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         """
         pass
 
-    def set_emitter(self, emitter: ElasticsearchEmitter) -> 'ElasticsearchSinkBuilderBase':
+    def set_emitter(self, emitter: ElasticsearchEmitter) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the emitter which is invoked on every record to convert it to Elasticsearch actions.
 
@@ -119,7 +126,7 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         self._j_elasticsearch_sink_builder.setEmitter(emitter._j_emitter)
         return self
 
-    def set_hosts(self, hosts: Union[str, List[str]]) -> 'ElasticsearchSinkBuilderBase':
+    def set_hosts(self, hosts: Union[str, List[str]]) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the hosts where the Elasticsearch cluster nodes are reachable.
         """
@@ -131,8 +138,9 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         self._j_elasticsearch_sink_builder.setHosts(j_http_hosts_array)
         return self
 
-    def set_delivery_guarantee(self, delivery_guarantee: DeliveryGuarantee) \
-            -> 'ElasticsearchSinkBuilderBase':
+    def set_delivery_guarantee(
+        self, delivery_guarantee: DeliveryGuarantee
+    ) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the wanted DeliveryGuarantee. The default delivery guarantee is DeliveryGuarantee#NONE
         """
@@ -140,7 +148,7 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         self._j_elasticsearch_sink_builder.setDeliveryGuarantee(j_delivery_guarantee)
         return self
 
-    def set_bulk_flush_max_actions(self, num_max_actions: int) -> 'ElasticsearchSinkBuilderBase':
+    def set_bulk_flush_max_actions(self, num_max_actions: int) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the maximum number of actions to buffer for each bulk request. You can pass -1 to
         disable it. The default flush size 1000.
@@ -148,7 +156,7 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         self._j_elasticsearch_sink_builder.setBulkFlushMaxActions(num_max_actions)
         return self
 
-    def set_bulk_flush_max_size_mb(self, max_size_mb: int) -> 'ElasticsearchSinkBuilderBase':
+    def set_bulk_flush_max_size_mb(self, max_size_mb: int) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the maximum size of buffered actions, in mb, per bulk request. You can pass -1 to
         disable it.
@@ -156,17 +164,16 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         self._j_elasticsearch_sink_builder.setBulkFlushMaxSizeMb(max_size_mb)
         return self
 
-    def set_bulk_flush_interval(self, interval_millis: int) -> 'ElasticsearchSinkBuilderBase':
+    def set_bulk_flush_interval(self, interval_millis: int) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the bulk flush interval, in milliseconds. You can pass -1 to disable it.
         """
         self._j_elasticsearch_sink_builder.setBulkFlushInterval(interval_millis)
         return self
 
-    def set_bulk_flush_backoff_strategy(self,
-                                        flush_backoff_type: FlushBackoffType,
-                                        max_retries: int,
-                                        delay_millis: int) -> 'ElasticsearchSinkBuilderBase':
+    def set_bulk_flush_backoff_strategy(
+        self, flush_backoff_type: FlushBackoffType, max_retries: int, delay_millis: int
+    ) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the type of back off to use when flushing bulk requests. The default bulk flush back
         off type is FlushBackoffType#NONE.
@@ -177,31 +184,32 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         Sets the maximum number of retries for a backoff attempt when flushing bulk requests.
         """
         self._j_elasticsearch_sink_builder.setBulkFlushBackoffStrategy(
-            flush_backoff_type._to_j_flush_backoff_type(), max_retries, delay_millis)
+            flush_backoff_type._to_j_flush_backoff_type(), max_retries, delay_millis
+        )
         return self
 
-    def set_connection_username(self, username: str) -> 'ElasticsearchSinkBuilderBase':
+    def set_connection_username(self, username: str) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the username used to authenticate the connection with the Elasticsearch cluster.
         """
         self._j_elasticsearch_sink_builder.setConnectionUsername(username)
         return self
 
-    def set_connection_password(self, password: str) -> 'ElasticsearchSinkBuilderBase':
+    def set_connection_password(self, password: str) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the password used to authenticate the connection with the Elasticsearch cluster.
         """
         self._j_elasticsearch_sink_builder.setConnectionPassword(password)
         return self
 
-    def set_connection_path_prefix(self, prefix: str) -> 'ElasticsearchSinkBuilderBase':
+    def set_connection_path_prefix(self, prefix: str) -> "ElasticsearchSinkBuilderBase":
         """
         Sets a prefix which used for every REST communication to the Elasticsearch cluster.
         """
         self._j_elasticsearch_sink_builder.setConnectionPathPrefix(prefix)
         return self
 
-    def set_connection_request_timeout(self, timeout: int) -> 'ElasticsearchSinkBuilderBase':
+    def set_connection_request_timeout(self, timeout: int) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the timeout for requesting the connection of the Elasticsearch cluster from the
         connection manager.
@@ -209,14 +217,14 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         self._j_elasticsearch_sink_builder.setConnectionRequestTimeout(timeout)
         return self
 
-    def set_connection_timeout(self, timeout: int) -> 'ElasticsearchSinkBuilderBase':
+    def set_connection_timeout(self, timeout: int) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the timeout for establishing a connection of the Elasticsearch cluster.
         """
         self._j_elasticsearch_sink_builder.setConnectionTimeout(timeout)
         return self
 
-    def set_socket_timeout(self, timeout: int) -> 'ElasticsearchSinkBuilderBase':
+    def set_socket_timeout(self, timeout: int) -> "ElasticsearchSinkBuilderBase":
         """
         Sets the timeout for waiting for data or, put differently, a maximum period inactivity
         between two consecutive data packets.
@@ -224,7 +232,7 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         self._j_elasticsearch_sink_builder.setSocketTimeout(timeout)
         return self
 
-    def build(self) -> 'ElasticsearchSink':
+    def build(self) -> "ElasticsearchSink":
         """
         Constructs the ElasticsearchSink with the properties configured this builder.
         """
@@ -248,8 +256,7 @@ class Elasticsearch6SinkBuilder(ElasticsearchSinkBuilderBase):
     """
 
     def __init__(self):
-        self._j_elasticsearch_sink_builder = get_gateway().jvm \
-            .org.apache.flink.connector.elasticsearch.sink.Elasticsearch6SinkBuilder()
+        self._j_elasticsearch_sink_builder = get_gateway().jvm.org.apache.flink.connector.elasticsearch.sink.Elasticsearch6SinkBuilder()
 
     def get_http_host_class(self):
         return get_gateway().jvm.org.apache.flink.elasticsearch6.shaded.org.apache.http.HttpHost
@@ -272,8 +279,7 @@ class Elasticsearch7SinkBuilder(ElasticsearchSinkBuilderBase):
     """
 
     def __init__(self):
-        self._j_elasticsearch_sink_builder = get_gateway().jvm \
-            .org.apache.flink.connector.elasticsearch.sink.Elasticsearch7SinkBuilder()
+        self._j_elasticsearch_sink_builder = get_gateway().jvm.org.apache.flink.connector.elasticsearch.sink.Elasticsearch7SinkBuilder()
 
     def get_http_host_class(self):
         return get_gateway().jvm.org.apache.flink.elasticsearch7.shaded.org.apache.http.HttpHost
@@ -294,5 +300,6 @@ class ElasticsearchSink(Sink):
     inconsistent data in ElasticSearch right after the restart, but eventually everything will be
     consistent again.
     """
+
     def __init__(self, j_elasticsearch_sink):
         super(ElasticsearchSink, self).__init__(sink=j_elasticsearch_sink)

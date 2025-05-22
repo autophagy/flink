@@ -17,32 +17,45 @@
 ################################################################################
 from pemja import findClass
 
-from pyflink.common.typeinfo import (TypeInformation, Types, BasicTypeInfo, BasicType,
-                                     PrimitiveArrayTypeInfo, BasicArrayTypeInfo,
-                                     ObjectArrayTypeInfo, MapTypeInfo)
-from pyflink.datastream.state import (StateDescriptor, ValueStateDescriptor,
-                                      ReducingStateDescriptor,
-                                      AggregatingStateDescriptor, ListStateDescriptor,
-                                      MapStateDescriptor, StateTtlConfig)
+from pyflink.common.typeinfo import (
+    TypeInformation,
+    Types,
+    BasicTypeInfo,
+    BasicType,
+    PrimitiveArrayTypeInfo,
+    BasicArrayTypeInfo,
+    ObjectArrayTypeInfo,
+    MapTypeInfo,
+)
+from pyflink.datastream.state import (
+    StateDescriptor,
+    ValueStateDescriptor,
+    ReducingStateDescriptor,
+    AggregatingStateDescriptor,
+    ListStateDescriptor,
+    MapStateDescriptor,
+    StateTtlConfig,
+)
 
 # Java Types Class
-JTypes = findClass('org.apache.flink.api.common.typeinfo.Types')
-JPrimitiveArrayTypeInfo = findClass('org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo')
-JBasicArrayTypeInfo = findClass('org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo')
-JPickledByteArrayTypeInfo = findClass('org.apache.flink.streaming.api.typeinfo.python.'
-                                      'PickledByteArrayTypeInfo')
-JMapTypeInfo = findClass('org.apache.flink.api.java.typeutils.MapTypeInfo')
+JTypes = findClass("org.apache.flink.api.common.typeinfo.Types")
+JPrimitiveArrayTypeInfo = findClass("org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo")
+JBasicArrayTypeInfo = findClass("org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo")
+JPickledByteArrayTypeInfo = findClass(
+    "org.apache.flink.streaming.api.typeinfo.python." "PickledByteArrayTypeInfo"
+)
+JMapTypeInfo = findClass("org.apache.flink.api.java.typeutils.MapTypeInfo")
 
 # Java State Descriptor Class
-JValueStateDescriptor = findClass('org.apache.flink.api.common.state.ValueStateDescriptor')
-JListStateDescriptor = findClass('org.apache.flink.api.common.state.ListStateDescriptor')
-JMapStateDescriptor = findClass('org.apache.flink.api.common.state.MapStateDescriptor')
+JValueStateDescriptor = findClass("org.apache.flink.api.common.state.ValueStateDescriptor")
+JListStateDescriptor = findClass("org.apache.flink.api.common.state.ListStateDescriptor")
+JMapStateDescriptor = findClass("org.apache.flink.api.common.state.MapStateDescriptor")
 
 # Java StateTtlConfig
-JStateTtlConfig = findClass('org.apache.flink.api.common.state.StateTtlConfig')
-JDuration = findClass('java.time.Duration')
-JUpdateType = findClass('org.apache.flink.api.common.state.StateTtlConfig$UpdateType')
-JStateVisibility = findClass('org.apache.flink.api.common.state.StateTtlConfig$StateVisibility')
+JStateTtlConfig = findClass("org.apache.flink.api.common.state.StateTtlConfig")
+JDuration = findClass("java.time.Duration")
+JUpdateType = findClass("org.apache.flink.api.common.state.StateTtlConfig$UpdateType")
+JStateVisibility = findClass("org.apache.flink.api.common.state.StateTtlConfig$StateVisibility")
 
 
 def to_java_typeinfo(type_info: TypeInformation):
@@ -140,7 +153,8 @@ def to_java_typeinfo(type_info: TypeInformation):
 
 def to_java_state_ttl_config(ttl_config: StateTtlConfig):
     j_ttl_config_builder = JStateTtlConfig.newBuilder(
-        JDuration.ofMillis(ttl_config.get_ttl().to_milliseconds()))
+        JDuration.ofMillis(ttl_config.get_ttl().to_milliseconds())
+    )
 
     update_type = ttl_config.get_update_type()
     if update_type == StateTtlConfig.UpdateType.Disabled:
@@ -167,21 +181,26 @@ def to_java_state_ttl_config(ttl_config: StateTtlConfig):
     if incremental_cleanup_strategy:
         j_ttl_config_builder.cleanupIncrementally(
             incremental_cleanup_strategy.get_cleanup_size(),
-            incremental_cleanup_strategy.run_cleanup_for_every_record())
+            incremental_cleanup_strategy.run_cleanup_for_every_record(),
+        )
 
-    rocksdb_compact_filter_cleanup_strategy = \
+    rocksdb_compact_filter_cleanup_strategy = (
         cleanup_strategies.get_rocksdb_compact_filter_cleanup_strategy()
+    )
 
     if rocksdb_compact_filter_cleanup_strategy:
         j_ttl_config_builder.cleanupInRocksdbCompactFilter(
-            rocksdb_compact_filter_cleanup_strategy.get_query_time_after_num_entries())
+            rocksdb_compact_filter_cleanup_strategy.get_query_time_after_num_entries()
+        )
 
     return j_ttl_config_builder.build()
 
 
 def to_java_state_descriptor(state_descriptor: StateDescriptor):
-    if isinstance(state_descriptor,
-                  (ValueStateDescriptor, ReducingStateDescriptor, AggregatingStateDescriptor)):
+    if isinstance(
+        state_descriptor,
+        (ValueStateDescriptor, ReducingStateDescriptor, AggregatingStateDescriptor),
+    ):
         value_type_info = to_java_typeinfo(state_descriptor.type_info)
         j_state_descriptor = JValueStateDescriptor(state_descriptor.name, value_type_info)
 
@@ -193,7 +212,8 @@ def to_java_state_descriptor(state_descriptor: StateDescriptor):
         key_type_info = to_java_typeinfo(state_descriptor.type_info._key_type_info)
         value_type_info = to_java_typeinfo(state_descriptor.type_info._value_type_info)
         j_state_descriptor = JMapStateDescriptor(
-            state_descriptor.name, key_type_info, value_type_info)
+            state_descriptor.name, key_type_info, value_type_info
+        )
     else:
         raise Exception("Unknown supported state_descriptor {0}".format(state_descriptor))
 

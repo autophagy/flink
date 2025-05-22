@@ -23,26 +23,36 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 class SchemaTest(PyFlinkTestCase):
     def test_schema_basic(self):
-        old_schema = Schema.new_builder() \
-            .from_row_data_type(DataTypes.ROW(
-                [DataTypes.FIELD("a", DataTypes.TINYINT()),
-                 DataTypes.FIELD("b", DataTypes.SMALLINT()),
-                 DataTypes.FIELD("c", DataTypes.INT())])) \
-            .from_fields(["d", "e"], [DataTypes.STRING(), DataTypes.BOOLEAN()]) \
+        old_schema = (
+            Schema.new_builder()
+            .from_row_data_type(
+                DataTypes.ROW(
+                    [
+                        DataTypes.FIELD("a", DataTypes.TINYINT()),
+                        DataTypes.FIELD("b", DataTypes.SMALLINT()),
+                        DataTypes.FIELD("c", DataTypes.INT()),
+                    ]
+                )
+            )
+            .from_fields(["d", "e"], [DataTypes.STRING(), DataTypes.BOOLEAN()])
             .build()
-        self.schema = Schema.new_builder() \
-            .from_schema(old_schema) \
-            .primary_key_named("primary_constraint", "id") \
-            .column("id", DataTypes.INT().not_null()) \
-            .column("counter", DataTypes.INT().not_null()) \
-            .column("payload", "ROW<name STRING, age INT, flag BOOLEAN>") \
-            .column_by_metadata("topic", DataTypes.STRING(), None, True) \
-            .column_by_expression("ts", call_sql("orig_ts - INTERVAL '60' MINUTE")) \
-            .column_by_metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp") \
-            .watermark("ts", "ts - INTERVAL '5' SECOND") \
-            .column_by_expression("proctime", "PROCTIME()") \
+        )
+        self.schema = (
+            Schema.new_builder()
+            .from_schema(old_schema)
+            .primary_key_named("primary_constraint", "id")
+            .column("id", DataTypes.INT().not_null())
+            .column("counter", DataTypes.INT().not_null())
+            .column("payload", "ROW<name STRING, age INT, flag BOOLEAN>")
+            .column_by_metadata("topic", DataTypes.STRING(), None, True)
+            .column_by_expression("ts", call_sql("orig_ts - INTERVAL '60' MINUTE"))
+            .column_by_metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp")
+            .watermark("ts", "ts - INTERVAL '5' SECOND")
+            .column_by_expression("proctime", "PROCTIME()")
             .build()
-        self.assertEqual("""(
+        )
+        self.assertEqual(
+            """(
   `a` TINYINT,
   `b` SMALLINT,
   `c` INT,
@@ -57,16 +67,18 @@ class SchemaTest(PyFlinkTestCase):
   `proctime` AS [PROCTIME()],
   WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND],
   CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED
-)""", str(self.schema))
+)""",
+            str(self.schema),
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
 
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

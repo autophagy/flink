@@ -43,8 +43,11 @@ if os.getenv("VERBOSE"):
     log_level = logging.DEBUG
 else:
     log_level = logging.INFO
-logging.basicConfig(stream=sys.stdout, level=log_level,
-                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    stream=sys.stdout,
+    level=log_level,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 
 
 def exec_insert_table(table, table_path) -> JobExecutionResult:
@@ -54,8 +57,8 @@ def exec_insert_table(table, table_path) -> JobExecutionResult:
 def _load_specific_flink_module_jars(jars_relative_path):
     flink_source_root = _find_flink_source_root()
     jars_abs_path = flink_source_root + jars_relative_path
-    specific_jars = glob.glob(jars_abs_path + '/target/flink*.jar')
-    specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
+    specific_jars = glob.glob(jars_abs_path + "/target/flink*.jar")
+    specific_jars = ["file://" + specific_jar for specific_jar in specific_jars]
     add_jars_to_context_class_loader(specific_jars)
 
 
@@ -85,7 +88,7 @@ class PyFlinkTestCase(unittest.TestCase):
         cls.tempdir = tempfile.mkdtemp()
 
         os.environ["FLINK_TESTING"] = "1"
-        os.environ['_python_worker_execution_mode'] = "process"
+        os.environ["_python_worker_execution_mode"] = "process"
         _find_flink_home()
 
         logging.info("Using %s as FLINK_HOME...", os.environ["FLINK_HOME"])
@@ -93,7 +96,7 @@ class PyFlinkTestCase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tempdir, ignore_errors=True)
-        del os.environ['_python_worker_execution_mode']
+        del os.environ["_python_worker_execution_mode"]
 
     @classmethod
     def assert_equals(cls, actual, expected):
@@ -115,28 +118,30 @@ class PyFlinkTestCase(unittest.TestCase):
 
 
 class PyFlinkITTestCase(PyFlinkTestCase):
-
     @classmethod
     def setUpClass(cls):
         super(PyFlinkITTestCase, cls).setUpClass()
         gateway = get_gateway()
         MiniClusterResourceConfiguration = (
-            gateway.jvm.org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
-            .Builder()
+            gateway.jvm.org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration.Builder()
             .setNumberTaskManagers(8)
             .setNumberSlotsPerTaskManager(1)
             .setRpcServiceSharing(
-                get_gateway().jvm.org.apache.flink.runtime.minicluster.RpcServiceSharing.DEDICATED)
+                get_gateway().jvm.org.apache.flink.runtime.minicluster.RpcServiceSharing.DEDICATED
+            )
             .withHaLeadershipControl()
-            .build())
-        cls.resource = (
-            get_gateway().jvm.org.apache.flink.test.util.
-            MiniClusterWithClientResource(MiniClusterResourceConfiguration))
+            .build()
+        )
+        cls.resource = get_gateway().jvm.org.apache.flink.test.util.MiniClusterWithClientResource(
+            MiniClusterResourceConfiguration
+        )
         cls.resource.before()
 
         cls.env = StreamExecutionEnvironment(
             get_gateway().jvm.org.apache.flink.streaming.util.TestStreamEnvironment(
-                cls.resource.getMiniCluster(), 2))
+                cls.resource.getMiniCluster(), 2
+            )
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -213,12 +218,15 @@ class PythonAPICompletenessTestCase(object):
 
     @classmethod
     def get_python_class_methods(cls, python_class):
-        return {cls.snake_to_camel(cls.java_method_name(method_name))
-                for method_name in dir(python_class) if not method_name.startswith('_')}
+        return {
+            cls.snake_to_camel(cls.java_method_name(method_name))
+            for method_name in dir(python_class)
+            if not method_name.startswith("_")
+        }
 
     @staticmethod
     def snake_to_camel(method_name):
-        output = ''.join(x.capitalize() or '_' for x in method_name.split('_'))
+        output = "".join(x.capitalize() or "_" for x in method_name.split("_"))
         return output[0].lower() + output[1:]
 
     @staticmethod
@@ -232,15 +240,25 @@ class PythonAPICompletenessTestCase(object):
 
     @classmethod
     def check_methods(cls):
-        java_primary_methods = {'getClass', 'notifyAll', 'equals', 'hashCode', 'toString',
-                                'notify', 'wait'}
+        java_primary_methods = {
+            "getClass",
+            "notifyAll",
+            "equals",
+            "hashCode",
+            "toString",
+            "notify",
+            "wait",
+        }
         java_methods = PythonAPICompletenessTestCase.get_java_class_methods(cls.java_class())
         python_methods = cls.get_python_class_methods(cls.python_class())
-        missing_methods = java_methods - python_methods - cls.excluded_methods() \
-            - java_primary_methods
+        missing_methods = (
+            java_methods - python_methods - cls.excluded_methods() - java_primary_methods
+        )
         if len(missing_methods) > 0:
-            raise Exception('Methods: %s in Java class %s have not been added in Python class %s.'
-                            % (missing_methods, cls.java_class(), cls.python_class()))
+            raise Exception(
+                "Methods: %s in Java class %s have not been added in Python class %s."
+                % (missing_methods, cls.java_class(), cls.python_class())
+            )
 
     @classmethod
     def java_method_name(cls, python_method_name):
@@ -285,8 +303,9 @@ class PythonAPICompletenessTestCase(object):
 
 def replace_uuid(input_obj):
     if isinstance(input_obj, str):
-        return re.sub(r'[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}',
-                      '{uuid}', input_obj)
+        return re.sub(
+            r"[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "{uuid}", input_obj
+        )
     elif isinstance(input_obj, dict):
         input_obj_copy = dict()
         for key in input_obj:
@@ -295,7 +314,6 @@ def replace_uuid(input_obj):
 
 
 class Tuple2(object):
-
     def __init__(self, f0, f1):
         self.f0 = f0
         self.f1 = f1
@@ -306,7 +324,6 @@ class Tuple2(object):
 
 
 class TestEnv(object):
-
     def __init__(self):
         self.result = []
 
@@ -324,7 +341,7 @@ class TestEnv(object):
 
 
 DATE_EPOCH_ORDINAL = datetime.datetime(1970, 1, 1).toordinal()
-TIME_EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 3
+TIME_EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10**3
 
 
 def _date_to_millis(d: datetime.date):
@@ -335,13 +352,12 @@ def _time_to_millis(t: datetime.time):
     if t.tzinfo is not None:
         offset = t.utcoffset()
         offset = offset if offset else datetime.timedelta()
-        offset_millis = \
-            (offset.days * 86400 + offset.seconds) * 10 ** 3 + offset.microseconds // 1000
+        offset_millis = (offset.days * 86400 + offset.seconds) * 10**3 + offset.microseconds // 1000
     else:
         offset_millis = TIME_EPOCH_ORDINAL
     minutes = t.hour * 60 + t.minute
     seconds = minutes * 60 + t.second
-    return seconds * 10 ** 3 + t.microsecond // 1000 - offset_millis
+    return seconds * 10**3 + t.microsecond // 1000 - offset_millis
 
 
 def to_java_data_structure(value):
@@ -356,11 +372,8 @@ def to_java_data_structure(value):
                 _date_to_millis(value.date()) + _time_to_millis(value.time())
             )
         return jvm.java.time.Instant.ofEpochMilli(
-            (
-                calendar.timegm(value.utctimetuple()) +
-                calendar.timegm(time.localtime(0))
-            ) * 1000 +
-            value.microsecond // 1000
+            (calendar.timegm(value.utctimetuple()) + calendar.timegm(time.localtime(0))) * 1000
+            + value.microsecond // 1000
         )
     elif isinstance(value, datetime.date):
         return jvm.java.sql.Date(_date_to_millis(value))
@@ -381,7 +394,7 @@ def to_java_data_structure(value):
             j_map.put(to_java_data_structure(k), to_java_data_structure(v))
         return j_map
     elif isinstance(value, Row):
-        if hasattr(value, '_fields'):
+        if hasattr(value, "_fields"):
             j_row = jvm.org.apache.flink.types.Row.withNames(value.get_row_kind().to_j_row_kind())
             for field_name, value in zip(value._fields, value._values):
                 j_row.setField(field_name, to_java_data_structure(value))
@@ -393,4 +406,4 @@ def to_java_data_structure(value):
                 j_row.setField(idx, to_java_data_structure(value))
         return j_row
     else:
-        raise TypeError('unsupported value type {}'.format(str(type(value))))
+        raise TypeError("unsupported value type {}".format(str(type(value))))

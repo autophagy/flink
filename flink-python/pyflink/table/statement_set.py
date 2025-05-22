@@ -25,7 +25,7 @@ from pyflink.table.table_pipeline import TablePipeline
 from pyflink.table.table_result import TableResult
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
-__all__ = ['StatementSet']
+__all__ = ["StatementSet"]
 
 
 class StatementSet(object):
@@ -42,7 +42,7 @@ class StatementSet(object):
         self._j_statement_set = _j_statement_set
         self._t_env = t_env
 
-    def add(self, table_pipeline: TablePipeline) -> 'StatementSet':
+    def add(self, table_pipeline: TablePipeline) -> "StatementSet":
         """
         Adds a :class:`~pyflink.table.TablePipeline`.
 
@@ -54,7 +54,7 @@ class StatementSet(object):
         self._j_statement_set.add(table_pipeline._j_table_pipeline)
         return self
 
-    def add_insert_sql(self, stmt: str) -> 'StatementSet':
+    def add_insert_sql(self, stmt: str) -> "StatementSet":
         """
         add insert statement to the set.
 
@@ -79,10 +79,9 @@ class StatementSet(object):
         """
         self._j_statement_set.attachAsDataStream()
 
-    def add_insert(self,
-                   target_path_or_descriptor: Union[str, TableDescriptor],
-                   table,
-                   overwrite: bool = False) -> 'StatementSet':
+    def add_insert(
+        self, target_path_or_descriptor: Union[str, TableDescriptor], table, overwrite: bool = False
+    ) -> "StatementSet":
         """
         Adds a statement that the pipeline defined by the given Table object should be written to a
         table (backed by a DynamicTableSink) that was registered under the specified path or
@@ -140,7 +139,8 @@ class StatementSet(object):
             self._j_statement_set.addInsert(target_path_or_descriptor, table._j_table, overwrite)
         else:
             self._j_statement_set.addInsert(
-                target_path_or_descriptor._j_table_descriptor, table._j_table, overwrite)
+                target_path_or_descriptor._j_table_descriptor, table._j_table, overwrite
+            )
         return self
 
     def explain(self, *extra_details: ExplainDetail) -> str:

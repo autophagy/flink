@@ -32,12 +32,14 @@ class WatermarkStrategy(object):
     The convenience methods, for example forBoundedOutOfOrderness(Duration), create a
     WatermarkStrategy for common built in strategies.
     """
+
     def __init__(self, j_watermark_strategy):
         self._j_watermark_strategy = j_watermark_strategy
         self._timestamp_assigner = None
 
-    def with_timestamp_assigner(self, timestamp_assigner: 'TimestampAssigner') -> \
-            'WatermarkStrategy':
+    def with_timestamp_assigner(
+        self, timestamp_assigner: "TimestampAssigner"
+    ) -> "WatermarkStrategy":
         """
         Creates a new WatermarkStrategy that wraps this strategy but instead uses the given a
         TimestampAssigner by implementing TimestampAssigner interface.
@@ -54,7 +56,7 @@ class WatermarkStrategy(object):
         self._timestamp_assigner = timestamp_assigner
         return self
 
-    def with_idleness(self, idle_timeout: Duration) -> 'WatermarkStrategy':
+    def with_idleness(self, idle_timeout: Duration) -> "WatermarkStrategy":
         """
         Creates a new enriched WatermarkStrategy that also does idleness detection in the created
         WatermarkGenerator.
@@ -71,8 +73,12 @@ class WatermarkStrategy(object):
         """
         return WatermarkStrategy(self._j_watermark_strategy.withIdleness(idle_timeout._j_duration))
 
-    def with_watermark_alignment(self, watermark_group: str, max_allowed_watermark_drift: Duration,
-                                 update_interval: Optional[Duration] = None) -> 'WatermarkStrategy':
+    def with_watermark_alignment(
+        self,
+        watermark_group: str,
+        max_allowed_watermark_drift: Duration,
+        update_interval: Optional[Duration] = None,
+    ) -> "WatermarkStrategy":
         """
         Creates a new :class:`WatermarkStrategy` that configures the maximum watermark drift from
         other sources/tasks/partitions in the same watermark group. The group may contain completely
@@ -100,18 +106,22 @@ class WatermarkStrategy(object):
         .. versionadded:: 1.16.0
         """
         if update_interval is None:
-            return WatermarkStrategy(self._j_watermark_strategy.withWatermarkAlignment(
-                watermark_group, max_allowed_watermark_drift._j_duration
-            ))
+            return WatermarkStrategy(
+                self._j_watermark_strategy.withWatermarkAlignment(
+                    watermark_group, max_allowed_watermark_drift._j_duration
+                )
+            )
         else:
-            return WatermarkStrategy(self._j_watermark_strategy.withWatermarkAlignment(
-                watermark_group,
-                max_allowed_watermark_drift._j_duration,
-                update_interval._j_duration,
-            ))
+            return WatermarkStrategy(
+                self._j_watermark_strategy.withWatermarkAlignment(
+                    watermark_group,
+                    max_allowed_watermark_drift._j_duration,
+                    update_interval._j_duration,
+                )
+            )
 
     @staticmethod
-    def for_monotonous_timestamps() -> 'WatermarkStrategy':
+    def for_monotonous_timestamps() -> "WatermarkStrategy":
         """
         Creates a watermark strategy for situations with monotonously ascending timestamps.
 
@@ -119,33 +129,37 @@ class WatermarkStrategy(object):
         data. The delay introduced by this strategy is mainly the periodic interval in which the
         watermarks are generated.
         """
-        JWaterMarkStrategy = get_gateway().jvm\
-            .org.apache.flink.api.common.eventtime.WatermarkStrategy
+        JWaterMarkStrategy = (
+            get_gateway().jvm.org.apache.flink.api.common.eventtime.WatermarkStrategy
+        )
         return WatermarkStrategy(JWaterMarkStrategy.forMonotonousTimestamps())
 
     @staticmethod
-    def for_bounded_out_of_orderness(max_out_of_orderness: Duration) -> 'WatermarkStrategy':
+    def for_bounded_out_of_orderness(max_out_of_orderness: Duration) -> "WatermarkStrategy":
         """
         Creates a watermark strategy for situations where records are out of order, but you can
         place an upper bound on how far the events are out of order. An out-of-order bound B means
         that once the an event with timestamp T was encountered, no events older than (T - B) will
         follow any more.
         """
-        JWaterMarkStrategy = get_gateway().jvm \
-            .org.apache.flink.api.common.eventtime.WatermarkStrategy
+        JWaterMarkStrategy = (
+            get_gateway().jvm.org.apache.flink.api.common.eventtime.WatermarkStrategy
+        )
         return WatermarkStrategy(
-            JWaterMarkStrategy.forBoundedOutOfOrderness(max_out_of_orderness._j_duration))
+            JWaterMarkStrategy.forBoundedOutOfOrderness(max_out_of_orderness._j_duration)
+        )
 
     @staticmethod
-    def no_watermarks() -> 'WatermarkStrategy':
+    def no_watermarks() -> "WatermarkStrategy":
         """
         Creates a watermark strategy that generates no watermarks at all. This may be useful in
         scenarios that do pure processing-time based stream processing.
 
         .. versionadded:: 1.16.0
         """
-        JWaterMarkStrategy = get_gateway().jvm \
-            .org.apache.flink.api.common.eventtime.WatermarkStrategy
+        JWaterMarkStrategy = (
+            get_gateway().jvm.org.apache.flink.api.common.eventtime.WatermarkStrategy
+        )
         return WatermarkStrategy(JWaterMarkStrategy.noWatermarks())
 
 
@@ -158,6 +172,7 @@ class TimestampAssigner(abc.ABC):
     milliseconds since the Epoch (midnight, January 1, 1970 UTC), the same way as time.time() does
     it.
     """
+
     @abc.abstractmethod
     def extract_timestamp(self, value: Any, record_timestamp: int) -> int:
         """

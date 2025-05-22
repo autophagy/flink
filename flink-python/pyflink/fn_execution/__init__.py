@@ -18,8 +18,8 @@
 
 import os
 
-if 'PYFLINK_CYTHON_ENABLED' in os.environ:
-    PYFLINK_CYTHON_ENABLED = bool(os.environ['PYFLINK_CYTHON_ENABLED'])
+if "PYFLINK_CYTHON_ENABLED" in os.environ:
+    PYFLINK_CYTHON_ENABLED = bool(os.environ["PYFLINK_CYTHON_ENABLED"])
 else:
     PYFLINK_CYTHON_ENABLED = True
 
@@ -30,19 +30,24 @@ else:
 
 # Check whether beam could be fast and force PyFlink to be slow if beam is slow
 try:
-    from apache_beam.coders import stream # noqa # pylint: disable=unused-import
+    from apache_beam.coders import stream  # noqa # pylint: disable=unused-import
 except:
     PYFLINK_CYTHON_ENABLED = False
 
 
 # Check whether PyFlink could be fast
 try:
-    from pyflink.fn_execution import stream_fast, coder_impl_fast \
-        # noqa # pylint: disable=unused-import
-    from pyflink.fn_execution.beam import \
-        beam_operations_fast, beam_coder_impl_fast, beam_stream_fast \
-        # noqa # pylint: disable=unused-import
-    from pyflink.fn_execution.table import window_aggregate_fast, aggregate_fast \
-        # noqa # pylint: disable=unused-import
+    from pyflink.fn_execution import stream_fast, coder_impl_fast
+
+    # noqa # pylint: disable=unused-import
+    from pyflink.fn_execution.beam import (
+        beam_operations_fast,
+        beam_coder_impl_fast,
+        beam_stream_fast,
+    )
+
+    # noqa # pylint: disable=unused-import
+    from pyflink.fn_execution.table import window_aggregate_fast, aggregate_fast
+# noqa # pylint: disable=unused-import
 except:
     PYFLINK_CYTHON_ENABLED = False

@@ -19,7 +19,7 @@ from enum import Enum
 
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['InputDependencyConstraint']
+__all__ = ["InputDependencyConstraint"]
 
 
 class InputDependencyConstraint(Enum):
@@ -39,12 +39,14 @@ class InputDependencyConstraint(Enum):
     ALL = 1
 
     @staticmethod
-    def _from_j_input_dependency_constraint(j_input_dependency_constraint) \
-            -> 'InputDependencyConstraint':
+    def _from_j_input_dependency_constraint(
+        j_input_dependency_constraint,
+    ) -> "InputDependencyConstraint":
         return InputDependencyConstraint[j_input_dependency_constraint.name()]
 
     def _to_j_input_dependency_constraint(self):
         gateway = get_gateway()
-        JInputDependencyConstraint = gateway.jvm.org.apache.flink.api.common \
-            .InputDependencyConstraint
+        JInputDependencyConstraint = (
+            gateway.jvm.org.apache.flink.api.common.InputDependencyConstraint
+        )
         return getattr(JInputDependencyConstraint, self.name)

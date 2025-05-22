@@ -20,84 +20,80 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class StreamTableJoinTests(PyFlinkStreamTableTestCase):
-
     def test_join_without_where(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"])
+        t2 = t_env.from_elements([(2, "Flink")], ["d", "e"])
         result = t1.join(t2, t1.a == t2.d)
 
         query_operation = result._j_table.getQueryOperation()
-        self.assertEqual('INNER', query_operation.getJoinType().toString())
-        self.assertEqual('equals(a, d)',
-                         query_operation.getCondition().toString())
+        self.assertEqual("INNER", query_operation.getJoinType().toString())
+        self.assertEqual("equals(a, d)", query_operation.getCondition().toString())
         self.assertFalse(query_operation.isCorrelated())
 
     def test_join_with_where(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"])
+        t2 = t_env.from_elements([(2, "Flink")], ["d", "e"])
         result = t1.join(t2).where(t1.a == t2.d)
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
-        self.assertEqual('INNER', query_operation.getJoinType().toString())
-        self.assertEqual('true', query_operation.getCondition().toString())
+        self.assertEqual("INNER", query_operation.getJoinType().toString())
+        self.assertEqual("true", query_operation.getCondition().toString())
         self.assertFalse(query_operation.isCorrelated())
 
     def test_left_outer_join_without_where(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"])
+        t2 = t_env.from_elements([(2, "Flink")], ["d", "e"])
         result = t1.left_outer_join(t2, t1.a == t2.d)
 
         query_operation = result._j_table.getQueryOperation()
-        self.assertEqual('LEFT_OUTER', query_operation.getJoinType().toString())
-        self.assertEqual('equals(a, d)',
-                         query_operation.getCondition().toString())
+        self.assertEqual("LEFT_OUTER", query_operation.getJoinType().toString())
+        self.assertEqual("equals(a, d)", query_operation.getCondition().toString())
         self.assertFalse(query_operation.isCorrelated())
 
     def test_left_outer_join_with_where(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"])
+        t2 = t_env.from_elements([(2, "Flink")], ["d", "e"])
         result = t1.left_outer_join(t2).where(t1.a == t2.d)
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
-        self.assertEqual('LEFT_OUTER', query_operation.getJoinType().toString())
-        self.assertEqual('true', query_operation.getCondition().toString())
+        self.assertEqual("LEFT_OUTER", query_operation.getJoinType().toString())
+        self.assertEqual("true", query_operation.getCondition().toString())
         self.assertFalse(query_operation.isCorrelated())
 
     def test_right_outer_join(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"])
+        t2 = t_env.from_elements([(2, "Flink")], ["d", "e"])
         result = t1.right_outer_join(t2, t1.a == t2.d)
 
         query_operation = result._j_table.getQueryOperation()
-        self.assertEqual('RIGHT_OUTER', query_operation.getJoinType().toString())
-        self.assertEqual('equals(a, d)',
-                         query_operation.getCondition().toString())
+        self.assertEqual("RIGHT_OUTER", query_operation.getJoinType().toString())
+        self.assertEqual("equals(a, d)", query_operation.getCondition().toString())
         self.assertFalse(query_operation.isCorrelated())
 
     def test_full_outer_join(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"])
+        t2 = t_env.from_elements([(2, "Flink")], ["d", "e"])
 
         result = t1.full_outer_join(t2, t1.a == t2.d)
         query_operation = result._j_table.getQueryOperation()
-        self.assertEqual('FULL_OUTER', query_operation.getJoinType().toString())
-        self.assertEqual('equals(a, d)',
-                         query_operation.getCondition().toString())
+        self.assertEqual("FULL_OUTER", query_operation.getJoinType().toString())
+        self.assertEqual("equals(a, d)", query_operation.getCondition().toString())
         self.assertFalse(query_operation.isCorrelated())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

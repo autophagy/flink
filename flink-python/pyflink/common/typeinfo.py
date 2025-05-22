@@ -25,7 +25,7 @@ from py4j.java_gateway import JavaClass, JavaObject
 
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['TypeInformation', 'Types']
+__all__ = ["TypeInformation", "Types"]
 
 
 class TypeInformation(object):
@@ -72,8 +72,8 @@ class TypeInformation(object):
 
     def from_internal_type(self, obj):
         """
-         Converts an internal object into a native Python object.
-         """
+        Converts an internal object into a native Python object.
+        """
         return obj
 
 
@@ -194,6 +194,7 @@ class InstantTypeInfo(BasicTypeInfo):
     """
     InstantTypeInfo enables users to get Instant TypeInfo.
     """
+
     def __init__(self, basic_type: BasicType):
         super(InstantTypeInfo, self).__init__(basic_type)
 
@@ -205,6 +206,7 @@ class InstantTypeInfo(BasicTypeInfo):
 
     def from_internal_type(self, obj):
         from pyflink.common.time import Instant
+
         return Instant.of_epoch_milli(obj // 1000)
 
 
@@ -238,8 +240,9 @@ class PrimitiveArrayTypeInfo(TypeInformation):
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
-            JPrimitiveArrayTypeInfo = get_gateway().jvm.org.apache.flink.api.common.typeinfo \
-                .PrimitiveArrayTypeInfo
+            JPrimitiveArrayTypeInfo = (
+                get_gateway().jvm.org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo
+            )
             if self._element_type == Types.BOOLEAN():
                 self._j_typeinfo = JPrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO
             elif self._element_type == Types.BYTE():
@@ -281,8 +284,9 @@ class BasicArrayTypeInfo(TypeInformation):
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
-            JBasicArrayTypeInfo = get_gateway().jvm.org.apache.flink.api.common.typeinfo \
-                .BasicArrayTypeInfo
+            JBasicArrayTypeInfo = (
+                get_gateway().jvm.org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo
+            )
             if self._element_type == Types.BOOLEAN():
                 self._j_typeinfo = JBasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO
             elif self._element_type == Types.BYTE():
@@ -348,8 +352,7 @@ class PickledBytesTypeInfo(TypeInformation):
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
-            self._j_typeinfo = get_gateway().jvm.org.apache.flink.streaming.api.typeinfo.python\
-                .PickledByteArrayTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO
+            self._j_typeinfo = get_gateway().jvm.org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO
         return self._j_typeinfo
 
     def __eq__(self, o: object) -> bool:
@@ -367,8 +370,10 @@ class RowTypeInfo(TypeInformation):
     def __init__(self, field_types: List[TypeInformation], field_names: List[str] = None):
         self._field_types = field_types
         self._field_names = field_names
-        self._need_conversion = [f.need_conversion() if isinstance(f, TypeInformation) else None
-                                 for f in self._field_types]
+        self._need_conversion = [
+            f.need_conversion() if isinstance(f, TypeInformation) else None
+            for f in self._field_types
+        ]
         self._need_serialize_any_field = any(self._need_conversion)
         super(RowTypeInfo, self).__init__()
 
@@ -388,24 +393,30 @@ class RowTypeInfo(TypeInformation):
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
-            j_types_array = get_gateway()\
-                .new_array(get_gateway().jvm.org.apache.flink.api.common.typeinfo.TypeInformation,
-                           len(self._field_types))
+            j_types_array = get_gateway().new_array(
+                get_gateway().jvm.org.apache.flink.api.common.typeinfo.TypeInformation,
+                len(self._field_types),
+            )
             for i in range(len(self._field_types)):
                 field_type = self._field_types[i]
                 if isinstance(field_type, TypeInformation):
                     j_types_array[i] = field_type.get_java_type_info()
 
             if self._field_names is None:
-                self._j_typeinfo = get_gateway().jvm\
-                    .org.apache.flink.api.java.typeutils.RowTypeInfo(j_types_array)
+                self._j_typeinfo = (
+                    get_gateway().jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(j_types_array)
+                )
             else:
-                j_names_array = get_gateway().new_array(get_gateway().jvm.java.lang.String,
-                                                        len(self._field_names))
+                j_names_array = get_gateway().new_array(
+                    get_gateway().jvm.java.lang.String, len(self._field_names)
+                )
                 for i in range(len(self._field_names)):
                     j_names_array[i] = self._field_names[i]
-                self._j_typeinfo = get_gateway().jvm\
-                    .org.apache.flink.api.java.typeutils.RowTypeInfo(j_types_array, j_names_array)
+                self._j_typeinfo = (
+                    get_gateway().jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(
+                        j_types_array, j_names_array
+                    )
+                )
         return self._j_typeinfo
 
     def __eq__(self, other) -> bool:
@@ -415,13 +426,18 @@ class RowTypeInfo(TypeInformation):
 
     def __repr__(self) -> str:
         if self._field_names:
-            return "RowTypeInfo(%s)" % ', '.join([field_name + ': ' + str(field_type)
-                                                  for field_name, field_type in
-                                                  zip(self.get_field_names(),
-                                                      self.get_field_types())])
+            return "RowTypeInfo(%s)" % ", ".join(
+                [
+                    field_name + ": " + str(field_type)
+                    for field_name, field_type in zip(
+                        self.get_field_names(), self.get_field_types()
+                    )
+                ]
+            )
         else:
-            return "RowTypeInfo(%s)" % ', '.join(
-                [str(field_type) for field_type in self._field_types])
+            return "RowTypeInfo(%s)" % ", ".join(
+                [str(field_type) for field_type in self._field_types]
+            )
 
     def need_conversion(self):
         return True
@@ -430,40 +446,48 @@ class RowTypeInfo(TypeInformation):
         if obj is None:
             return
         from pyflink.common import Row, RowKind
+
         if self._need_serialize_any_field:
             # Only calling to_internal_type function for fields that need conversion
             if isinstance(obj, dict):
                 return (RowKind.INSERT.value,) + tuple(
                     f.to_internal_type(obj.get(n)) if c else obj.get(n)
-                    for n, f, c in
-                    zip(self.get_field_names(), self._field_types, self._need_conversion))
+                    for n, f, c in zip(
+                        self.get_field_names(), self._field_types, self._need_conversion
+                    )
+                )
             elif isinstance(obj, Row) and hasattr(obj, "_fields"):
                 return (obj.get_row_kind().value,) + tuple(
                     f.to_internal_type(obj[n]) if c else obj[n]
-                    for n, f, c in
-                    zip(self.get_field_names(), self._field_types, self._need_conversion))
+                    for n, f, c in zip(
+                        self.get_field_names(), self._field_types, self._need_conversion
+                    )
+                )
             elif isinstance(obj, Row):
                 return (obj.get_row_kind().value,) + tuple(
                     f.to_internal_type(v) if c else v
-                    for f, v, c in zip(self._field_types, obj, self._need_conversion))
+                    for f, v, c in zip(self._field_types, obj, self._need_conversion)
+                )
             elif isinstance(obj, (tuple, list)):
                 return (RowKind.INSERT.value,) + tuple(
                     f.to_internal_type(v) if c else v
-                    for f, v, c in zip(self._field_types, obj, self._need_conversion))
+                    for f, v, c in zip(self._field_types, obj, self._need_conversion)
+                )
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
                 return (RowKind.INSERT.value,) + tuple(
                     f.to_internal_type(d.get(n)) if c else d.get(n)
-                    for n, f, c in
-                    zip(self.get_field_names(), self._field_types, self._need_conversion))
+                    for n, f, c in zip(
+                        self.get_field_names(), self._field_types, self._need_conversion
+                    )
+                )
             else:
                 raise ValueError("Unexpected tuple %r with RowTypeInfo" % obj)
         else:
             if isinstance(obj, dict):
                 return (RowKind.INSERT.value,) + tuple(obj.get(n) for n in self.get_field_names())
             elif isinstance(obj, Row) and hasattr(obj, "_fields"):
-                return (obj.get_row_kind().value,) + tuple(
-                    obj[n] for n in self.get_field_names())
+                return (obj.get_row_kind().value,) + tuple(obj[n] for n in self.get_field_names())
             elif isinstance(obj, Row):
                 return (obj.get_row_kind().value,) + tuple(obj)
             elif isinstance(obj, (list, tuple)):
@@ -482,8 +506,10 @@ class RowTypeInfo(TypeInformation):
             return obj
         if self._need_serialize_any_field:
             # Only calling from_internal_type function for fields that need conversion
-            values = [f.from_internal_type(v) if c else v
-                      for f, v, c in zip(self._field_types, obj, self._need_conversion)]
+            values = [
+                f.from_internal_type(v) if c else v
+                for f, v, c in zip(self._field_types, obj, self._need_conversion)
+            ]
         else:
             values = obj
         return tuple(values)
@@ -496,8 +522,10 @@ class TupleTypeInfo(TypeInformation):
 
     def __init__(self, field_types: List[TypeInformation]):
         self._field_types = field_types
-        self._need_conversion = [f.need_conversion() if isinstance(f, TypeInformation) else None
-                                 for f in self._field_types]
+        self._need_conversion = [
+            f.need_conversion() if isinstance(f, TypeInformation) else None
+            for f in self._field_types
+        ]
         self._need_serialize_any_field = any(self._need_conversion)
         super(TupleTypeInfo, self).__init__()
 
@@ -508,15 +536,17 @@ class TupleTypeInfo(TypeInformation):
         if not self._j_typeinfo:
             j_types_array = get_gateway().new_array(
                 get_gateway().jvm.org.apache.flink.api.common.typeinfo.TypeInformation,
-                len(self._field_types))
+                len(self._field_types),
+            )
 
             for i in range(len(self._field_types)):
                 field_type = self._field_types[i]
                 if isinstance(field_type, TypeInformation):
                     j_types_array[i] = field_type.get_java_type_info()
 
-            self._j_typeinfo = get_gateway().jvm \
-                .org.apache.flink.api.java.typeutils.TupleTypeInfo(j_types_array)
+            self._j_typeinfo = get_gateway().jvm.org.apache.flink.api.java.typeutils.TupleTypeInfo(
+                j_types_array
+            )
         return self._j_typeinfo
 
     def need_conversion(self):
@@ -526,12 +556,14 @@ class TupleTypeInfo(TypeInformation):
         if obj is None:
             return
         from pyflink.common import Row
+
         if self._need_serialize_any_field:
             # Only calling to_internal_type function for fields that need conversion
             if isinstance(obj, (list, tuple, Row)):
                 return tuple(
                     f.to_internal_type(v) if c else v
-                    for f, v, c in zip(self._field_types, obj, self._need_conversion))
+                    for f, v, c in zip(self._field_types, obj, self._need_conversion)
+                )
             else:
                 raise ValueError("Unexpected tuple %r with TupleTypeInfo" % obj)
         else:
@@ -546,8 +578,10 @@ class TupleTypeInfo(TypeInformation):
             return obj
         if self._need_serialize_any_field:
             # Only calling from_internal_type function for fields that need conversion
-            values = [f.from_internal_type(v) if c else v
-                      for f, v, c in zip(self._field_types, obj, self._need_conversion)]
+            values = [
+                f.from_internal_type(v) if c else v
+                for f, v, c in zip(self._field_types, obj, self._need_conversion)
+            ]
         else:
             values = obj
         return tuple(values)
@@ -558,8 +592,9 @@ class TupleTypeInfo(TypeInformation):
         return False
 
     def __repr__(self) -> str:
-        return "TupleTypeInfo(%s)" % ', '.join(
-            [str(field_type) for field_type in self._field_types])
+        return "TupleTypeInfo(%s)" % ", ".join(
+            [str(field_type) for field_type in self._field_types]
+        )
 
 
 class DateTypeInfo(TypeInformation):
@@ -585,8 +620,9 @@ class DateTypeInfo(TypeInformation):
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
-            self._j_typeinfo = get_gateway().jvm\
-                .org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.DATE
+            self._j_typeinfo = (
+                get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.DATE
+            )
         return self._j_typeinfo
 
     def __eq__(self, o: object) -> bool:
@@ -601,7 +637,7 @@ class TimeTypeInfo(TypeInformation):
     TypeInformation for Time.
     """
 
-    EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 6
+    EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10**6
 
     def need_conversion(self):
         return True
@@ -611,25 +647,27 @@ class TimeTypeInfo(TypeInformation):
             if t.tzinfo is not None:
                 offset = t.utcoffset()
                 offset = offset if offset else datetime.timedelta()
-                offset_microseconds =\
-                    (offset.days * 86400 + offset.seconds) * 10 ** 6 + offset.microseconds
+                offset_microseconds = (
+                    offset.days * 86400 + offset.seconds
+                ) * 10**6 + offset.microseconds
             else:
                 offset_microseconds = self.EPOCH_ORDINAL
             minutes = t.hour * 60 + t.minute
             seconds = minutes * 60 + t.second
-            return seconds * 10 ** 6 + t.microsecond - offset_microseconds
+            return seconds * 10**6 + t.microsecond - offset_microseconds
 
     def from_internal_type(self, t):
         if t is not None:
-            seconds, microseconds = divmod(t + self.EPOCH_ORDINAL, 10 ** 6)
+            seconds, microseconds = divmod(t + self.EPOCH_ORDINAL, 10**6)
             minutes, seconds = divmod(seconds, 60)
             hours, minutes = divmod(minutes, 60)
             return datetime.time(hours, minutes, seconds, microseconds)
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
-            self._j_typeinfo = get_gateway().jvm\
-                .org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIME
+            self._j_typeinfo = (
+                get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIME
+            )
         return self._j_typeinfo
 
     def __eq__(self, o: object) -> bool:
@@ -649,18 +687,20 @@ class TimestampTypeInfo(TypeInformation):
 
     def to_internal_type(self, dt):
         if dt is not None:
-            seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
-                       else time.mktime(dt.timetuple()))
-            return int(seconds) * 10 ** 6 + dt.microsecond
+            seconds = (
+                calendar.timegm(dt.utctimetuple()) if dt.tzinfo else time.mktime(dt.timetuple())
+            )
+            return int(seconds) * 10**6 + dt.microsecond
 
     def from_internal_type(self, ts):
         if ts is not None:
-            return datetime.datetime.fromtimestamp(ts // 10 ** 6).replace(microsecond=ts % 10 ** 6)
+            return datetime.datetime.fromtimestamp(ts // 10**6).replace(microsecond=ts % 10**6)
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
-            self._j_typeinfo = get_gateway().jvm\
-                .org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIMESTAMP
+            self._j_typeinfo = (
+                get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIMESTAMP
+            )
         return self._j_typeinfo
 
     def __eq__(self, o: object) -> bool:
@@ -681,9 +721,9 @@ class ListTypeInfo(TypeInformation):
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
-            self._j_typeinfo = get_gateway().jvm\
-                .org.apache.flink.api.common.typeinfo.Types.LIST(
-                self.elem_type.get_java_type_info())
+            self._j_typeinfo = get_gateway().jvm.org.apache.flink.api.common.typeinfo.Types.LIST(
+                self.elem_type.get_java_type_info()
+            )
         return self._j_typeinfo
 
     def __eq__(self, other):
@@ -697,7 +737,6 @@ class ListTypeInfo(TypeInformation):
 
 
 class MapTypeInfo(TypeInformation):
-
     def __init__(self, key_type_info: TypeInformation, value_type_info: TypeInformation):
         self._key_type_info = key_type_info
         self._value_type_info = value_type_info
@@ -705,23 +744,23 @@ class MapTypeInfo(TypeInformation):
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
-            self._j_typeinfo = get_gateway().jvm\
-                .org.apache.flink.api.common.typeinfo.Types.MAP(
-                self._key_type_info.get_java_type_info(),
-                self._value_type_info.get_java_type_info())
+            self._j_typeinfo = get_gateway().jvm.org.apache.flink.api.common.typeinfo.Types.MAP(
+                self._key_type_info.get_java_type_info(), self._value_type_info.get_java_type_info()
+            )
         return self._j_typeinfo
 
     def __eq__(self, other):
         if isinstance(other, MapTypeInfo):
-            return self._key_type_info == other._key_type_info and \
-                self._value_type_info == other._value_type_info
+            return (
+                self._key_type_info == other._key_type_info
+                and self._value_type_info == other._value_type_info
+            )
 
     def __repr__(self) -> str:
-        return 'MapTypeInfo<{}, {}>'.format(self._key_type_info, self._value_type_info)
+        return "MapTypeInfo<{}, {}>".format(self._key_type_info, self._value_type_info)
 
 
 class LocalTimeTypeInfo(TypeInformation):
-
     class TimeType(Enum):
         LOCAL_DATE = 0
         LOCAL_TIME = 1
@@ -735,23 +774,26 @@ class LocalTimeTypeInfo(TypeInformation):
         if self._j_typeinfo is None:
             jvm = get_gateway().jvm
             if self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE:
-                self._j_typeinfo = \
+                self._j_typeinfo = (
                     jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE
+                )
             elif self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_TIME:
-                self._j_typeinfo = \
+                self._j_typeinfo = (
                     jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_TIME
+                )
             elif self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME:
-                self._j_typeinfo = \
+                self._j_typeinfo = (
                     jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME
+                )
             else:
-                raise TypeError('Unsupported TimeType: {}'.format(self._time_type.name))
+                raise TypeError("Unsupported TimeType: {}".format(self._time_type.name))
         return self._j_typeinfo
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self._time_type == other._time_type
 
     def __repr__(self):
-        return 'LocalTimeTypeInfo<{}>'.format(self._time_type.name)
+        return "LocalTimeTypeInfo<{}>".format(self._time_type.name)
 
 
 class ExternalTypeInfo(TypeInformation):
@@ -762,10 +804,12 @@ class ExternalTypeInfo(TypeInformation):
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
             gateway = get_gateway()
-            TypeInfoDataTypeConverter = \
+            TypeInfoDataTypeConverter = (
                 gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
-            JExternalTypeInfo = \
+            )
+            JExternalTypeInfo = (
                 gateway.jvm.org.apache.flink.table.runtime.typeutils.ExternalTypeInfo
+            )
 
             j_data_type = TypeInfoDataTypeConverter.toDataType(self._type_info.get_java_type_info())
             self._j_typeinfo = JExternalTypeInfo.of(j_data_type)
@@ -775,7 +819,7 @@ class ExternalTypeInfo(TypeInformation):
         return self.__class__ == other.__class__ and self._type_info == other._type_info
 
     def __repr__(self):
-        return 'ExternalTypeInfo<{}>'.format(self._type_info)
+        return "ExternalTypeInfo<{}>".format(self._type_info)
 
 
 class Types(object):
@@ -1017,8 +1061,9 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
     elif _is_instance_of(j_type_info, JSqlTimeTypeInfo.TIMESTAMP):
         return Types.SQL_TIMESTAMP()
 
-    JPrimitiveArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo \
-        .PrimitiveArrayTypeInfo
+    JPrimitiveArrayTypeInfo = (
+        gateway.jvm.org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo
+    )
 
     if _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.BOOLEAN())
@@ -1062,9 +1107,7 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
     if _is_instance_of(j_type_info, JObjectArrayTypeInfo):
         return Types.OBJECT_ARRAY(_from_java_type(j_type_info.getComponentInfo()))
 
-    JPickledBytesTypeInfo = gateway.jvm \
-        .org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo\
-        .PICKLED_BYTE_ARRAY_TYPE_INFO
+    JPickledBytesTypeInfo = gateway.jvm.org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO
     if _is_instance_of(j_type_info, JPickledBytesTypeInfo):
         return Types.PICKLED_BYTE_ARRAY()
 
@@ -1072,8 +1115,9 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
     if _is_instance_of(j_type_info, JRowTypeInfo):
         j_row_field_names = j_type_info.getFieldNames()
         j_row_field_types = j_type_info.getFieldTypes()
-        row_field_types = [_from_java_type(j_row_field_type) for j_row_field_type in
-                           j_row_field_types]
+        row_field_types = [
+            _from_java_type(j_row_field_type) for j_row_field_type in j_row_field_types
+        ]
         row_field_names = [field_name for field_name in j_row_field_names]
         return Types.ROW_NAMED(row_field_names, row_field_types)
 
@@ -1110,10 +1154,12 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
 
     JExternalTypeInfo = gateway.jvm.org.apache.flink.table.runtime.typeutils.ExternalTypeInfo
     if _is_instance_of(j_type_info, JExternalTypeInfo):
-        TypeInfoDataTypeConverter = \
+        TypeInfoDataTypeConverter = (
             gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
-        return ExternalTypeInfo(_from_java_type(
-            TypeInfoDataTypeConverter.toLegacyTypeInfo(j_type_info.getDataType())))
+        )
+        return ExternalTypeInfo(
+            _from_java_type(TypeInfoDataTypeConverter.toLegacyTypeInfo(j_type_info.getDataType()))
+        )
 
     raise TypeError("The java type info: %s is not supported in PyFlink currently." % j_type_info)
 

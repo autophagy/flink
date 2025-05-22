@@ -28,10 +28,10 @@ if TYPE_CHECKING:
     from pyflink.table.types import RowType
 
 __all__ = [
-    'AvroParquetReaders',
-    'AvroParquetWriters',
-    'ParquetColumnarRowInputFormat',
-    'ParquetBulkWriters'
+    "AvroParquetReaders",
+    "AvroParquetWriters",
+    "ParquetColumnarRowInputFormat",
+    "ParquetBulkWriters",
 ]
 
 
@@ -44,7 +44,7 @@ class AvroParquetReaders(object):
     """
 
     @staticmethod
-    def for_generic_record(schema: 'AvroSchema') -> 'StreamFormat':
+    def for_generic_record(schema: "AvroSchema") -> "StreamFormat":
         """
         Creates a new AvroParquetRecordFormat that reads the parquet file into Avro GenericRecords.
 
@@ -82,7 +82,7 @@ class AvroParquetWriters(object):
     """
 
     @staticmethod
-    def for_generic_record(schema: 'AvroSchema') -> 'BulkWriterFactory':
+    def for_generic_record(schema: "AvroSchema") -> "BulkWriterFactory":
         """
         Creates a ParquetWriterFactory that accepts and writes Avro generic types. The Parquet
         writers will use the given schema to build and write the columnar data.
@@ -142,24 +142,34 @@ class ParquetColumnarRowInputFormat(BulkFormat):
     .. versionadded:: 1.16.0
     """
 
-    def __init__(self,
-                 row_type: 'RowType',
-                 hadoop_config: Optional[Configuration] = None,
-                 batch_size: int = 2048,
-                 is_utc_timestamp: bool = False,
-                 is_case_sensitive: bool = True):
+    def __init__(
+        self,
+        row_type: "RowType",
+        hadoop_config: Optional[Configuration] = None,
+        batch_size: int = 2048,
+        is_utc_timestamp: bool = False,
+        is_case_sensitive: bool = True,
+    ):
         if not hadoop_config:
             hadoop_config = Configuration()
 
         from pyflink.table.types import _to_java_data_type
+
         jvm = get_gateway().jvm
         j_row_type = _to_java_data_type(row_type).getLogicalType()
-        produced_type_info = jvm.org.apache.flink.table.runtime.typeutils. \
-            InternalTypeInfo.of(j_row_type)
-        j_parquet_columnar_format = jvm.org.apache.flink.formats.parquet. \
-            ParquetColumnarRowInputFormat(create_hadoop_configuration(hadoop_config),
-                                          j_row_type, produced_type_info, batch_size,
-                                          is_utc_timestamp, is_case_sensitive)
+        produced_type_info = jvm.org.apache.flink.table.runtime.typeutils.InternalTypeInfo.of(
+            j_row_type
+        )
+        j_parquet_columnar_format = (
+            jvm.org.apache.flink.formats.parquet.ParquetColumnarRowInputFormat(
+                create_hadoop_configuration(hadoop_config),
+                j_row_type,
+                produced_type_info,
+                batch_size,
+                is_utc_timestamp,
+                is_case_sensitive,
+            )
+        )
         super().__init__(j_parquet_columnar_format)
 
 
@@ -188,9 +198,11 @@ class ParquetBulkWriters(object):
     """
 
     @staticmethod
-    def for_row_type(row_type: 'RowType',
-                     hadoop_config: Optional[Configuration] = None,
-                     utc_timestamp: bool = False) -> 'BulkWriterFactory':
+    def for_row_type(
+        row_type: "RowType",
+        hadoop_config: Optional[Configuration] = None,
+        utc_timestamp: bool = False,
+    ) -> "BulkWriterFactory":
         """
         Create a :class:`~pyflink.common.serialization.BulkWriterFactory` that writes records
         with a predefined schema into Parquet files in a batch fashion.
@@ -205,10 +217,14 @@ class ParquetBulkWriters(object):
             hadoop_config = Configuration()
 
         from pyflink.table.types import _to_java_data_type
+
         jvm = get_gateway().jvm
         JParquetRowDataBuilder = jvm.org.apache.flink.formats.parquet.row.ParquetRowDataBuilder
-        return RowDataBulkWriterFactory(JParquetRowDataBuilder.createWriterFactory(
-            _to_java_data_type(row_type).getLogicalType(),
-            create_hadoop_configuration(hadoop_config),
-            utc_timestamp
-        ), row_type)
+        return RowDataBulkWriterFactory(
+            JParquetRowDataBuilder.createWriterFactory(
+                _to_java_data_type(row_type).getLogicalType(),
+                create_hadoop_configuration(hadoop_config),
+                utc_timestamp,
+            ),
+            row_type,
+        )

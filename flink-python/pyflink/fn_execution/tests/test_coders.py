@@ -17,26 +17,48 @@
 ################################################################################
 
 """Tests common to all coder implementations."""
+
 import decimal
 import logging
 import unittest
 
-from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
-    SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
-    TimeCoder, TimestampCoder, GenericArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, \
-    RowCoder, LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder, \
-    TimeWindowCoder, CountWindowCoder, InstantCoder
+from pyflink.fn_execution.coders import (
+    BigIntCoder,
+    TinyIntCoder,
+    BooleanCoder,
+    SmallIntCoder,
+    IntCoder,
+    FloatCoder,
+    DoubleCoder,
+    BinaryCoder,
+    CharCoder,
+    DateCoder,
+    TimeCoder,
+    TimestampCoder,
+    GenericArrayCoder,
+    MapCoder,
+    DecimalCoder,
+    FlattenRowCoder,
+    RowCoder,
+    LocalZonedTimestampCoder,
+    BigDecimalCoder,
+    TupleCoder,
+    PrimitiveArrayCoder,
+    TimeWindowCoder,
+    CountWindowCoder,
+    InstantCoder,
+)
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class CodersTest(PyFlinkTestCase):
-
     def check_coder(self, coder, *values):
         coder_impl = coder.get_impl()
         for v in values:
             if isinstance(v, float):
                 from pyflink.table.tests.test_udf import float_equal
+
                 assert float_equal(v, coder_impl.decode(coder_impl.encode(v)), 1e-6)
             else:
                 self.assertEqual(v, coder_impl.decode(coder_impl.encode(v)))
@@ -76,24 +98,27 @@ class CodersTest(PyFlinkTestCase):
 
     def test_binary_coder(self):
         coder = BinaryCoder()
-        self.check_coder(coder, b'pyflink')
+        self.check_coder(coder, b"pyflink")
 
     def test_char_coder(self):
         coder = CharCoder()
-        self.check_coder(coder, 'flink', '🐿')
+        self.check_coder(coder, "flink", "🐿")
 
     def test_date_coder(self):
         import datetime
+
         coder = DateCoder()
         self.check_coder(coder, datetime.date(2019, 9, 10))
 
     def test_time_coder(self):
         import datetime
+
         coder = TimeCoder()
         self.check_coder(coder, datetime.time(hour=11, minute=11, second=11, microsecond=123000))
 
     def test_timestamp_coder(self):
         import datetime
+
         coder = TimestampCoder(3)
         self.check_coder(coder, datetime.datetime(2019, 9, 10, 18, 30, 20, 123000))
         coder = TimestampCoder(6)
@@ -102,13 +127,16 @@ class CodersTest(PyFlinkTestCase):
     def test_local_zoned_timestamp_coder(self):
         import datetime
         import pytz
+
         timezone = pytz.timezone("Asia/Shanghai")
         coder = LocalZonedTimestampCoder(3, timezone)
-        self.check_coder(coder,
-                         timezone.localize(datetime.datetime(2019, 9, 10, 18, 30, 20, 123000)))
+        self.check_coder(
+            coder, timezone.localize(datetime.datetime(2019, 9, 10, 18, 30, 20, 123000))
+        )
         coder = LocalZonedTimestampCoder(6, timezone)
-        self.check_coder(coder,
-                         timezone.localize(datetime.datetime(2019, 9, 10, 18, 30, 20, 123456)))
+        self.check_coder(
+            coder, timezone.localize(datetime.datetime(2019, 9, 10, 18, 30, 20, 123456))
+        )
 
     def test_instant_coder(self):
         from pyflink.common.time import Instant
@@ -124,21 +152,22 @@ class CodersTest(PyFlinkTestCase):
     def test_primitive_array_coder(self):
         element_coder = CharCoder()
         coder = PrimitiveArrayCoder(element_coder)
-        self.check_coder(coder, ['hi', 'hello', 'flink'])
+        self.check_coder(coder, ["hi", "hello", "flink"])
 
     def test_map_coder(self):
         key_coder = CharCoder()
         value_coder = BigIntCoder()
         coder = MapCoder(key_coder, value_coder)
-        self.check_coder(coder, {'flink': 1, 'pyflink': 2, 'coder': None})
+        self.check_coder(coder, {"flink": 1, "pyflink": 2, "coder": None})
 
     def test_decimal_coder(self):
         import decimal
+
         coder = DecimalCoder(38, 18)
-        self.check_coder(coder, decimal.Decimal('0.00001'), decimal.Decimal('1.23E-8'))
+        self.check_coder(coder, decimal.Decimal("0.00001"), decimal.Decimal("1.23E-8"))
         coder = DecimalCoder(4, 3)
         decimal.getcontext().prec = 2
-        self.check_coder(coder, decimal.Decimal('1.001'))
+        self.check_coder(coder, decimal.Decimal("1.001"))
         self.assertEqual(decimal.getcontext().prec, 2)
 
     def test_flatten_row_coder(self):
@@ -154,9 +183,10 @@ class CodersTest(PyFlinkTestCase):
 
     def test_row_coder(self):
         from pyflink.common import Row, RowKind
+
         field_coder = BigIntCoder()
         field_count = 10
-        field_names = ['f{}'.format(i) for i in range(field_count)]
+        field_names = ["f{}".format(i) for i in range(field_count)]
         coder = RowCoder([field_coder for _ in range(field_count)], field_names)
         v = Row(**{field_names[i]: None if i % 2 == 0 else i for i in range(field_count)})
         v.set_row_kind(RowKind.INSERT)
@@ -168,7 +198,7 @@ class CodersTest(PyFlinkTestCase):
         v.set_row_kind(RowKind.DELETE)
         self.check_coder(coder, v)
 
-        coder = RowCoder([BigIntCoder(), CharCoder()], ['f1', 'f0'])
+        coder = RowCoder([BigIntCoder(), CharCoder()], ["f1", "f0"])
         v = Row(f0="flink", f1=11)
         self.check_coder(coder, v)
 
@@ -191,11 +221,12 @@ class CodersTest(PyFlinkTestCase):
 
     def test_coder_with_unmatched_type(self):
         from pyflink.common import Row
+
         coder = FlattenRowCoder([BigIntCoder()])
-        with self.assertRaises(TypeError, msg='Expected list, got Row'):
+        with self.assertRaises(TypeError, msg="Expected list, got Row"):
             self.check_coder(coder, Row(1))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     unittest.main()

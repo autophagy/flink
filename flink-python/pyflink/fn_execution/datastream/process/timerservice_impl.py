@@ -60,8 +60,10 @@ class LegacyInternalTimerServiceImpl(InternalTimerService[N]):
 
     def register_event_time_timer(self, namespace: N, t: int):
         current_key = self._keyed_state_backend.get_current_key()
-        timer = (TimerOperandType.REGISTER_EVENT_TIMER,
-                 InternalTimerImpl(t, current_key, namespace))
+        timer = (
+            TimerOperandType.REGISTER_EVENT_TIMER,
+            InternalTimerImpl(t, current_key, namespace),
+        )
         self._timers[timer] = None
 
     def delete_processing_time_timer(self, namespace: N, t: int):
@@ -87,6 +89,7 @@ class InternalTimerServiceImpl(InternalTimerService[N]):
         self._output_stream = None
 
         from apache_beam.transforms.window import GlobalWindow
+
         self._global_window = GlobalWindow()
 
     def add_timer_info(self, timer_info):
@@ -133,12 +136,13 @@ class InternalTimerServiceImpl(InternalTimerService[N]):
 
         timer = userstate.Timer(
             user_key=timer_data,
-            dynamic_timer_tag='',
-            windows=(self._global_window, ),
+            dynamic_timer_tag="",
+            windows=(self._global_window,),
             clear_bit=True,
             fire_timestamp=None,
             hold_timestamp=None,
-            paneinfo=None)
+            paneinfo=None,
+        )
         self._timer_coder_impl.encode_to_stream(timer, self._output_stream, True)
         self._timer_coder_impl._key_coder_impl._value_coder._output_stream.maybe_flush()
 
@@ -204,7 +208,6 @@ class NonKeyedTimerServiceImpl(TimerService):
 
 
 class InternalTimerImpl(InternalTimer[K, N]):
-
     def __init__(self, timestamp: int, key: K, namespace: N):
         self._timestamp = timestamp
         self._key = key
@@ -226,5 +229,9 @@ class InternalTimerImpl(InternalTimer[K, N]):
         return result
 
     def __eq__(self, other):
-        return self.__class__ == other.__class__ and self._timestamp == other._timestamp \
-            and self._key == other._key and self._namespace == other._namespace
+        return (
+            self.__class__ == other.__class__
+            and self._timestamp == other._timestamp
+            and self._key == other._key
+            and self._namespace == other._namespace
+        )

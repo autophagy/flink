@@ -19,8 +19,8 @@
 from abc import abstractmethod, ABC
 from typing import Generic, TypeVar
 
-K = TypeVar('K')
-N = TypeVar('N')
+K = TypeVar("K")
+N = TypeVar("N")
 
 
 class InternalTimerService(Generic[N], ABC):
@@ -87,7 +87,6 @@ class InternalTimerService(Generic[N], ABC):
 
 
 class InternalTimer(Generic[K, N], ABC):
-
     @abstractmethod
     def get_timestamp(self) -> int:
         """

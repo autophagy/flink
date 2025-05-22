@@ -25,28 +25,30 @@ from pyflink.util.java_utils import get_field_value
 
 
 class RMQTest(PyFlinkStreamingTestCase):
-
     @unittest.skip("Disable due to rabbitmq connectors is not support 2.0 for new.")
     def test_rabbitmq_connectors(self):
-        connection_config = RMQConnectionConfig.Builder() \
-            .set_host('localhost') \
-            .set_port(5672) \
-            .set_virtual_host('/') \
-            .set_user_name('guest') \
-            .set_password('guest') \
+        connection_config = (
+            RMQConnectionConfig.Builder()
+            .set_host("localhost")
+            .set_port(5672)
+            .set_virtual_host("/")
+            .set_user_name("guest")
+            .set_password("guest")
             .build()
+        )
         type_info = Types.ROW([Types.INT(), Types.STRING()])
-        deserialization_schema = JsonRowDeserializationSchema.builder() \
-            .type_info(type_info=type_info).build()
+        deserialization_schema = (
+            JsonRowDeserializationSchema.builder().type_info(type_info=type_info).build()
+        )
 
-        rmq_source = RMQSource(
-            connection_config, 'source_queue', True, deserialization_schema)
+        rmq_source = RMQSource(connection_config, "source_queue", True, deserialization_schema)
         self.assertEqual(
-            get_field_value(rmq_source.get_java_function(), 'queueName'), 'source_queue')
-        self.assertTrue(get_field_value(rmq_source.get_java_function(), 'usesCorrelationId'))
+            get_field_value(rmq_source.get_java_function(), "queueName"), "source_queue"
+        )
+        self.assertTrue(get_field_value(rmq_source.get_java_function(), "usesCorrelationId"))
 
-        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(type_info) \
-            .build()
-        rmq_sink = RMQSink(connection_config, 'sink_queue', serialization_schema)
-        self.assertEqual(
-            get_field_value(rmq_sink.get_java_function(), 'queueName'), 'sink_queue')
+        serialization_schema = (
+            JsonRowSerializationSchema.builder().with_type_info(type_info).build()
+        )
+        rmq_sink = RMQSink(connection_config, "sink_queue", serialization_schema)
+        self.assertEqual(get_field_value(rmq_sink.get_java_function(), "queueName"), "sink_queue")

@@ -24,14 +24,14 @@ from pyflink.table.types import DataType, DataTypes, _to_java_data_type
 from pyflink.util.java_utils import to_jarray
 
 __all__ = [
-    'Expression',
-    'TimeIntervalUnit',
-    'TimePointUnit',
-    'JsonType',
-    'JsonExistsOnError',
-    'JsonValueOnEmptyOrError',
-    'JsonQueryWrapper',
-    'JsonQueryOnEmptyOrError'
+    "Expression",
+    "TimeIntervalUnit",
+    "TimePointUnit",
+    "JsonType",
+    "JsonExistsOnError",
+    "JsonValueOnEmptyOrError",
+    "JsonQueryWrapper",
+    "JsonQueryOnEmptyOrError",
 ]
 
 _aggregation_doc = """
@@ -130,8 +130,8 @@ def _make_math_log_doc():
         Expression.log2: "Calculates the base 2 logarithm of the given value.",
         Expression.ln: "Calculates the natural logarithm of the given value.",
         Expression.log: "Calculates the natural logarithm of the given value if base is not "
-                        "specified. Otherwise, calculates the logarithm of the given value to the "
-                        "given base.",
+        "specified. Otherwise, calculates the logarithm of the given value to the "
+        "given base.",
     }
 
     for func, op_desc in math_log_funcs.items():
@@ -159,18 +159,18 @@ def _make_math_trigonometric_doc():
 def _make_aggregation_doc():
     aggregation_funcs = {
         Expression.sum: "Returns the sum of the numeric field across all input values. "
-                        "If all values are null, null is returned.",
+        "If all values are null, null is returned.",
         Expression.sum0: "Returns the sum of the numeric field across all input values. "
-                         "If all values are null, 0 is returned.",
+        "If all values are null, 0 is returned.",
         Expression.min: "Returns the minimum value of field across all input values.",
         Expression.max: "Returns the maximum value of field across all input values.",
         Expression.count: "Returns the number of input rows for which the field is not null.",
         Expression.avg: "Returns the average (arithmetic mean) of the numeric field across all "
-                        "input values.",
+        "input values.",
         Expression.stddev_pop: "Returns the population standard deviation of an expression(the "
-                               "square root of var_pop).",
+        "square root of var_pop).",
         Expression.stddev_samp: "Returns the sample standard deviation of an expression(the square "
-                                "root of var_samp).",
+        "root of var_samp).",
         Expression.var_pop: "Returns the population standard variance of an expression.",
         Expression.var_samp: "Returns the sample variance of a given expression.",
         Expression.collect: "Returns multiset aggregate of a given expression.",
@@ -182,27 +182,48 @@ def _make_aggregation_doc():
 
 def _make_string_doc():
     string_funcs = [
-        Expression.substring, Expression.trim_leading, Expression.trim_trailing, Expression.trim,
-        Expression.replace, Expression.char_length, Expression.upper_case, Expression.lower_case,
-        Expression.init_cap, Expression.like, Expression.similar, Expression.position,
-        Expression.lpad, Expression.rpad, Expression.overlay, Expression.regexp_replace,
-        Expression.regexp_extract, Expression.from_base64, Expression.to_base64,
-        Expression.ltrim, Expression.rtrim, Expression.repeat,
-        Expression.json_quote, Expression.json_unquote
+        Expression.substring,
+        Expression.trim_leading,
+        Expression.trim_trailing,
+        Expression.trim,
+        Expression.replace,
+        Expression.char_length,
+        Expression.upper_case,
+        Expression.lower_case,
+        Expression.init_cap,
+        Expression.like,
+        Expression.similar,
+        Expression.position,
+        Expression.lpad,
+        Expression.rpad,
+        Expression.overlay,
+        Expression.regexp_replace,
+        Expression.regexp_extract,
+        Expression.from_base64,
+        Expression.to_base64,
+        Expression.ltrim,
+        Expression.rtrim,
+        Expression.repeat,
+        Expression.json_quote,
+        Expression.json_unquote,
     ]
 
     for func in string_funcs:
-        func.__doc__ = func.__doc__.replace('  ', '') + _string_doc_seealso
+        func.__doc__ = func.__doc__.replace("  ", "") + _string_doc_seealso
 
 
 def _make_temporal_doc():
     temporal_funcs = [
-        Expression.to_date, Expression.to_time, Expression.to_timestamp, Expression.extract,
-        Expression.floor, Expression.ceil
+        Expression.to_date,
+        Expression.to_time,
+        Expression.to_timestamp,
+        Expression.extract,
+        Expression.floor,
+        Expression.ceil,
     ]
 
     for func in temporal_funcs:
-        func.__doc__ = func.__doc__.replace('  ', '') + _temporal_doc_seealso
+        func.__doc__ = func.__doc__.replace("  ", "") + _temporal_doc_seealso
 
 
 def _make_time_doc():
@@ -224,7 +245,7 @@ def _make_time_doc():
         Expression.second: "seconds",
         Expression.seconds: "seconds",
         Expression.milli: "millis",
-        Expression.millis: "millis"
+        Expression.millis: "millis",
     }
 
     for func, op_desc in time_funcs.items():
@@ -238,7 +259,7 @@ def _make_hash_doc():
         Expression.sha224: ("SHA-224", 56),
         Expression.sha256: ("SHA-256", 64),
         Expression.sha384: ("SHA-384", 96),
-        Expression.sha512: ("SHA-512", 128)
+        Expression.sha512: ("SHA-512", 128),
     }
 
     for func, (op_desc, bit) in hash_funcs.items():
@@ -266,14 +287,14 @@ def _get_java_expression(expr, to_expr: bool = False):
 
 
 def _unary_op(op_name: str):
-    def _(self) -> 'Expression':
+    def _(self) -> "Expression":
         return Expression(getattr(self._j_expr, op_name)())
 
     return _
 
 
 def _binary_op(op_name: str, reverse: bool = False):
-    def _(self, other) -> 'Expression':
+    def _(self, other) -> "Expression":
         if reverse:
             return Expression(getattr(_get_java_expression(other, True), op_name)(self._j_expr))
         else:
@@ -283,24 +304,29 @@ def _binary_op(op_name: str, reverse: bool = False):
 
 
 def _ternary_op(op_name: str):
-    def _(self, first, second) -> 'Expression':
-        return Expression(getattr(self._j_expr, op_name)(
-            _get_java_expression(first), _get_java_expression(second)))
+    def _(self, first, second) -> "Expression":
+        return Expression(
+            getattr(self._j_expr, op_name)(
+                _get_java_expression(first), _get_java_expression(second)
+            )
+        )
 
     return _
 
 
 def _varargs_op(op_name: str):
-    def _(self, *args) -> 'Expression':
+    def _(self, *args) -> "Expression":
         return Expression(
-            getattr(self._j_expr, op_name)(*[_get_java_expression(arg) for arg in args]))
+            getattr(self._j_expr, op_name)(*[_get_java_expression(arg) for arg in args])
+        )
 
     return _
 
 
 def _expressions_op(op_name: str):
-    def _(self, *args) -> 'Expression':
+    def _(self, *args) -> "Expression":
         from pyflink.table import expressions
+
         return getattr(expressions, op_name)(self, *[_get_java_expression(arg) for arg in args])
 
     return _
@@ -313,20 +339,20 @@ class TimeIntervalUnit(Enum):
     .. versionadded:: 1.12.0
     """
 
-    YEAR = 0,
-    YEAR_TO_MONTH = 1,
-    QUARTER = 2,
-    MONTH = 3,
-    WEEK = 4,
-    DAY = 5,
-    DAY_TO_HOUR = 6,
-    DAY_TO_MINUTE = 7,
-    DAY_TO_SECOND = 8,
-    HOUR = 9,
-    SECOND = 10,
-    HOUR_TO_MINUTE = 11,
-    HOUR_TO_SECOND = 12,
-    MINUTE = 13,
+    YEAR = (0,)
+    YEAR_TO_MONTH = (1,)
+    QUARTER = (2,)
+    MONTH = (3,)
+    WEEK = (4,)
+    DAY = (5,)
+    DAY_TO_HOUR = (6,)
+    DAY_TO_MINUTE = (7,)
+    DAY_TO_SECOND = (8,)
+    HOUR = (9,)
+    SECOND = (10,)
+    HOUR_TO_MINUTE = (11,)
+    HOUR_TO_SECOND = (12,)
+    MINUTE = (13,)
     MINUTE_TO_SECOND = 14
 
     def _to_j_time_interval_unit(self):
@@ -342,15 +368,15 @@ class TimePointUnit(Enum):
     .. versionadded:: 1.12.0
     """
 
-    YEAR = 0,
-    MONTH = 1,
-    DAY = 2,
-    HOUR = 3,
-    MINUTE = 4,
-    SECOND = 5,
-    QUARTER = 6,
-    WEEK = 7,
-    MILLISECOND = 8,
+    YEAR = (0,)
+    MONTH = (1,)
+    DAY = (2,)
+    HOUR = (3,)
+    MINUTE = (4,)
+    SECOND = (5,)
+    QUARTER = (6,)
+    WEEK = (7,)
+    MILLISECOND = (8,)
     MICROSECOND = 9
 
     def _to_j_time_point_unit(self):
@@ -364,9 +390,9 @@ class JsonType(Enum):
     Types of JSON objects for is_json().
     """
 
-    VALUE = 0,
-    SCALAR = 1,
-    ARRAY = 2,
+    VALUE = (0,)
+    SCALAR = (1,)
+    ARRAY = (2,)
     OBJECT = 3
 
     def _to_j_json_type(self):
@@ -380,9 +406,9 @@ class JsonExistsOnError(Enum):
     Behavior in case of errors for json_exists().
     """
 
-    TRUE = 0,
-    FALSE = 1,
-    UNKNOWN = 2,
+    TRUE = (0,)
+    FALSE = (1,)
+    UNKNOWN = (2,)
     ERROR = 3
 
     def _to_j_json_exists_on_error(self):
@@ -396,8 +422,8 @@ class JsonValueOnEmptyOrError(Enum):
     Behavior in case of emptiness or errors for json_value().
     """
 
-    NULL = 0,
-    ERROR = 1,
+    NULL = (0,)
+    ERROR = (1,)
     DEFAULT = 2
 
     def _to_j_json_value_on_empty_or_error(self):
@@ -411,8 +437,8 @@ class JsonQueryWrapper(Enum):
     Defines whether and when to wrap the result of json_query() into an array.
     """
 
-    WITHOUT_ARRAY = 0,
-    CONDITIONAL_ARRAY = 1,
+    WITHOUT_ARRAY = (0,)
+    CONDITIONAL_ARRAY = (1,)
     UNCONDITIONAL_ARRAY = 2
 
     def _to_j_json_query_wrapper(self):
@@ -426,9 +452,9 @@ class JsonQueryOnEmptyOrError(Enum):
     Defines the behavior of json_query() in case of emptiness or errors.
     """
 
-    NULL = 0,
-    EMPTY_ARRAY = 1,
-    EMPTY_OBJECT = 2,
+    NULL = (0,)
+    EMPTY_ARRAY = (1,)
+    EMPTY_OBJECT = (2,)
     ERROR = 3
 
     def _to_j_json_query_on_error_or_empty(self):
@@ -442,7 +468,7 @@ class JsonOnNull(Enum):
     Behavior for entries with a null value for json_object().
     """
 
-    NULL = 0,
+    NULL = (0,)
     ABSENT = 1
 
     def _to_j_json_on_null(self):
@@ -451,7 +477,7 @@ class JsonOnNull(Enum):
         return getattr(JJsonOnNull, self.name)
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class Expression(Generic[T]):
@@ -478,7 +504,7 @@ class Expression(Generic[T]):
     # logic functions
     __and__ = _binary_op("and")
     __or__ = _binary_op("or")
-    __invert__ = _unary_op('isNotTrue')
+    __invert__ = _unary_op("isNotTrue")
 
     __rand__ = _binary_op("and")
     __ror__ = _binary_op("or")
@@ -503,7 +529,7 @@ class Expression(Generic[T]):
         return self._j_expr.asSummaryString()
 
     def __getattr__(self, name):
-        if name == '_j_expr':
+        if name == "_j_expr":
             if isinstance(self._j_expr_or_property_name, str):
                 gateway = get_gateway()
                 return getattr(gateway.jvm.Expressions, self._j_expr_or_property_name)
@@ -517,72 +543,72 @@ class Expression(Generic[T]):
     # ---------------------------- arithmetic functions ----------------------------------
 
     @property
-    def exp(self) -> 'Expression[float]':
+    def exp(self) -> "Expression[float]":
         """
         Calculates the Euler's number raised to the given power.
         """
         return _unary_op("exp")(self)
 
     @property
-    def log10(self) -> 'Expression[float]':
+    def log10(self) -> "Expression[float]":
         return _unary_op("log10")(self)
 
     @property
-    def log2(self) -> 'Expression[float]':
+    def log2(self) -> "Expression[float]":
         return _unary_op("log2")(self)
 
     @property
-    def ln(self) -> 'Expression[float]':
+    def ln(self) -> "Expression[float]":
         return _unary_op("ln")(self)
 
-    def log(self, base=None) -> 'Expression[float]':
+    def log(self, base=None) -> "Expression[float]":
         if base is None:
             return _unary_op("log")(self)
         else:
             return _binary_op("log")(self, base)
 
     @property
-    def cosh(self) -> 'Expression[float]':
+    def cosh(self) -> "Expression[float]":
         return _unary_op("cosh")(self)
 
     @property
-    def sinh(self) -> 'Expression[float]':
+    def sinh(self) -> "Expression[float]":
         return _unary_op("sinh")(self)
 
     @property
-    def sin(self) -> 'Expression[float]':
+    def sin(self) -> "Expression[float]":
         return _unary_op("sin")(self)
 
     @property
-    def cos(self) -> 'Expression[float]':
+    def cos(self) -> "Expression[float]":
         return _unary_op("cos")(self)
 
     @property
-    def tan(self) -> 'Expression[float]':
+    def tan(self) -> "Expression[float]":
         return _unary_op("tan")(self)
 
     @property
-    def cot(self) -> 'Expression[float]':
+    def cot(self) -> "Expression[float]":
         return _unary_op("cot")(self)
 
     @property
-    def asin(self) -> 'Expression[float]':
+    def asin(self) -> "Expression[float]":
         return _unary_op("asin")(self)
 
     @property
-    def acos(self) -> 'Expression[float]':
+    def acos(self) -> "Expression[float]":
         return _unary_op("acos")(self)
 
     @property
-    def atan(self) -> 'Expression[float]':
+    def atan(self) -> "Expression[float]":
         return _unary_op("atan")(self)
 
     @property
-    def tanh(self) -> 'Expression[float]':
+    def tanh(self) -> "Expression[float]":
         return _unary_op("tanh")(self)
 
     @property
-    def degrees(self) -> 'Expression[float]':
+    def degrees(self) -> "Expression[float]":
         """
         Converts numeric from radians to degrees.
 
@@ -591,7 +617,7 @@ class Expression(Generic[T]):
         return _unary_op("degrees")(self)
 
     @property
-    def radians(self) -> 'Expression[float]':
+    def radians(self) -> "Expression[float]":
         """
         Converts numeric from degrees to radians.
 
@@ -600,21 +626,21 @@ class Expression(Generic[T]):
         return _unary_op("radians")(self)
 
     @property
-    def sqrt(self) -> 'Expression[float]':
+    def sqrt(self) -> "Expression[float]":
         """
         Calculates the square root of a given value.
         """
         return _unary_op("sqrt")(self)
 
     @property
-    def abs(self) -> 'Expression[T]':
+    def abs(self) -> "Expression[T]":
         """
         Calculates the absolute value of given value.
         """
         return _unary_op("abs")(self)
 
     @property
-    def sign(self) -> 'Expression[T]':
+    def sign(self) -> "Expression[T]":
         """
         Calculates the signum of a given number.
 
@@ -622,7 +648,7 @@ class Expression(Generic[T]):
         """
         return _unary_op("sign")(self)
 
-    def round(self, places: Union[int, 'Expression[int]']):
+    def round(self, places: Union[int, "Expression[int]"]):
         """
         Rounds the given number to integer places right to the decimal point.
 
@@ -631,13 +657,13 @@ class Expression(Generic[T]):
         """
         return _binary_op("round")(self, places)
 
-    def concat(self, other: Union[str, 'Expression[str]']) -> 'Expression[str]':
+    def concat(self, other: Union[str, "Expression[str]"]) -> "Expression[str]":
         """
         Concatenates two strings.
         """
         return _binary_op("concat")(self, other)
 
-    def between(self, lower_bound, upper_bound) -> 'Expression[bool]':
+    def between(self, lower_bound, upper_bound) -> "Expression[bool]":
         """
         Returns true if the given expression is between lower_bound and upper_bound
         (both inclusive). False otherwise. The parameters must be numeric types or identical
@@ -654,7 +680,7 @@ class Expression(Generic[T]):
         """
         return _ternary_op("between")(self, lower_bound, upper_bound)
 
-    def not_between(self, lower_bound, upper_bound) -> 'Expression[bool]':
+    def not_between(self, lower_bound, upper_bound) -> "Expression[bool]":
         """
         Returns true if the given expression is not between lower_bound and upper_bound
         (both inclusive). False otherwise. The parameters must be numeric types or identical
@@ -671,7 +697,7 @@ class Expression(Generic[T]):
         """
         return _ternary_op("notBetween")(self, lower_bound, upper_bound)
 
-    def then(self, if_true, if_false) -> 'Expression':
+    def then(self, if_true, if_false) -> "Expression":
         """
         Ternary conditional operator that decides which of two other expressions should be evaluated
         based on a evaluated boolean condition.
@@ -683,7 +709,7 @@ class Expression(Generic[T]):
         """
         return _ternary_op("then")(self, if_true, if_false)
 
-    def if_null(self, null_replacement) -> 'Expression':
+    def if_null(self, null_replacement) -> "Expression":
         """
         Returns null_replacement if the given expression is null; otherwise the expression is
         returned.
@@ -700,7 +726,7 @@ class Expression(Generic[T]):
         return _binary_op("ifNull")(self, null_replacement)
 
     @property
-    def is_null(self) -> 'Expression[bool]':
+    def is_null(self) -> "Expression[bool]":
         """
         Returns true if the given expression is null.
 
@@ -709,7 +735,7 @@ class Expression(Generic[T]):
         return _unary_op("isNull")(self)
 
     @property
-    def is_not_null(self) -> 'Expression[bool]':
+    def is_not_null(self) -> "Expression[bool]":
         """
         Returns true if the given expression is not null.
 
@@ -718,7 +744,7 @@ class Expression(Generic[T]):
         return _unary_op("isNotNull")(self)
 
     @property
-    def is_true(self) -> 'Expression[bool]':
+    def is_true(self) -> "Expression[bool]":
         """
         Returns true if given boolean expression is true. False otherwise (for null and false).
 
@@ -728,7 +754,7 @@ class Expression(Generic[T]):
         return _unary_op("isTrue")(self)
 
     @property
-    def is_false(self) -> 'Expression[bool]':
+    def is_false(self) -> "Expression[bool]":
         """
         Returns true if given boolean expression is false. False otherwise (for null and true).
 
@@ -738,7 +764,7 @@ class Expression(Generic[T]):
         return _unary_op("isFalse")(self)
 
     @property
-    def is_not_true(self) -> 'Expression[bool]':
+    def is_not_true(self) -> "Expression[bool]":
         """
         Returns true if given boolean expression is not true (for null and false). False otherwise.
 
@@ -748,7 +774,7 @@ class Expression(Generic[T]):
         return _unary_op("isNotTrue")(self)
 
     @property
-    def is_not_false(self) -> 'Expression[bool]':
+    def is_not_false(self) -> "Expression[bool]":
         """
         Returns true if given boolean expression is not false (for null and true). False otherwise.
 
@@ -758,7 +784,7 @@ class Expression(Generic[T]):
         return _unary_op("isNotFalse")(self)
 
     @property
-    def distinct(self) -> 'Expression':
+    def distinct(self) -> "Expression":
         """
         Similar to a SQL distinct aggregation clause such as COUNT(DISTINCT a), declares that an
         aggregation function is only applied on distinct input values.
@@ -773,44 +799,44 @@ class Expression(Generic[T]):
         return _unary_op("distinct")(self)
 
     @property
-    def sum(self) -> 'Expression':
+    def sum(self) -> "Expression":
         return _unary_op("sum")(self)
 
     @property
-    def sum0(self) -> 'Expression':
+    def sum0(self) -> "Expression":
         return _unary_op("sum0")(self)
 
     @property
-    def min(self) -> 'Expression':
+    def min(self) -> "Expression":
         return _unary_op("min")(self)
 
     @property
-    def max(self) -> 'Expression':
+    def max(self) -> "Expression":
         return _unary_op("max")(self)
 
     @property
-    def count(self) -> 'Expression':
+    def count(self) -> "Expression":
         return _unary_op("count")(self)
 
     @property
-    def avg(self) -> 'Expression':
+    def avg(self) -> "Expression":
         return _unary_op("avg")(self)
 
     @property
-    def first_value(self) -> 'Expression':
+    def first_value(self) -> "Expression":
         """
         Returns the first value of field across all input values.
         """
         return _unary_op("firstValue")(self)
 
     @property
-    def last_value(self) -> 'Expression':
+    def last_value(self) -> "Expression":
         """
         Returns the last value of field across all input values.
         """
         return _unary_op("lastValue")(self)
 
-    def list_agg(self, separator: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
+    def list_agg(self, separator: Union[str, "Expression[str]"] = None) -> "Expression[str]":
         """
         Concatenates the values of string expressions and places separator values between them.
         The separator is not added at the end of string. The default value of separator is ‘,’.
@@ -821,30 +847,30 @@ class Expression(Generic[T]):
             return _binary_op("listAgg")(self, separator)
 
     @property
-    def stddev_pop(self) -> 'Expression':
+    def stddev_pop(self) -> "Expression":
         return _unary_op("stddevPop")(self)
 
     @property
-    def stddev_samp(self) -> 'Expression':
+    def stddev_samp(self) -> "Expression":
         return _unary_op("stddevSamp")(self)
 
     @property
-    def var_pop(self) -> 'Expression':
+    def var_pop(self) -> "Expression":
         return _unary_op("varPop")(self)
 
     @property
-    def var_samp(self) -> 'Expression':
+    def var_samp(self) -> "Expression":
         return _unary_op("varSamp")(self)
 
     @property
-    def collect(self) -> 'Expression':
+    def collect(self) -> "Expression":
         return _unary_op("collect")(self)
 
     @property
-    def array_agg(self) -> 'Expression':
+    def array_agg(self) -> "Expression":
         return _unary_op("arrayAgg")(self)
 
-    def alias(self, name: str, *extra_names: str) -> 'Expression[T]':
+    def alias(self, name: str, *extra_names: str) -> "Expression[T]":
         """
         Specifies a name for an expression i.e. a field.
 
@@ -859,7 +885,7 @@ class Expression(Generic[T]):
         gateway = get_gateway()
         return _ternary_op("as")(self, name, to_jarray(gateway.jvm.String, extra_names))
 
-    def as_argument(self, name: str) -> 'Expression':
+    def as_argument(self, name: str) -> "Expression":
         """
         Converts this expression into a named argument.
 
@@ -884,7 +910,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("asArgument")(self, name)
 
-    def cast(self, data_type: DataType) -> 'Expression':
+    def cast(self, data_type: DataType) -> "Expression":
         """
         Returns a new value being cast to type type.
         A cast error throws an exception and fails the job.
@@ -898,7 +924,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("cast")(self, _to_java_data_type(data_type))
 
-    def try_cast(self, data_type: DataType) -> 'Expression':
+    def try_cast(self, data_type: DataType) -> "Expression":
         """
         Like cast, but in case of error, returns NULL rather than failing the job.
 
@@ -910,7 +936,7 @@ class Expression(Generic[T]):
         return _binary_op("tryCast")(self, _to_java_data_type(data_type))
 
     @property
-    def asc(self) -> 'Expression':
+    def asc(self) -> "Expression":
         """
         Specifies ascending order of an expression i.e. a field for order_by.
 
@@ -924,7 +950,7 @@ class Expression(Generic[T]):
         return _unary_op("asc")(self)
 
     @property
-    def desc(self) -> 'Expression':
+    def desc(self) -> "Expression":
         """
         Specifies descending order of an expression i.e. a field for order_by.
 
@@ -937,7 +963,7 @@ class Expression(Generic[T]):
         """
         return _unary_op("desc")(self)
 
-    def in_(self, first_element_or_table, *remaining_elements) -> 'Expression':
+    def in_(self, first_element_or_table, *remaining_elements) -> "Expression":
         """
         If first_element_or_table is a Table, Returns true if an expression exists in a given table
         sub-query. The sub-query table must consist of one column. This column must have the same
@@ -963,6 +989,7 @@ class Expression(Generic[T]):
             >>> table_a.where(col("x").in_(table_b.select(col("y"))))
         """
         from pyflink.table import Table
+
         if isinstance(first_element_or_table, Table):
             assert len(remaining_elements) == 0
             return _binary_op("in")(self, first_element_or_table._j_table)
@@ -970,12 +997,14 @@ class Expression(Generic[T]):
             gateway = get_gateway()
             ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
             remaining_elements = (first_element_or_table, *remaining_elements)
-            exprs = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                     for e in remaining_elements]
+            exprs = [
+                ApiExpressionUtils.objectToExpression(_get_java_expression(e))
+                for e in remaining_elements
+            ]
             return _binary_op("in")(self, to_jarray(gateway.jvm.Object, exprs))
 
     @property
-    def start(self) -> 'Expression':
+    def start(self) -> "Expression":
         """
         Returns the start time (inclusive) of a window when applied on a window reference.
 
@@ -994,7 +1023,7 @@ class Expression(Generic[T]):
         return _unary_op("start")(self)
 
     @property
-    def end(self) -> 'Expression':
+    def end(self) -> "Expression":
         """
         Returns the end time (exclusive) of a window when applied on a window reference.
 
@@ -1015,7 +1044,7 @@ class Expression(Generic[T]):
         return _unary_op("end")(self)
 
     @property
-    def bin(self) -> 'Expression[str]':
+    def bin(self) -> "Expression[str]":
         """
         Returns a string representation of an integer numeric value in binary format. Returns null
         if numeric is null. E.g. "4" leads to "100", "12" leads to "1100".
@@ -1025,7 +1054,7 @@ class Expression(Generic[T]):
         return _unary_op("bin")(self)
 
     @property
-    def hex(self) -> 'Expression[str]':
+    def hex(self) -> "Expression[str]":
         """
         Returns a string representation of an integer numeric value or a string in hex format.
         Returns null if numeric or string is null.
@@ -1038,7 +1067,7 @@ class Expression(Generic[T]):
         return _unary_op("hex")(self)
 
     @property
-    def unhex(self) -> 'Expression':
+    def unhex(self) -> "Expression":
         """
         Converts hexadecimal string expr to BINARY.
         If the length of expr is odd, the first character is discarded
@@ -1048,7 +1077,7 @@ class Expression(Generic[T]):
         """
         return _unary_op("unhex")(self)
 
-    def truncate(self, n: Union[int, 'Expression[int]'] = 0) -> 'Expression[T]':
+    def truncate(self, n: Union[int, "Expression[int]"] = 0) -> "Expression[T]":
         """
         Returns a number of truncated to n decimal places.
         If n is 0, the result has no decimal point or fractional part.
@@ -1057,7 +1086,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("truncate")(self, n)
 
-    def percentile(self, percentage, frequency=None) -> 'Expression':
+    def percentile(self, percentage, frequency=None) -> "Expression":
         """
         Returns the exact percentile value of expr at the specified percentage in a group.
 
@@ -1086,7 +1115,7 @@ class Expression(Generic[T]):
 
     # ---------------------------- string functions ----------------------------------
 
-    def starts_with(self, start_expr) -> 'Expression':
+    def starts_with(self, start_expr) -> "Expression":
         """
         Returns whether expr starts with start_expr. If start_expr is empty, the result is true.
         expr and start_expr should have same type.
@@ -1096,7 +1125,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("startsWith")(self, start_expr)
 
-    def ends_with(self, end_expr) -> 'Expression':
+    def ends_with(self, end_expr) -> "Expression":
         """
         Returns whether expr ends with end_expr. If end_expr is empty, the result is true.
         expr and end_expr should have same type.
@@ -1106,9 +1135,11 @@ class Expression(Generic[T]):
         """
         return _binary_op("endsWith")(self, end_expr)
 
-    def substring(self,
-                  begin_index: Union[int, 'Expression[int]'],
-                  length: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
+    def substring(
+        self,
+        begin_index: Union[int, "Expression[int]"],
+        length: Union[int, "Expression[int]"] = None,
+    ) -> "Expression[str]":
         """
         Creates a substring of the given string at given index for a given length.
 
@@ -1120,9 +1151,11 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("substring")(self, begin_index, length)
 
-    def substr(self,
-               begin_index: Union[int, 'Expression[int]'],
-               length: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
+    def substr(
+        self,
+        begin_index: Union[int, "Expression[int]"],
+        length: Union[int, "Expression[int]"] = None,
+    ) -> "Expression[str]":
         """
         Creates a substring of the given string at given index for a given length.
 
@@ -1134,7 +1167,7 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("substr")(self, begin_index, length)
 
-    def trim_leading(self, character: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
+    def trim_leading(self, character: Union[str, "Expression[str]"] = None) -> "Expression[str]":
         """
         Removes leading space characters from the given string if character is None.
         Otherwise, removes leading specified characters from the given string.
@@ -1144,7 +1177,7 @@ class Expression(Generic[T]):
         else:
             return _binary_op("trimLeading")(self, character)
 
-    def trim_trailing(self, character: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
+    def trim_trailing(self, character: Union[str, "Expression[str]"] = None) -> "Expression[str]":
         """
         Removes trailing space characters from the given string if character is None.
         Otherwise, removes trailing specified characters from the given string.
@@ -1154,7 +1187,7 @@ class Expression(Generic[T]):
         else:
             return _binary_op("trimTrailing")(self, character)
 
-    def trim(self, character: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
+    def trim(self, character: Union[str, "Expression[str]"] = None) -> "Expression[str]":
         """
         Removes leading and trailing space characters from the given string if character
         is None. Otherwise, removes leading and trailing specified characters from the given string.
@@ -1164,9 +1197,11 @@ class Expression(Generic[T]):
         else:
             return _binary_op("trim")(self, character)
 
-    def replace(self,
-                search: Union[str, 'Expression[str]'] = None,
-                replacement: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
+    def replace(
+        self,
+        search: Union[str, "Expression[str]"] = None,
+        replacement: Union[str, "Expression[str]"] = None,
+    ) -> "Expression[str]":
         """
         Returns a new string which replaces all the occurrences of the search target
         with the replacement string (non-overlapping).
@@ -1175,7 +1210,7 @@ class Expression(Generic[T]):
         """
         return _ternary_op("replace")(self, search, replacement)
 
-    def translate(self, from_str, to_str) -> 'Expression':
+    def translate(self, from_str, to_str) -> "Expression":
         """
         Translate an expr where all characters in from_str have been replaced with those in to_str.
         If to_str has a shorter length than from_str, unmatched characters are removed.
@@ -1183,14 +1218,14 @@ class Expression(Generic[T]):
         return _ternary_op("translate")(self, from_str, to_str)
 
     @property
-    def char_length(self) -> 'Expression[int]':
+    def char_length(self) -> "Expression[int]":
         """
         Returns the length of a string.
         """
         return _unary_op("charLength")(self)
 
     @property
-    def upper_case(self) -> 'Expression[str]':
+    def upper_case(self) -> "Expression[str]":
         """
         Returns all of the characters in a string in upper case using the rules of the default
         locale.
@@ -1198,7 +1233,7 @@ class Expression(Generic[T]):
         return _unary_op("upperCase")(self)
 
     @property
-    def lower_case(self) -> 'Expression[str]':
+    def lower_case(self) -> "Expression[str]":
         """
         Returns all of the characters in a string in lower case using the rules of the default
         locale.
@@ -1206,16 +1241,16 @@ class Expression(Generic[T]):
         return _unary_op("lowerCase")(self)
 
     @property
-    def init_cap(self) -> 'Expression[str]':
+    def init_cap(self) -> "Expression[str]":
         """
         Converts the initial letter of each word in a string to uppercase. Assumes a
         string containing only [A-Za-z0-9], everything else is treated as whitespace.
         """
         return _unary_op("initCap")(self)
 
-    def like(self,
-             pattern: Union[str, 'Expression[str]'] = None,
-             escape=None) -> 'Expression[bool]':
+    def like(
+        self, pattern: Union[str, "Expression[str]"] = None, escape=None
+    ) -> "Expression[bool]":
         """
         Returns true, if a string matches the specified LIKE pattern
         e.g. 'Jo_n%' matches all strings that start with 'Jo(arbitrary letter)n'.
@@ -1227,23 +1262,23 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("like")(self, pattern, escape)
 
-    def similar(self, pattern: Union[str, 'Expression[str]'] = None) -> 'Expression[bool]':
+    def similar(self, pattern: Union[str, "Expression[str]"] = None) -> "Expression[bool]":
         """
         Returns true, if a string matches the specified SQL regex pattern.
         e.g. 'A+' matches all strings that consist of at least one A
         """
         return _binary_op("similar")(self, pattern)
 
-    def position(self, haystack: Union[str, 'Expression[str]'] = None) -> 'Expression[int]':
+    def position(self, haystack: Union[str, "Expression[str]"] = None) -> "Expression[int]":
         """
         Returns the position of string in an other string starting at 1.
         Returns 0 if string could not be found. e.g. lit('a').position('bbbbba') leads to 6.
         """
         return _binary_op("position")(self, haystack)
 
-    def lpad(self,
-             length: Union[int, 'Expression[int]'],
-             pad: Union[str, 'Expression[str]']) -> 'Expression[str]':
+    def lpad(
+        self, length: Union[int, "Expression[int]"], pad: Union[str, "Expression[str]"]
+    ) -> "Expression[str]":
         """
         Returns a string left-padded with the given pad string to a length of len characters.
         If the string is longer than len, the return value is shortened to len characters.
@@ -1251,9 +1286,9 @@ class Expression(Generic[T]):
         """
         return _ternary_op("lpad")(self, length, pad)
 
-    def rpad(self,
-             length: Union[int, 'Expression[int]'],
-             pad: Union[str, 'Expression[str]']) -> 'Expression[str]':
+    def rpad(
+        self, length: Union[int, "Expression[int]"], pad: Union[str, "Expression[str]"]
+    ) -> "Expression[str]":
         """
         Returns a string right-padded with the given pad string to a length of len characters.
         If the string is longer than len, the return value is shortened to len characters.
@@ -1261,10 +1296,12 @@ class Expression(Generic[T]):
         """
         return _ternary_op("rpad")(self, length, pad)
 
-    def overlay(self,
-                new_string: Union[str, 'Expression[str]'],
-                starting: Union[int, 'Expression[int]'],
-                length: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
+    def overlay(
+        self,
+        new_string: Union[str, "Expression[str]"],
+        starting: Union[int, "Expression[int]"],
+        length: Union[int, "Expression[int]"] = None,
+    ) -> "Expression[str]":
         """
         Replaces a substring of string with a string starting at a position
         (starting at 1). e.g. lit('xxxxxtest').overlay('xxxx', 6) leads to 'xxxxxxxxx'
@@ -1273,23 +1310,23 @@ class Expression(Generic[T]):
         if length is None:
             return _ternary_op("overlay")(self, new_string, starting)
         else:
-            j_expr_new_string = new_string._j_expr \
-                if isinstance(new_string, Expression) else new_string
-            j_expr_starting = starting._j_expr \
-                if isinstance(starting, Expression) else starting
-            j_expr_length = length._j_expr \
-                if isinstance(length, Expression) else length
-            return Expression(getattr(self._j_expr, "overlay")(
-                j_expr_new_string, j_expr_starting, j_expr_length))
+            j_expr_new_string = (
+                new_string._j_expr if isinstance(new_string, Expression) else new_string
+            )
+            j_expr_starting = starting._j_expr if isinstance(starting, Expression) else starting
+            j_expr_length = length._j_expr if isinstance(length, Expression) else length
+            return Expression(
+                getattr(self._j_expr, "overlay")(j_expr_new_string, j_expr_starting, j_expr_length)
+            )
 
-    def regexp(self, regex: Union[str, 'Expression[str]']) -> 'Expression[str]':
+    def regexp(self, regex: Union[str, "Expression[str]"]) -> "Expression[str]":
         """
         Returns True if any (possibly empty) substring matches the regular expression,
         otherwise False. Returns None if any of arguments is None.
         """
         return _binary_op("regexp")(self, regex)
 
-    def regexp_count(self, regex) -> 'Expression':
+    def regexp_count(self, regex) -> "Expression":
         """
         Returns the number of times str matches the regex pattern.
         regex must be a Java regular expression.
@@ -1300,18 +1337,20 @@ class Expression(Generic[T]):
         """
         return _binary_op("regexpCount")(self, regex)
 
-    def regexp_replace(self,
-                       regex: Union[str, 'Expression[str]'],
-                       replacement: Union[str, 'Expression[str]']) -> 'Expression[str]':
+    def regexp_replace(
+        self, regex: Union[str, "Expression[str]"], replacement: Union[str, "Expression[str]"]
+    ) -> "Expression[str]":
         """
         Returns a string with all substrings that match the regular expression
         consecutively being replaced.
         """
         return _ternary_op("regexpReplace")(self, regex, replacement)
 
-    def regexp_extract(self,
-                       regex: Union[str, 'Expression[str]'],
-                       extract_index: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
+    def regexp_extract(
+        self,
+        regex: Union[str, "Expression[str]"],
+        extract_index: Union[int, "Expression[int]"] = None,
+    ) -> "Expression[str]":
         """
         Returns a string extracted with a specified regular expression and a regex match
         group index.
@@ -1321,7 +1360,7 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("regexpExtract")(self, regex, extract_index)
 
-    def regexp_extract_all(self, regex, extract_index=None) -> 'Expression':
+    def regexp_extract_all(self, regex, extract_index=None) -> "Expression":
         """
         Extracts all the substrings in str that match the regex expression and correspond to the
         regex group extract_index.
@@ -1339,7 +1378,7 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("regexpExtractAll")(self, regex, extract_index)
 
-    def regexp_instr(self, regex) -> 'Expression':
+    def regexp_instr(self, regex) -> "Expression":
         """
         Returns the position of the first substring in str that matches regex.
         Result indexes begin at 1, 0 if there is no match.
@@ -1350,7 +1389,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("regexpInstr")(self, regex)
 
-    def regexp_substr(self, regex) -> 'Expression':
+    def regexp_substr(self, regex) -> "Expression":
         """
         Returns the first substring in str that matches regex.
         null if any of the arguments are null or regex is invalid or pattern is not found.
@@ -1361,65 +1400,66 @@ class Expression(Generic[T]):
         return _binary_op("regexpSubstr")(self, regex)
 
     @property
-    def from_base64(self) -> 'Expression[str]':
+    def from_base64(self) -> "Expression[str]":
         """
         Returns the base string decoded with base64.
         """
         return _unary_op("fromBase64")(self)
 
     @property
-    def to_base64(self) -> 'Expression[str]':
+    def to_base64(self) -> "Expression[str]":
         """
         Returns the base64-encoded result of the input string.
         """
         return _unary_op("toBase64")(self)
 
     @property
-    def ascii(self) -> 'Expression[int]':
+    def ascii(self) -> "Expression[int]":
         """
         Returns the numeric value of the first character of the input string.
         """
         return _unary_op("ascii")(self)
 
     @property
-    def chr(self) -> 'Expression[str]':
+    def chr(self) -> "Expression[str]":
         """
         Returns the ASCII character result of the input integer.
         """
         return _unary_op("chr")(self)
 
-    def decode(self, charset: Union[str, 'Expression[str]']) -> 'Expression[str]':
+    def decode(self, charset: Union[str, "Expression[str]"]) -> "Expression[str]":
         """
         Decodes the first argument into a String using the provided character set.
         """
         return _binary_op("decode")(self, charset)
 
-    def encode(self, charset: Union[str, 'Expression[str]']) -> 'Expression[bytes]':
+    def encode(self, charset: Union[str, "Expression[str]"]) -> "Expression[bytes]":
         """
         Encodes the string into a BINARY using the provided character set.
         """
         return _binary_op("encode")(self, charset)
 
-    def left(self, length: Union[int, 'Expression[int]']) -> 'Expression[str]':
+    def left(self, length: Union[int, "Expression[int]"]) -> "Expression[str]":
         """
         Returns the leftmost integer characters from the input string.
         """
         return _binary_op("left")(self, length)
 
-    def right(self, length: Union[int, 'Expression[int]']) -> 'Expression[str]':
+    def right(self, length: Union[int, "Expression[int]"]) -> "Expression[str]":
         """
         Returns the rightmost integer characters from the input string.
         """
         return _binary_op("right")(self, length)
 
-    def instr(self, s: Union[str, 'Expression[str]']) -> 'Expression[int]':
+    def instr(self, s: Union[str, "Expression[str]"]) -> "Expression[int]":
         """
         Returns the position of the first occurrence in the input string.
         """
         return _binary_op("instr")(self, s)
 
-    def locate(self, s: Union[str, 'Expression[str]'],
-               pos: Union[int, 'Expression[int]'] = None) -> 'Expression[int]':
+    def locate(
+        self, s: Union[str, "Expression[str]"], pos: Union[int, "Expression[int]"] = None
+    ) -> "Expression[int]":
         """
         Returns the position of the first occurrence in the input string after position integer.
         """
@@ -1428,7 +1468,7 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("locate")(self, s, pos)
 
-    def url_decode(self) -> 'Expression[str]':
+    def url_decode(self) -> "Expression[str]":
         """
         Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8
         encoding scheme. If the input is null, or there is an issue with the decoding process
@@ -1437,7 +1477,7 @@ class Expression(Generic[T]):
         """
         return _unary_op("urlDecode")(self)
 
-    def url_encode(self) -> 'Expression[str]':
+    def url_encode(self) -> "Expression[str]":
         """
         Translates a string into 'application/x-www-form-urlencoded' format using the UTF-8
         encoding scheme. If the input is null, or there is an issue with the encoding process, or
@@ -1445,8 +1485,11 @@ class Expression(Generic[T]):
         """
         return _unary_op("urlEncode")(self)
 
-    def parse_url(self, part_to_extract: Union[str, 'Expression[str]'],
-                  key: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
+    def parse_url(
+        self,
+        part_to_extract: Union[str, "Expression[str]"],
+        key: Union[str, "Expression[str]"] = None,
+    ) -> "Expression[str]":
         """
         Parse url and return various parameter of the URL.
         If accept any null arguments, return null.
@@ -1456,7 +1499,7 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("parseUrl")(self, part_to_extract, key)
 
-    def printf(self, *obj) -> 'Expression':
+    def printf(self, *obj) -> "Expression":
         """
         Returns a formatted string from printf-style format strings.
         The function exploits the java.util.Formatter class with Locale.US.
@@ -1466,11 +1509,10 @@ class Expression(Generic[T]):
         """
         gateway = get_gateway()
         ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-        exprs = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                 for e in obj]
+        exprs = [ApiExpressionUtils.objectToExpression(_get_java_expression(e)) for e in obj]
         return _binary_op("printf")(self, to_jarray(gateway.jvm.Object, exprs))
 
-    def ltrim(self, trim_str=None) -> 'Expression[str]':
+    def ltrim(self, trim_str=None) -> "Expression[str]":
         """
         Removes any leading characters within trim_str from str.
         trim_str is set to whitespace by default.
@@ -1480,7 +1522,7 @@ class Expression(Generic[T]):
         else:
             return _binary_op("ltrim")(self, trim_str)
 
-    def rtrim(self, trim_str=None) -> 'Expression[str]':
+    def rtrim(self, trim_str=None) -> "Expression[str]":
         """
         Removes any trailing characters within trim_str from str.
         trim_str is set to whitespace by default.
@@ -1490,7 +1532,7 @@ class Expression(Generic[T]):
         else:
             return _binary_op("rtrim")(self, trim_str)
 
-    def btrim(self, trim_str=None) -> 'Expression':
+    def btrim(self, trim_str=None) -> "Expression":
         """
         Removes any leading and trailing characters within trim_str from str.
         trim_str is set to whitespace by default.
@@ -1500,13 +1542,13 @@ class Expression(Generic[T]):
         else:
             return _binary_op("btrim")(self, trim_str)
 
-    def repeat(self, n: Union[int, 'Expression[int]']) -> 'Expression[str]':
+    def repeat(self, n: Union[int, "Expression[int]"]) -> "Expression[str]":
         """
         Returns a string that repeats the base string n times.
         """
         return _binary_op("repeat")(self, n)
 
-    def over(self, alias) -> 'Expression':
+    def over(self, alias) -> "Expression":
         """
         Defines an aggregation to be used for a previously specified over window.
 
@@ -1524,21 +1566,25 @@ class Expression(Generic[T]):
         return _binary_op("over")(self, alias)
 
     @property
-    def reverse(self) -> 'Expression[str]':
+    def reverse(self) -> "Expression[str]":
         """
         Reverse each character in current string.
         """
         return _unary_op("reverse")(self)
 
-    def split_index(self, separator: Union[str, 'Expression[str]'],
-                    index: Union[int, 'Expression[int]']) -> 'Expression[str]':
+    def split_index(
+        self, separator: Union[str, "Expression[str]"], index: Union[int, "Expression[int]"]
+    ) -> "Expression[str]":
         """
         Split target string with custom separator and pick the index-th(start with 0) result.
         """
         return _ternary_op("splitIndex")(self, separator, index)
 
-    def str_to_map(self, list_delimiter: Union[str, 'Expression[str]'] = None,
-                   key_value_delimiter: Union[str, 'Expression[str]'] = None) -> 'Expression[dict]':
+    def str_to_map(
+        self,
+        list_delimiter: Union[str, "Expression[str]"] = None,
+        key_value_delimiter: Union[str, "Expression[str]"] = None,
+    ) -> "Expression[dict]":
         """
         Creates a map by parsing text. Split text into key-value pairs using two delimiters. The
         first delimiter separates pairs, and the second delimiter separates key and value. Both
@@ -1550,7 +1596,7 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("strToMap")(self, list_delimiter, key_value_delimiter)
 
-    def elt(self, expr, *exprs) -> 'Expression':
+    def elt(self, expr, *exprs) -> "Expression":
         """
         Returns the index-th expression. null if index is null or out of range.
         index must be an integer between 1 and the number of expressions.
@@ -1562,14 +1608,13 @@ class Expression(Generic[T]):
         """
         gateway = get_gateway()
         ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-        expr_list = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
-                     for e in exprs]
+        expr_list = [ApiExpressionUtils.objectToExpression(_get_java_expression(e)) for e in exprs]
         return _ternary_op("elt")(self, expr, to_jarray(gateway.jvm.Object, expr_list))
 
     # ---------------------------- temporal functions ----------------------------------
 
     @property
-    def to_date(self) -> 'Expression':
+    def to_date(self) -> "Expression":
         """
         Parses a date string in the form "yyyy-MM-dd" to a SQL Date. It's equivalent to
         `col.cast(DataTypes.DATE())`.
@@ -1582,7 +1627,7 @@ class Expression(Generic[T]):
         return _unary_op("toDate")(self)
 
     @property
-    def to_time(self) -> 'Expression':
+    def to_time(self) -> "Expression":
         """
         Parses a time string in the form "HH:mm:ss" to a SQL Time. It's equivalent to
         `col.cast(DataTypes.TIME())`.
@@ -1595,7 +1640,7 @@ class Expression(Generic[T]):
         return _unary_op("toTime")(self)
 
     @property
-    def to_timestamp(self) -> 'Expression':
+    def to_timestamp(self) -> "Expression":
         """
         Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
         It's equivalent to `col.cast(DataTypes.TIMESTAMP(3))`.
@@ -1607,15 +1652,14 @@ class Expression(Generic[T]):
         """
         return _unary_op("toTimestamp")(self)
 
-    def extract(self, time_interval_unit: TimeIntervalUnit) -> 'Expression':
+    def extract(self, time_interval_unit: TimeIntervalUnit) -> "Expression":
         """
         Extracts parts of a time point or time interval. Returns the part as a long value.
         e.g. `lit("2006-06-05").to_date.extract(TimeIntervalUnit.DAY)` leads to `5`.
         """
-        return _binary_op("extract")(
-            self, time_interval_unit._to_j_time_interval_unit())
+        return _binary_op("extract")(self, time_interval_unit._to_j_time_interval_unit())
 
-    def floor(self, time_interval_unit: TimeIntervalUnit = None) -> 'Expression':
+    def floor(self, time_interval_unit: TimeIntervalUnit = None) -> "Expression":
         """
         If time_interval_unit is specified, it rounds down a time point to the given
         unit, e.g. `lit("12:44:31").to_date.floor(TimeIntervalUnit.MINUTE)` leads to
@@ -1625,10 +1669,9 @@ class Expression(Generic[T]):
         if time_interval_unit is None:
             return _unary_op("floor")(self)
         else:
-            return _binary_op("floor")(
-                self, time_interval_unit._to_j_time_interval_unit())
+            return _binary_op("floor")(self, time_interval_unit._to_j_time_interval_unit())
 
-    def ceil(self, time_interval_unit: TimeIntervalUnit = None) -> 'Expression':
+    def ceil(self, time_interval_unit: TimeIntervalUnit = None) -> "Expression":
         """
         If time_interval_unit is specified, it rounds up a time point to the given unit,
         e.g. `lit("12:44:31").to_date.floor(TimeIntervalUnit.MINUTE)` leads to 12:45:00.
@@ -1637,12 +1680,11 @@ class Expression(Generic[T]):
         if time_interval_unit is None:
             return _unary_op("ceil")(self)
         else:
-            return _binary_op("ceil")(
-                self, time_interval_unit._to_j_time_interval_unit())
+            return _binary_op("ceil")(self, time_interval_unit._to_j_time_interval_unit())
 
     # ---------------------------- advanced type helper functions -----------------------------
 
-    def get(self, name_or_index: Union[str, int]) -> 'Expression':
+    def get(self, name_or_index: Union[str, int]) -> "Expression":
         """
         Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name or index
         and returns it's value.
@@ -1654,7 +1696,7 @@ class Expression(Generic[T]):
         return _binary_op("get")(self, name_or_index)
 
     @property
-    def flatten(self) -> 'Expression':
+    def flatten(self) -> "Expression":
         """
         Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes
         into a flat representation where every subtype is a separate field.
@@ -1663,7 +1705,7 @@ class Expression(Generic[T]):
         """
         return _unary_op("flatten")(self)
 
-    def at(self, index) -> 'Expression':
+    def at(self, index) -> "Expression":
         """
         Accesses the element of an array or map based on a key or an index (starting at 1).
 
@@ -1674,7 +1716,7 @@ class Expression(Generic[T]):
         return _binary_op("at")(self, index)
 
     @property
-    def cardinality(self) -> 'Expression':
+    def cardinality(self) -> "Expression":
         """
         Returns the number of elements of an array or number of entries of a map.
 
@@ -1683,7 +1725,7 @@ class Expression(Generic[T]):
         return _unary_op("cardinality")(self)
 
     @property
-    def element(self) -> 'Expression':
+    def element(self) -> "Expression":
         """
         Returns the sole element of an array with a single element. Returns null if the array is
         empty. Throws an exception if the array has more than one element.
@@ -1692,7 +1734,7 @@ class Expression(Generic[T]):
         """
         return _unary_op("element")(self)
 
-    def array_append(self, addition) -> 'Expression':
+    def array_append(self, addition) -> "Expression":
         """
         Appends an element to the end of the array and returns the result.
 
@@ -1701,7 +1743,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayAppend")(self, addition)
 
-    def array_contains(self, needle) -> 'Expression':
+    def array_contains(self, needle) -> "Expression":
         """
         Returns whether the given element exists in an array.
 
@@ -1711,14 +1753,14 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayContains")(self, needle)
 
-    def array_distinct(self) -> 'Expression':
+    def array_distinct(self) -> "Expression":
         """
         Returns an array with unique elements.
         If the array itself is null, the function will return null. Keeps ordering of elements.
         """
         return _binary_op("arrayDistinct")(self)
 
-    def array_position(self, needle) -> 'Expression':
+    def array_position(self, needle) -> "Expression":
         """
         Returns the position of the first occurrence of element in the given array as int.
 
@@ -1729,7 +1771,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayPosition")(self, needle)
 
-    def array_prepend(self, addition) -> 'Expression':
+    def array_prepend(self, addition) -> "Expression":
         """
         Appends an element to the beginning of the array and returns the result.
 
@@ -1738,21 +1780,21 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayPrepend")(self, addition)
 
-    def array_remove(self, needle) -> 'Expression':
+    def array_remove(self, needle) -> "Expression":
         """
         Removes all elements that equal to element from array.
         If the array itself is null, the function will return null. Keeps ordering of elements.
         """
         return _binary_op("arrayRemove")(self, needle)
 
-    def array_reverse(self) -> 'Expression':
+    def array_reverse(self) -> "Expression":
         """
         Returns an array in reverse order.
         If the array itself is null, the function will return null.
         """
         return _binary_op("arrayReverse")(self)
 
-    def array_slice(self, start_offset, end_offset=None) -> 'Expression':
+    def array_slice(self, start_offset, end_offset=None) -> "Expression":
         """
         Returns a subarray of the input array between 'start_offset' and 'end_offset' inclusive.
         The offsets are 1-based however 0 is also treated as the beginning of the array.
@@ -1767,7 +1809,7 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("array_slice")(self, start_offset, end_offset)
 
-    def array_sort(self, ascending_order=None, null_first=None) -> 'Expression':
+    def array_sort(self, ascending_order=None, null_first=None) -> "Expression":
         """
         Returns the array in sorted order.
         The function sorts an array, defaulting to ascending order with NULLs at the start when
@@ -1783,14 +1825,14 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("array_sort")(self, ascending_order, null_first)
 
-    def array_union(self, array) -> 'Expression':
+    def array_union(self, array) -> "Expression":
         """
         Returns an array of the elements in the union of array1 and array2, without duplicates.
         If any of the array is null, the function will return null.
         """
         return _binary_op("arrayUnion")(self, array)
 
-    def array_concat(self, *arrays) -> 'Expression':
+    def array_concat(self, *arrays) -> "Expression":
         """
         Returns an array that is the result of concatenating at least one array.
         This array contains all the elements in the first array, followed by all
@@ -1799,14 +1841,14 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayConcat")(self, *arrays)
 
-    def array_max(self) -> 'Expression':
+    def array_max(self) -> "Expression":
         """
         Returns the maximum value from the array.
         if array itself is null, the function returns null.
         """
         return _unary_op("arrayMax")(self)
 
-    def array_join(self, delimiter, null_replacement=None) -> 'Expression':
+    def array_join(self, delimiter, null_replacement=None) -> "Expression":
         """
         Returns a string that represents the concatenation of the elements in the given array and
         the elements' data type in the given array is string. The `delimiter` is a string that
@@ -1820,14 +1862,14 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("array_join")(self, delimiter, null_replacement)
 
-    def array_min(self) -> 'Expression':
+    def array_min(self) -> "Expression":
         """
         Returns the minimum value from the array.
         if array itself is null, the function returns null.
         """
         return _unary_op("arrayMin")(self)
 
-    def array_except(self, array) -> 'Expression':
+    def array_except(self, array) -> "Expression":
         """
         Returns an ARRAY that contains the elements from array1 that are not in array2.
         If no elements remain after excluding the elements in array2 from array1,
@@ -1837,7 +1879,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayExcept")(self, array)
 
-    def array_intersect(self, array) -> 'Expression':
+    def array_intersect(self, array) -> "Expression":
         """
         Returns an ARRAY that contains the elements from array1 that are also in array2,
         without duplicates. If no elements are both in array1 and array2, the function
@@ -1846,7 +1888,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayIntersect")(self, array)
 
-    def split(self, delimiter) -> 'Expression':
+    def split(self, delimiter) -> "Expression":
         """
         Returns an array of substrings by splitting the input string based on the given delimiter.
         If the delimiter is not found in the string, the original string is returned as the only
@@ -1858,7 +1900,7 @@ class Expression(Generic[T]):
         return _binary_op("split")(self, delimiter)
 
     @property
-    def map_keys(self) -> 'Expression':
+    def map_keys(self) -> "Expression":
         """
         Returns the keys of the map as an array. No order guaranteed.
 
@@ -1866,7 +1908,7 @@ class Expression(Generic[T]):
         """
         return _unary_op("mapKeys")(self)
 
-    def map_union(self, *maps) -> 'Expression':
+    def map_union(self, *maps) -> "Expression":
         """
         Returns a map created by merging at least one map. These maps should have a common map type.
         If there are overlapping keys, the value from 'map2' will overwrite the value from 'map1',
@@ -1878,7 +1920,7 @@ class Expression(Generic[T]):
         return _binary_op("mapUnion")(self, *maps)
 
     @property
-    def map_values(self) -> 'Expression':
+    def map_values(self) -> "Expression":
         """
         Returns the values of the map as an array. No order guaranteed.
 
@@ -1887,7 +1929,7 @@ class Expression(Generic[T]):
         return _unary_op("mapValues")(self)
 
     @property
-    def map_entries(self) -> 'Expression':
+    def map_entries(self) -> "Expression":
         """
         Returns an array of all entries in the given map. No order guaranteed.
 
@@ -1898,7 +1940,7 @@ class Expression(Generic[T]):
     # ---------------------------- time definition functions -----------------------------
 
     @property
-    def rowtime(self) -> 'Expression':
+    def rowtime(self) -> "Expression":
         """
         Declares a field as the rowtime attribute for indicating, accessing, and working in
         Flink's event time.
@@ -1908,7 +1950,7 @@ class Expression(Generic[T]):
         return _unary_op("rowtime")(self)
 
     @property
-    def proctime(self) -> 'Expression':
+    def proctime(self) -> "Expression":
         """
         Declares a field as the proctime attribute for indicating, accessing, and working in
         Flink's processing time.
@@ -1918,104 +1960,104 @@ class Expression(Generic[T]):
         return _unary_op("proctime")(self)
 
     @property
-    def year(self) -> 'Expression':
+    def year(self) -> "Expression":
         return _unary_op("year")(self)
 
     @property
-    def years(self) -> 'Expression':
+    def years(self) -> "Expression":
         return _unary_op("years")(self)
 
     @property
-    def quarter(self) -> 'Expression':
+    def quarter(self) -> "Expression":
         return _unary_op("quarter")(self)
 
     @property
-    def quarters(self) -> 'Expression':
+    def quarters(self) -> "Expression":
         return _unary_op("quarters")(self)
 
     @property
-    def month(self) -> 'Expression':
+    def month(self) -> "Expression":
         return _unary_op("month")(self)
 
     @property
-    def months(self) -> 'Expression':
+    def months(self) -> "Expression":
         return _unary_op("months")(self)
 
     @property
-    def week(self) -> 'Expression':
+    def week(self) -> "Expression":
         return _unary_op("week")(self)
 
     @property
-    def weeks(self) -> 'Expression':
+    def weeks(self) -> "Expression":
         return _unary_op("weeks")(self)
 
     @property
-    def day(self) -> 'Expression':
+    def day(self) -> "Expression":
         return _unary_op("day")(self)
 
     @property
-    def days(self) -> 'Expression':
+    def days(self) -> "Expression":
         return _unary_op("days")(self)
 
     @property
-    def hour(self) -> 'Expression':
+    def hour(self) -> "Expression":
         return _unary_op("hour")(self)
 
     @property
-    def hours(self) -> 'Expression':
+    def hours(self) -> "Expression":
         return _unary_op("hours")(self)
 
     @property
-    def minute(self) -> 'Expression':
+    def minute(self) -> "Expression":
         return _unary_op("minute")(self)
 
     @property
-    def minutes(self) -> 'Expression':
+    def minutes(self) -> "Expression":
         return _unary_op("minutes")(self)
 
     @property
-    def second(self) -> 'Expression':
+    def second(self) -> "Expression":
         return _unary_op("second")(self)
 
     @property
-    def seconds(self) -> 'Expression':
+    def seconds(self) -> "Expression":
         return _unary_op("seconds")(self)
 
     @property
-    def milli(self) -> 'Expression':
+    def milli(self) -> "Expression":
         return _unary_op("milli")(self)
 
     @property
-    def millis(self) -> 'Expression':
+    def millis(self) -> "Expression":
         return _unary_op("millis")(self)
 
     # ---------------------------- hash functions -----------------------------
 
     @property
-    def md5(self) -> 'Expression[str]':
+    def md5(self) -> "Expression[str]":
         return _unary_op("md5")(self)
 
     @property
-    def sha1(self) -> 'Expression[str]':
+    def sha1(self) -> "Expression[str]":
         return _unary_op("sha1")(self)
 
     @property
-    def sha224(self) -> 'Expression[str]':
+    def sha224(self) -> "Expression[str]":
         return _unary_op("sha224")(self)
 
     @property
-    def sha256(self) -> 'Expression[str]':
+    def sha256(self) -> "Expression[str]":
         return _unary_op("sha256")(self)
 
     @property
-    def sha384(self) -> 'Expression[str]':
+    def sha384(self) -> "Expression[str]":
         return _unary_op("sha384")(self)
 
     @property
-    def sha512(self) -> 'Expression[str]':
+    def sha512(self) -> "Expression[str]":
         return _unary_op("sha512")(self)
 
-    def sha2(self, hash_length: Union[int, 'Expression[int]']) -> 'Expression[str]':
+    def sha2(self, hash_length: Union[int, "Expression[int]"]) -> "Expression[str]":
         """
         Returns the hash for the given string expression using the SHA-2 family of hash
         functions (SHA-224, SHA-256, SHA-384, or SHA-512).
@@ -2031,7 +2073,7 @@ class Expression(Generic[T]):
 
     # ---------------------------- JSON functions -----------------------------
 
-    def is_json(self, json_type: JsonType = None) -> 'Expression[bool]':
+    def is_json(self, json_type: JsonType = None) -> "Expression[bool]":
         """
         Determine whether a given string is valid JSON.
 
@@ -2063,7 +2105,7 @@ class Expression(Generic[T]):
         else:
             return _binary_op("isJson")(self, json_type._to_j_json_type())
 
-    def json_exists(self, path: str, on_error: JsonExistsOnError = None) -> 'Expression[bool]':
+    def json_exists(self, path: str, on_error: JsonExistsOnError = None) -> "Expression[bool]":
         """
         Determines whether a JSON string satisfies a given search criterion.
 
@@ -2084,13 +2126,15 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("jsonExists")(self, path, on_error._to_j_json_exists_on_error())
 
-    def json_value(self,
-                   path: str,
-                   returning_type: DataType = DataTypes.STRING(),
-                   on_empty: JsonValueOnEmptyOrError = JsonValueOnEmptyOrError.NULL,
-                   default_on_empty: Any = None,
-                   on_error: JsonValueOnEmptyOrError = JsonValueOnEmptyOrError.NULL,
-                   default_on_error: Any = None) -> 'Expression':
+    def json_value(
+        self,
+        path: str,
+        returning_type: DataType = DataTypes.STRING(),
+        on_empty: JsonValueOnEmptyOrError = JsonValueOnEmptyOrError.NULL,
+        default_on_empty: Any = None,
+        on_error: JsonValueOnEmptyOrError = JsonValueOnEmptyOrError.NULL,
+        default_on_error: Any = None,
+    ) -> "Expression":
         """
         Extracts a scalar from a JSON string.
 
@@ -2122,15 +2166,23 @@ class Expression(Generic[T]):
                     JsonValueOnEmptyOrError.NULL, None, \
                     JsonValueOnEmptyOrError.DEFAULT, False) # BOOLEAN: False
         """
-        return _varargs_op("jsonValue")(self, path, _to_java_data_type(returning_type),
-                                        on_empty._to_j_json_value_on_empty_or_error(),
-                                        default_on_empty,
-                                        on_error._to_j_json_value_on_empty_or_error(),
-                                        default_on_error)
+        return _varargs_op("jsonValue")(
+            self,
+            path,
+            _to_java_data_type(returning_type),
+            on_empty._to_j_json_value_on_empty_or_error(),
+            default_on_empty,
+            on_error._to_j_json_value_on_empty_or_error(),
+            default_on_error,
+        )
 
-    def json_query(self, path: str, wrapping_behavior=JsonQueryWrapper.WITHOUT_ARRAY,
-                   on_empty=JsonQueryOnEmptyOrError.NULL,
-                   on_error=JsonQueryOnEmptyOrError.NULL) -> 'Expression':
+    def json_query(
+        self,
+        path: str,
+        wrapping_behavior=JsonQueryWrapper.WITHOUT_ARRAY,
+        on_empty=JsonQueryOnEmptyOrError.NULL,
+        on_error=JsonQueryOnEmptyOrError.NULL,
+    ) -> "Expression":
         """
         Extracts JSON values from a JSON string.
 
@@ -2168,11 +2220,15 @@ class Expression(Generic[T]):
                                      JsonQueryOnEmptyOrError.NULL, \
                                      JsonQueryOnEmptyOrError.EMPTY_ARRAY) # '[]'
         """
-        return _varargs_op("jsonQuery")(self, path, wrapping_behavior._to_j_json_query_wrapper(),
-                                        on_empty._to_j_json_query_on_error_or_empty(),
-                                        on_error._to_j_json_query_on_error_or_empty())
+        return _varargs_op("jsonQuery")(
+            self,
+            path,
+            wrapping_behavior._to_j_json_query_wrapper(),
+            on_empty._to_j_json_query_on_error_or_empty(),
+            on_error._to_j_json_query_on_error_or_empty(),
+        )
 
-    def json_quote(self) -> 'Expression':
+    def json_quote(self) -> "Expression":
         """
         Quotes a string as a JSON value by wrapping it with double quote characters,
         escaping interior quote and special characters
@@ -2181,7 +2237,7 @@ class Expression(Generic[T]):
         """
         return _unary_op("jsonQuote")(self)
 
-    def json_unquote(self) -> 'Expression':
+    def json_unquote(self) -> "Expression":
         """
         Unquotes JSON value, unescapes escaped special characters
         ('"', '\', '/', 'b', 'f', 'n', 'r', 't', 'u' hex hex hex hex) and

@@ -22,7 +22,6 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class TablePipelineTest(PyFlinkStreamTableTestCase):
-
     def test_table_pipeline_with_anonymous_sink(self):
         schema = Schema.new_builder().column("f0", DataTypes.STRING()).build()
         table = self.t_env.from_descriptor(
@@ -74,9 +73,7 @@ class TablePipelineTest(PyFlinkStreamTableTestCase):
         table_pipeline = table.insert_into("RegisteredSinkForExecute")
 
         table_result = table_pipeline.execute()
-        self.assertEqual(
-            table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT
-        )
+        self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
         self.assertEqual(
             table_result.get_table_schema().get_field_names()[0],
             "default_catalog.default_database.RegisteredSinkForExecute",

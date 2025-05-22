@@ -32,8 +32,9 @@ def retract_results():
     """
     gateway = get_gateway()
     results = gateway.jvm.org.apache.flink.table.utils.TestingSinks.RowCollector.getAndClearValues()
-    return gateway.jvm\
-        .org.apache.flink.table.utils.TestingSinks.RowCollector.retractResults(results)
+    return gateway.jvm.org.apache.flink.table.utils.TestingSinks.RowCollector.retractResults(
+        results
+    )
 
 
 def upsert_results(keys):

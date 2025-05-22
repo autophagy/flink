@@ -22,12 +22,12 @@ from pyflink.java_gateway import get_gateway
 
 
 __all__ = [
-    'CassandraSink',
-    'ConsistencyLevel',
-    'MapperOptions',
-    'ClusterBuilder',
-    'CassandraCommitter',
-    'CassandraFailureHandler'
+    "CassandraSink",
+    "ConsistencyLevel",
+    "MapperOptions",
+    "ClusterBuilder",
+    "CassandraCommitter",
+    "CassandraFailureHandler",
 ]
 
 # ---- Classes introduced to construct the MapperOptions ----
@@ -37,6 +37,7 @@ class ConsistencyLevel(Enum):
     """
     The consistency level
     """
+
     ANY = 0
     ONE = 1
     TWO = 2
@@ -73,11 +74,12 @@ class MapperOptions(object):
         ...    .tracing(True) \\
         ...    .save_null_fields(True)
         """
-        JSimpleMapperOptions = get_gateway().jvm.org.apache.flink.streaming.connectors. \
-            cassandra.SimpleMapperOptions
+        JSimpleMapperOptions = (
+            get_gateway().jvm.org.apache.flink.streaming.connectors.cassandra.SimpleMapperOptions
+        )
         self._j_mapper_options = JSimpleMapperOptions()
 
-    def ttl(self, ttl: int) -> 'MapperOptions':
+    def ttl(self, ttl: int) -> "MapperOptions":
         """
         Creates a new Option object to add time-to-live to a mapper operation. This is only
         valid for save operations.
@@ -85,7 +87,7 @@ class MapperOptions(object):
         self._j_mapper_options.ttl(ttl)
         return self
 
-    def timestamp(self, timestamp: int) -> 'MapperOptions':
+    def timestamp(self, timestamp: int) -> "MapperOptions":
         """
         Creates a new Option object to add a timestamp to a mapper operation. This is only
         valid for save and delete operations.
@@ -93,7 +95,7 @@ class MapperOptions(object):
         self._j_mapper_options.timestamp(timestamp)
         return self
 
-    def consistency_level(self, cl: ConsistencyLevel) -> 'MapperOptions':
+    def consistency_level(self, cl: ConsistencyLevel) -> "MapperOptions":
         """
         Creates a new Option object to add a consistency level value to a mapper operation.
         This is valid for save, delete and get operations.
@@ -101,7 +103,7 @@ class MapperOptions(object):
         self._j_mapper_options.consistencyLevel(cl._to_j_consistency_level())
         return self
 
-    def tracing(self, enabled: bool) -> 'MapperOptions':
+    def tracing(self, enabled: bool) -> "MapperOptions":
         """
         Creates a new Option object to enable query tracing for a mapper operation. This is
         valid for save, delete and get operations.
@@ -109,7 +111,7 @@ class MapperOptions(object):
         self._j_mapper_options.tracing(enabled)
         return self
 
-    def save_null_fields(self, enabled: bool) -> 'MapperOptions':
+    def save_null_fields(self, enabled: bool) -> "MapperOptions":
         """
         Creates a new Option object to specify whether null entity fields should be included in
         insert queries. This option is valid only for save operations.
@@ -117,7 +119,7 @@ class MapperOptions(object):
         self._j_mapper_options.saveNullFields(enabled)
         return self
 
-    def if_not_exists(self, enabled: bool) -> 'MapperOptions':
+    def if_not_exists(self, enabled: bool) -> "MapperOptions":
         """
         Creates a new Option object to specify whether an IF NOT EXISTS clause should be included in
         insert queries. This option is valid only for save operations.
@@ -149,16 +151,18 @@ class CassandraCommitter(object):
         self._j_checkpoint_committer = j_checkpoint_committer
 
     @staticmethod
-    def default_checkpoint_committer(builder: ClusterBuilder, key_space: str = None) \
-            -> 'CassandraCommitter':
+    def default_checkpoint_committer(
+        builder: ClusterBuilder, key_space: str = None
+    ) -> "CassandraCommitter":
         """
         CheckpointCommitter that saves information about completed checkpoints within a separate
         table in a cassandra database.
 
         Entries are in the form: | operator_id | subtask_id | last_completed_checkpoint |
         """
-        JCassandraCommitter = get_gateway().jvm.org.apache.flink.streaming.connectors.\
-            cassandra.CassandraCommitter
+        JCassandraCommitter = (
+            get_gateway().jvm.org.apache.flink.streaming.connectors.cassandra.CassandraCommitter
+        )
         if key_space is None:
             j_checkpoint_committer = JCassandraCommitter(builder._j_cluster_builder)
         else:
@@ -175,13 +179,14 @@ class CassandraFailureHandler(object):
         self._j_cassandra_failure_handler = j_cassandra_failure_handler
 
     @staticmethod
-    def no_op() -> 'CassandraFailureHandler':
+    def no_op() -> "CassandraFailureHandler":
         """
         A CassandraFailureHandler that simply fails the sink on any failures.
         This is also the default failure handler if not specified.
         """
-        return CassandraFailureHandler(get_gateway().jvm.org.apache.flink.streaming.connectors.
-                                       cassandra.NoOpCassandraFailureHandler())
+        return CassandraFailureHandler(
+            get_gateway().jvm.org.apache.flink.streaming.connectors.cassandra.NoOpCassandraFailureHandler()
+        )
 
 
 # ---- CassandraSink ----
@@ -196,7 +201,7 @@ class CassandraSink(object):
     def __init__(self, j_cassandra_sink):
         self._j_cassandra_sink = j_cassandra_sink
 
-    def name(self, name: str) -> 'CassandraSink':
+    def name(self, name: str) -> "CassandraSink":
         """
         Set the name of this sink. This name is used by the visualization and logging during
         runtime.
@@ -204,7 +209,7 @@ class CassandraSink(object):
         self._j_cassandra_sink.name(name)
         return self
 
-    def uid(self, uid: str) -> 'CassandraSink':
+    def uid(self, uid: str) -> "CassandraSink":
         """
         Sets an ID for this operator. The specified ID is used to assign the same operator ID
         across job submissions (for example when starting a job from a savepoint).
@@ -214,7 +219,7 @@ class CassandraSink(object):
         self._j_cassandra_sink.uid(uid)
         return self
 
-    def set_uid_hash(self, uid_hash: str) -> 'CassandraSink':
+    def set_uid_hash(self, uid_hash: str) -> "CassandraSink":
         """
         Sets an user provided hash for this operator. This will be used AS IS the create the
         JobVertexID.
@@ -236,14 +241,14 @@ class CassandraSink(object):
         self._j_cassandra_sink.setUidHash(uid_hash)
         return self
 
-    def set_parallelism(self, parallelism: int) -> 'CassandraSink':
+    def set_parallelism(self, parallelism: int) -> "CassandraSink":
         """
         Sets the parallelism for this sink. The degree must be higher than zero.
         """
         self._j_cassandra_sink.setParallelism(parallelism)
         return self
 
-    def disable_chaining(self) -> 'CassandraSink':
+    def disable_chaining(self) -> "CassandraSink":
         """
         Turns off chaining for this operator so thread co-location will not be used as an
         optimization.
@@ -251,7 +256,7 @@ class CassandraSink(object):
         self._j_cassandra_sink.disableChaining()
         return self
 
-    def slot_sharing_group(self, slot_sharing_group: str) -> 'CassandraSink':
+    def slot_sharing_group(self, slot_sharing_group: str) -> "CassandraSink":
         """
         Sets the slot sharing group of this operation. Parallel instances of operations that are in
         the same slot sharing group will be co-located in the same TaskManager slot, if possible.
@@ -266,12 +271,13 @@ class CassandraSink(object):
         return self
 
     @staticmethod
-    def add_sink(input) -> 'CassandraSinkBuilder':
+    def add_sink(input) -> "CassandraSinkBuilder":
         """
         Writes a DataStream into a Cassandra database.
         """
-        JCassandraSink = get_gateway().jvm \
-            .org.apache.flink.streaming.connectors.cassandra.CassandraSink
+        JCassandraSink = (
+            get_gateway().jvm.org.apache.flink.streaming.connectors.cassandra.CassandraSink
+        )
         j_cassandra_sink_builder = JCassandraSink.addSink(input._j_data_stream)
         return CassandraSink.CassandraSinkBuilder(j_cassandra_sink_builder)
 
@@ -283,22 +289,23 @@ class CassandraSink(object):
         def __init__(self, j_cassandra_sink_builder):
             self._j_cassandra_sink_builder = j_cassandra_sink_builder
 
-        def set_query(self, query: str) -> 'CassandraSink.CassandraSinkBuilder':
+        def set_query(self, query: str) -> "CassandraSink.CassandraSinkBuilder":
             """
             Sets the query that is to be executed for every record.
             """
             self._j_cassandra_sink_builder.setQuery(query)
             return self
 
-        def set_host(self, host: str, port: int = 9042) -> 'CassandraSink.CassandraSinkBuilder':
+        def set_host(self, host: str, port: int = 9042) -> "CassandraSink.CassandraSinkBuilder":
             """
             Sets the cassandra host/port to connect to.
             """
             self._j_cassandra_sink_builder.setHost(host, port)
             return self
 
-        def set_cluster_builder(self, builder: ClusterBuilder) \
-                -> 'CassandraSink.CassandraSinkBuilder':
+        def set_cluster_builder(
+            self, builder: ClusterBuilder
+        ) -> "CassandraSink.CassandraSinkBuilder":
             """
             Sets the ClusterBuilder for this sink. A ClusterBuilder is used to configure the
             connection to cassandra.
@@ -306,8 +313,9 @@ class CassandraSink(object):
             self._j_cassandra_sink_builder.setClusterBuilder(builder._j_cluster_builder)
             return self
 
-        def enable_write_ahead_log(self, committer: CassandraCommitter = None) \
-                -> 'CassandraSink.CassandraSinkBuilder':
+        def enable_write_ahead_log(
+            self, committer: CassandraCommitter = None
+        ) -> "CassandraSink.CassandraSinkBuilder":
             """
             Enables the write-ahead log, which allows exactly-once processing for non-deterministic
             algorithms that use idempotent updates.
@@ -316,11 +324,13 @@ class CassandraSink(object):
                 self._j_cassandra_sink_builder.enableWriteAheadLog()
             else:
                 self._j_cassandra_sink_builder.enableWriteAheadLog(
-                    committer._j_checkpoint_committer)
+                    committer._j_checkpoint_committer
+                )
             return self
 
-        def set_mapper_options(self, options: MapperOptions) \
-                -> 'CassandraSink.CassandraSinkBuilder':
+        def set_mapper_options(
+            self, options: MapperOptions
+        ) -> "CassandraSink.CassandraSinkBuilder":
             """
             Sets the mapper options for this sink. The mapper options are used to configure the
             DataStax com.datastax.driver.mapping.Mapper when writing POJOs.
@@ -329,20 +339,21 @@ class CassandraSink(object):
             self._j_cassandra_sink_builder.setMapperOptions(options._j_mapper_options)
             return self
 
-        def set_failure_handler(self, failure_handler: CassandraFailureHandler) \
-                -> 'CassandraSink.CassandraSinkBuilder':
+        def set_failure_handler(
+            self, failure_handler: CassandraFailureHandler
+        ) -> "CassandraSink.CassandraSinkBuilder":
             """
             Sets the failure handler for this sink. The failure handler is used to provide custom
             error handling.
             """
             self._j_cassandra_sink_builder.setFailureHandler(
-                failure_handler._j_cassandra_failure_handler)
+                failure_handler._j_cassandra_failure_handler
+            )
             return self
 
-        def set_max_concurrent_requests(self,
-                                        max_concurrent_requests: int,
-                                        duration: Duration = None) \
-                -> 'CassandraSink.CassandraSinkBuilder':
+        def set_max_concurrent_requests(
+            self, max_concurrent_requests: int, duration: Duration = None
+        ) -> "CassandraSink.CassandraSinkBuilder":
             """
             Sets the maximum allowed number of concurrent requests for this sink.
             """
@@ -350,10 +361,11 @@ class CassandraSink(object):
                 self._j_cassandra_sink_builder.setMaxConcurrentRequests(max_concurrent_requests)
             else:
                 self._j_cassandra_sink_builder.setMaxConcurrentRequests(
-                    max_concurrent_requests, duration._j_duration)
+                    max_concurrent_requests, duration._j_duration
+                )
             return self
 
-        def enable_ignore_null_fields(self) -> 'CassandraSink.CassandraSinkBuilder':
+        def enable_ignore_null_fields(self) -> "CassandraSink.CassandraSinkBuilder":
             """
             Enables ignoring null values, treats null values as unset and avoids writing null fields
             and creating tombstones.
@@ -362,7 +374,7 @@ class CassandraSink(object):
             self._j_cassandra_sink_builder.enableIgnoreNullFields()
             return self
 
-        def build(self) -> 'CassandraSink':
+        def build(self) -> "CassandraSink":
             """
             Finalizes the configuration of this sink.
             """

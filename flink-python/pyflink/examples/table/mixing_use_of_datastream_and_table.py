@@ -20,7 +20,7 @@ import sys
 
 from pyflink.common import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import (DataTypes, TableDescriptor, Schema, StreamTableEnvironment)
+from pyflink.table import DataTypes, TableDescriptor, Schema, StreamTableEnvironment
 from pyflink.table.expressions import col
 from pyflink.table.udf import udf
 
@@ -32,23 +32,25 @@ def mixing_use_of_datastream_and_table():
 
     # define the source
     t_env.create_temporary_table(
-        'source',
-        TableDescriptor.for_connector('datagen')
-                       .schema(Schema.new_builder()
-                               .column('id', DataTypes.BIGINT())
-                               .column('data', DataTypes.STRING())
-                               .build())
-                       .option("number-of-rows", "10")
-                       .build())
+        "source",
+        TableDescriptor.for_connector("datagen")
+        .schema(
+            Schema.new_builder()
+            .column("id", DataTypes.BIGINT())
+            .column("data", DataTypes.STRING())
+            .build()
+        )
+        .option("number-of-rows", "10")
+        .build(),
+    )
 
     # define the sink
     t_env.create_temporary_table(
-        'sink',
-        TableDescriptor.for_connector('print')
-                       .schema(Schema.new_builder()
-                               .column('a', DataTypes.BIGINT())
-                               .build())
-                       .build())
+        "sink",
+        TableDescriptor.for_connector("print")
+        .schema(Schema.new_builder().column("a", DataTypes.BIGINT()).build())
+        .build(),
+    )
 
     @udf(result_type=DataTypes.BIGINT())
     def length(data):
@@ -56,7 +58,7 @@ def mixing_use_of_datastream_and_table():
 
     # perform table api operations
     table = t_env.from_path("source")
-    table = table.select(col('id'), length(col('data')))
+    table = table.select(col("id"), length(col("data")))
 
     # convert table to datastream and perform datastream api operations
     ds = t_env.to_data_stream(table)
@@ -64,18 +66,17 @@ def mixing_use_of_datastream_and_table():
 
     # convert datastream to table and perform table api operations as you want
     table = t_env.from_data_stream(
-        ds,
-        Schema.new_builder().column("f0", DataTypes.BIGINT()).build())
+        ds, Schema.new_builder().column("f0", DataTypes.BIGINT()).build()
+    )
 
     # execute
-    table.execute_insert('sink') \
-         .wait()
+    table.execute_insert("sink").wait()
     # remove .wait if submitting to a remote cluster, refer to
     # https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/faq/#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster
     # for more details
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
     mixing_use_of_datastream_and_table()

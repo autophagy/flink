@@ -24,7 +24,6 @@ from pyflink.table import AggregateFunction, MapView, ListView
 
 
 class AvgAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         # sum / count
         if accumulator[0] != 0:
@@ -54,7 +53,6 @@ class AvgAggFunction(AggregateFunction):
 
 
 class Count1AggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         return accumulator[0]
 
@@ -73,7 +71,6 @@ class Count1AggFunction(AggregateFunction):
 
 
 class CountAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         return accumulator[0]
 
@@ -94,7 +91,6 @@ class CountAggFunction(AggregateFunction):
 
 
 class FirstValueAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         return accumulator[0]
 
@@ -114,7 +110,6 @@ class FirstValueAggFunction(AggregateFunction):
 
 
 class FirstValueWithRetractAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         return accumulator[0]
 
@@ -201,7 +196,6 @@ class FirstValueWithRetractAggFunction(AggregateFunction):
 
 
 class LastValueAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         return accumulator[0]
 
@@ -221,7 +215,6 @@ class LastValueAggFunction(AggregateFunction):
 
 
 class LastValueWithRetractAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         return accumulator[0]
 
@@ -309,7 +302,6 @@ class LastValueWithRetractAggFunction(AggregateFunction):
 
 
 class ListAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         if accumulator[1]:
             return accumulator[0].join(accumulator[1])
@@ -318,7 +310,7 @@ class ListAggFunction(AggregateFunction):
 
     def create_accumulator(self):
         # delimiter, values
-        return [',', []]
+        return [",", []]
 
     def accumulate(self, accumulator, *args):
         if args[0] is not None:
@@ -331,11 +323,10 @@ class ListAggFunction(AggregateFunction):
 
 
 class ListAggWithRetractAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         values = [i for i in accumulator[0]]
         if values:
-            return ','.join(values)
+            return ",".join(values)
         else:
             return None
 
@@ -383,7 +374,6 @@ class ListAggWithRetractAggFunction(AggregateFunction):
 
 
 class ListAggWsWithRetractAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         values = [i for i in accumulator[0]]
         if values:
@@ -393,7 +383,7 @@ class ListAggWsWithRetractAggFunction(AggregateFunction):
 
     def create_accumulator(self):
         # [list, retract_list, delimiter]
-        return [ListView(), ListView(), ',']
+        return [ListView(), ListView(), ","]
 
     def accumulate(self, accumulator, *args):
         if args[0] is not None:
@@ -438,7 +428,6 @@ class ListAggWsWithRetractAggFunction(AggregateFunction):
 
 
 class MaxAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         return accumulator[0]
 
@@ -461,7 +450,6 @@ class MaxAggFunction(AggregateFunction):
 
 
 class MaxWithRetractAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         if accumulator[1] > 0:
             return accumulator[0]
@@ -567,7 +555,6 @@ class MaxWithRetractAggFunction(AggregateFunction):
 
 
 class MinAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         return accumulator[0]
 
@@ -591,7 +578,6 @@ class MinAggFunction(AggregateFunction):
 
 
 class MinWithRetractAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         if accumulator[1] > 0:
             return accumulator[0]
@@ -697,7 +683,6 @@ class MinWithRetractAggFunction(AggregateFunction):
 
 
 class Sum0AggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         return accumulator[0]
 
@@ -719,28 +704,24 @@ class Sum0AggFunction(AggregateFunction):
 
 
 class IntSum0AggFunction(Sum0AggFunction):
-
     def create_accumulator(self):
         # [sum]
         return [0]
 
 
 class FloatSum0AggFunction(Sum0AggFunction):
-
     def create_accumulator(self):
         # [sum]
         return [0.0]
 
 
 class DecimalSum0AggFunction(Sum0AggFunction):
-
     def create_accumulator(self):
         # [sum]
-        return [Decimal('0')]
+        return [Decimal("0")]
 
 
 class SumAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         return accumulator[0]
 
@@ -768,7 +749,6 @@ class SumAggFunction(AggregateFunction):
 
 
 class SumWithRetractAggFunction(AggregateFunction):
-
     def get_value(self, accumulator):
         if accumulator[1] == 0:
             return None

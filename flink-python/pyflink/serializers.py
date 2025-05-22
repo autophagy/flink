@@ -25,7 +25,7 @@ from typing import TypeVar, Iterable
 
 from pyflink.common.serializer import TypeSerializer
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class SpecialLengths(object):
@@ -34,7 +34,6 @@ class SpecialLengths(object):
 
 
 class IterableSerializer(TypeSerializer[Iterable[T]]):
-
     def _load_from_stream_without_unbatching(self, stream: BytesIO):
         """
         Returns an iterator of deserialized batches (iterable) of objects from the input stream.
@@ -136,7 +135,7 @@ class BatchedSerializer(IterableSerializer):
         elif hasattr(iterable, "__len__") and hasattr(iterable, "__getslice__"):
             n = len(iterable)
             for i in range(0, n, self.batch_size):
-                yield iterable[i: i + self.batch_size]
+                yield iterable[i : i + self.batch_size]
         else:
             items = []
             count = 0

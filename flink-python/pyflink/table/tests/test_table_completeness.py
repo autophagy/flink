@@ -37,11 +37,11 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
     @classmethod
     def excluded_methods(cls):
         return {
-            'createTemporalTableFunction',
-            'getQueryOperation',
-            'asArgument',
-            'process',
-            'partitionBy',
+            "createTemporalTableFunction",
+            "getQueryOperation",
+            "asArgument",
+            "process",
+            "partitionBy",
         }
 
     @classmethod
@@ -53,15 +53,16 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
         :param python_method_name:
         :return:
         """
-        return {'alias': 'as'}.get(python_method_name, python_method_name)
+        return {"alias": "as"}.get(python_method_name, python_method_name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

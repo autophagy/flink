@@ -20,11 +20,7 @@ from pyflink.datastream.functions import SinkFunction, SourceFunction
 from pyflink.java_gateway import get_gateway
 
 
-__all__ = [
-    'RMQConnectionConfig',
-    'RMQSource',
-    'RMQSink'
-]
+__all__ = ["RMQConnectionConfig", "RMQSource", "RMQSink"]
 
 
 class RMQConnectionConfig(object):
@@ -80,81 +76,86 @@ class RMQConnectionConfig(object):
         """
 
         def __init__(self):
-            self._j_options_builder = get_gateway().jvm.org.apache.flink.streaming.connectors\
-                .rabbitmq.common.RMQConnectionConfig.Builder()
+            self._j_options_builder = get_gateway().jvm.org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig.Builder()
 
-        def set_port(self, port: int) -> 'RMQConnectionConfig.Builder':
+        def set_port(self, port: int) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setPort(port)
             return self
 
-        def set_host(self, host: str) -> 'RMQConnectionConfig.Builder':
+        def set_host(self, host: str) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setHost(host)
             return self
 
-        def set_virtual_host(self, vhost: str) -> 'RMQConnectionConfig.Builder':
+        def set_virtual_host(self, vhost: str) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setVirtualHost(vhost)
             return self
 
-        def set_user_name(self, user_name: str) -> 'RMQConnectionConfig.Builder':
+        def set_user_name(self, user_name: str) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setUserName(user_name)
             return self
 
-        def set_password(self, password: str) -> 'RMQConnectionConfig.Builder':
+        def set_password(self, password: str) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setPassword(password)
             return self
 
-        def set_uri(self, uri: str) -> 'RMQConnectionConfig.Builder':
+        def set_uri(self, uri: str) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setUri(uri)
             return self
 
         def set_topology_recovery_enabled(
-                self, topology_recovery_enabled: bool) -> 'RMQConnectionConfig.Builder':
+            self, topology_recovery_enabled: bool
+        ) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setTopologyRecoveryEnabled(topology_recovery_enabled)
             return self
 
         def set_requested_heartbeat(
-                self, requested_heartbeat: int) -> 'RMQConnectionConfig.Builder':
+            self, requested_heartbeat: int
+        ) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setRequestedHeartbeat(requested_heartbeat)
             return self
 
         def set_requested_frame_max(
-                self, requested_frame_max: int) -> 'RMQConnectionConfig.Builder':
+            self, requested_frame_max: int
+        ) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setRequestedFrameMax(requested_frame_max)
             return self
 
         def set_requested_channel_max(
-                self, requested_channel_max: int) -> 'RMQConnectionConfig.Builder':
+            self, requested_channel_max: int
+        ) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setRequestedChannelMax(requested_channel_max)
             return self
 
         def set_network_recovery_interval(
-                self, network_recovery_interval: int) -> 'RMQConnectionConfig.Builder':
+            self, network_recovery_interval: int
+        ) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setNetworkRecoveryInterval(network_recovery_interval)
             return self
 
-        def set_connection_timeout(self, connection_timeout: int) -> 'RMQConnectionConfig.Builder':
+        def set_connection_timeout(self, connection_timeout: int) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setConnectionTimeout(connection_timeout)
             return self
 
-        def set_automatic_recovery(self, automatic_recovery: bool) -> 'RMQConnectionConfig.Builder':
+        def set_automatic_recovery(self, automatic_recovery: bool) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setAutomaticRecovery(automatic_recovery)
             return self
 
-        def set_prefetch_count(self, prefetch_count: int) -> 'RMQConnectionConfig.Builder':
+        def set_prefetch_count(self, prefetch_count: int) -> "RMQConnectionConfig.Builder":
             self._j_options_builder.setPrefetchCount(prefetch_count)
             return self
 
-        def build(self) -> 'RMQConnectionConfig':
+        def build(self) -> "RMQConnectionConfig":
             return RMQConnectionConfig(self._j_options_builder.build())
 
 
 class RMQSource(SourceFunction):
-    def __init__(self,
-                 connection_config: 'RMQConnectionConfig',
-                 queue_name: str,
-                 use_correlation_id: bool,
-                 deserialization_schema: DeserializationSchema
-                 ):
+    def __init__(
+        self,
+        connection_config: "RMQConnectionConfig",
+        queue_name: str,
+        use_correlation_id: bool,
+        deserialization_schema: DeserializationSchema,
+    ):
         """
         Creates a new RabbitMQ source.
 
@@ -179,14 +180,18 @@ class RMQSource(SourceFunction):
             connection_config._j_rmq_connection_config,
             queue_name,
             use_correlation_id,
-            deserialization_schema._j_deserialization_schema
+            deserialization_schema._j_deserialization_schema,
         )
         super(RMQSource, self).__init__(source_func=j_rmq_source)
 
 
 class RMQSink(SinkFunction):
-    def __init__(self, connection_config: 'RMQConnectionConfig',
-                 queue_name: str, serialization_schema: SerializationSchema):
+    def __init__(
+        self,
+        connection_config: "RMQConnectionConfig",
+        queue_name: str,
+        serialization_schema: SerializationSchema,
+    ):
         """
         Creates a new RabbitMQ sink.
 

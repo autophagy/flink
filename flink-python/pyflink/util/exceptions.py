@@ -123,36 +123,21 @@ class TableNotPartitionedException(JavaException):
 
 # Mapping from JavaException to PythonException
 exception_mapping = {
-    "org.apache.flink.table.api.TableException":
-        TableException,
-    "org.apache.flink.table.catalog.exceptions.CatalogException":
-        CatalogException,
-    "org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException":
-        DatabaseAlreadyExistException,
-    "org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException":
-        DatabaseNotEmptyException,
-    "org.apache.flink.table.catalog.exceptions.DatabaseNotExistException":
-        DatabaseNotExistException,
-    "org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException":
-        FunctionAlreadyExistException,
-    "org.apache.flink.table.catalog.exceptions.FunctionNotExistException":
-        FunctionNotExistException,
-    "org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException":
-        PartitionAlreadyExistsException,
-    "org.apache.flink.table.catalog.exceptions.PartitionNotExistException":
-        PartitionNotExistException,
-    "org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException":
-        PartitionSpecInvalidException,
-    "org.apache.flink.table.catalog.exceptions.TableAlreadyExistException":
-        TableAlreadyExistException,
-    "org.apache.flink.table.catalog.exceptions.TableNotExistException":
-        TableNotExistException,
-    "org.apache.flink.table.catalog.exceptions.TableNotPartitionedException":
-        TableNotPartitionedException,
-    "org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException":
-        ModelAlreadyExistException,
-    "org.apache.flink.table.catalog.exceptions.ModelNotExistException":
-        ModelNotExistException,
+    "org.apache.flink.table.api.TableException": TableException,
+    "org.apache.flink.table.catalog.exceptions.CatalogException": CatalogException,
+    "org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException": DatabaseAlreadyExistException,
+    "org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException": DatabaseNotEmptyException,
+    "org.apache.flink.table.catalog.exceptions.DatabaseNotExistException": DatabaseNotExistException,
+    "org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException": FunctionAlreadyExistException,
+    "org.apache.flink.table.catalog.exceptions.FunctionNotExistException": FunctionNotExistException,
+    "org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException": PartitionAlreadyExistsException,
+    "org.apache.flink.table.catalog.exceptions.PartitionNotExistException": PartitionNotExistException,
+    "org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException": PartitionSpecInvalidException,
+    "org.apache.flink.table.catalog.exceptions.TableAlreadyExistException": TableAlreadyExistException,
+    "org.apache.flink.table.catalog.exceptions.TableNotExistException": TableNotExistException,
+    "org.apache.flink.table.catalog.exceptions.TableNotPartitionedException": TableNotPartitionedException,
+    "org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException": ModelAlreadyExistException,
+    "org.apache.flink.table.catalog.exceptions.ModelNotExistException": ModelNotExistException,
 }
 
 
@@ -162,8 +147,10 @@ def capture_java_exception(f):
             return f(*a, **kw)
         except Py4JJavaError as e:
             from pyflink.java_gateway import get_gateway
-            get_gateway().jvm.org.apache.flink.client.python.PythonEnvUtils\
-                .setPythonException(e.java_exception)
+
+            get_gateway().jvm.org.apache.flink.client.python.PythonEnvUtils.setPythonException(
+                e.java_exception
+            )
             s = e.java_exception.toString()
             for exception in exception_mapping.keys():
                 if s.startswith(exception):
@@ -172,6 +159,7 @@ def capture_java_exception(f):
             else:
                 raise
         raise java_exception
+
     return deco
 
 
@@ -197,12 +185,14 @@ def install_py4j_hooks():
     """
     Hook the classes such as JavaPackage, etc of Py4j to improve the exception message.
     """
+
     def wrapped_call(self, *args, **kwargs):
         raise TypeError(
             "Could not found the Java class '%s'. The Java dependencies could be specified via "
-            "command line argument '--jarfile' or the config option 'pipeline.jars'" % self._fqn)
+            "command line argument '--jarfile' or the config option 'pipeline.jars'" % self._fqn
+        )
 
-    setattr(py4j.java_gateway.JavaPackage, '__call__', wrapped_call)
+    setattr(py4j.java_gateway.JavaPackage, "__call__", wrapped_call)
 
 
 def convert_py4j_exception(e: Py4JJavaError) -> JavaException:
@@ -212,6 +202,6 @@ def convert_py4j_exception(e: Py4JJavaError) -> JavaException:
     s = e.java_exception.toString()
     for exception in exception_mapping.keys():
         if s.startswith(exception):
-            return exception_mapping[exception](str(e).split(': ', 1)[1])
+            return exception_mapping[exception](str(e).split(": ", 1)[1])
     else:
-        return JavaException(str(e).split(': ', 1)[1])
+        return JavaException(str(e).split(": ", 1)[1])

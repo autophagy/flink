@@ -17,9 +17,22 @@
 ################################################################################
 
 from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
-from pyflink.table.catalog import Catalog, CatalogDatabase, CatalogBaseTable, CatalogPartition, \
-    ObjectIdentifier, CatalogFunction, CatalogColumnStatistics, CatalogPartitionSpec, \
-    ObjectPath, Column, WatermarkSpec, Constraint, UniqueConstraint, ResolvedSchema
+from pyflink.table.catalog import (
+    Catalog,
+    CatalogDatabase,
+    CatalogBaseTable,
+    CatalogPartition,
+    ObjectIdentifier,
+    CatalogFunction,
+    CatalogColumnStatistics,
+    CatalogPartitionSpec,
+    ObjectPath,
+    Column,
+    WatermarkSpec,
+    Constraint,
+    UniqueConstraint,
+    ResolvedSchema,
+)
 
 
 class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
@@ -40,12 +53,13 @@ class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase
     def excluded_methods(cls):
         # open/close are not needed in Python API as they are used internally
         return {
-            'open',
-            'close',
-            'getFactory',
-            'getTableFactory',
-            'getFunctionDefinitionFactory',
-            'listPartitionsByFilter'}
+            "open",
+            "close",
+            "getFactory",
+            "getTableFactory",
+            "getFunctionDefinitionFactory",
+            "listPartitionsByFilter",
+        }
 
 
 class CatalogDatabaseAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
@@ -79,7 +93,7 @@ class CatalogBaseTableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlin
 
     @classmethod
     def excluded_methods(cls):
-        return {'getUnresolvedSchema', 'getTableKind', 'getSchema'}
+        return {"getUnresolvedSchema", "getTableKind", "getSchema"}
 
 
 class CatalogFunctionAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
@@ -98,7 +112,7 @@ class CatalogFunctionAPICompletenessTests(PythonAPICompletenessTestCase, PyFlink
 
     @classmethod
     def excluded_methods(cls):
-        return {'getFunctionResources'}
+        return {"getFunctionResources"}
 
 
 class CatalogPartitionAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
@@ -251,12 +265,13 @@ class ResolvedSchemaAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkT
         return "org.apache.flink.table.catalog.ResolvedSchema"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

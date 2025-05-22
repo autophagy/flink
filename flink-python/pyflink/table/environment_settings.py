@@ -21,7 +21,7 @@ from pyflink.util.java_utils import create_url_class_loader
 
 from pyflink.common import Configuration
 
-__all__ = ['EnvironmentSettings']
+__all__ = ["EnvironmentSettings"]
 
 
 class EnvironmentSettings(object):
@@ -52,7 +52,7 @@ class EnvironmentSettings(object):
             gateway = get_gateway()
             self._j_builder = gateway.jvm.EnvironmentSettings.Builder()
 
-        def with_configuration(self, config: Configuration) -> 'EnvironmentSettings.Builder':
+        def with_configuration(self, config: Configuration) -> "EnvironmentSettings.Builder":
             """
             Creates the EnvironmentSetting with specified Configuration.
 
@@ -61,7 +61,7 @@ class EnvironmentSettings(object):
             self._j_builder = self._j_builder.withConfiguration(config._j_configuration)
             return self
 
-        def in_batch_mode(self) -> 'EnvironmentSettings.Builder':
+        def in_batch_mode(self) -> "EnvironmentSettings.Builder":
             """
             Sets that the components should work in a batch mode. Streaming mode by default.
 
@@ -70,7 +70,7 @@ class EnvironmentSettings(object):
             self._j_builder = self._j_builder.inBatchMode()
             return self
 
-        def in_streaming_mode(self) -> 'EnvironmentSettings.Builder':
+        def in_streaming_mode(self) -> "EnvironmentSettings.Builder":
             """
             Sets that the components should work in a streaming mode. Enabled by default.
 
@@ -79,8 +79,9 @@ class EnvironmentSettings(object):
             self._j_builder = self._j_builder.inStreamingMode()
             return self
 
-        def with_built_in_catalog_name(self, built_in_catalog_name: str) \
-                -> 'EnvironmentSettings.Builder':
+        def with_built_in_catalog_name(
+            self, built_in_catalog_name: str
+        ) -> "EnvironmentSettings.Builder":
             """
             Specifies the name of the initial catalog to be created when instantiating
             a :class:`~pyflink.table.TableEnvironment`.
@@ -101,8 +102,9 @@ class EnvironmentSettings(object):
             self._j_builder = self._j_builder.withBuiltInCatalogName(built_in_catalog_name)
             return self
 
-        def with_built_in_database_name(self, built_in_database_name: str) \
-                -> 'EnvironmentSettings.Builder':
+        def with_built_in_database_name(
+            self, built_in_database_name: str
+        ) -> "EnvironmentSettings.Builder":
             """
             Specifies the name of the default database in the initial catalog to be
             created when instantiating a :class:`~pyflink.table.TableEnvironment`.
@@ -123,7 +125,7 @@ class EnvironmentSettings(object):
             self._j_builder = self._j_builder.withBuiltInDatabaseName(built_in_database_name)
             return self
 
-        def build(self) -> 'EnvironmentSettings':
+        def build(self) -> "EnvironmentSettings":
             """
             Returns an immutable instance of EnvironmentSettings.
 
@@ -174,7 +176,7 @@ class EnvironmentSettings(object):
         return Configuration(j_configuration=self._j_environment_settings.getConfiguration())
 
     @staticmethod
-    def new_instance() -> 'EnvironmentSettings.Builder':
+    def new_instance() -> "EnvironmentSettings.Builder":
         """
         Creates a builder for creating an instance of EnvironmentSettings.
 
@@ -183,7 +185,7 @@ class EnvironmentSettings(object):
         return EnvironmentSettings.Builder()
 
     @staticmethod
-    def in_streaming_mode() -> 'EnvironmentSettings':
+    def in_streaming_mode() -> "EnvironmentSettings":
         """
         Creates a default instance of EnvironmentSettings in streaming execution mode.
 
@@ -198,7 +200,7 @@ class EnvironmentSettings(object):
         return EnvironmentSettings.new_instance().in_streaming_mode().build()
 
     @staticmethod
-    def in_batch_mode() -> 'EnvironmentSettings':
+    def in_batch_mode() -> "EnvironmentSettings":
         """
         Creates a default instance of EnvironmentSettings in batch execution mode.
 

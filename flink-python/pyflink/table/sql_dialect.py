@@ -17,7 +17,7 @@
 ################################################################################
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['SqlDialect']
+__all__ = ["SqlDialect"]
 
 
 class SqlDialect(object):
@@ -65,5 +65,7 @@ class SqlDialect(object):
         elif sql_dialect == SqlDialect.HIVE:
             return JSqlDialect.HIVE
         else:
-            raise TypeError("Unsupported SQL dialect: %s, supported SQL dialects are: "
-                            "SqlDialect.DEFAULT, SqlDialect.HIVE." % sql_dialect)
+            raise TypeError(
+                "Unsupported SQL dialect: %s, supported SQL dialects are: "
+                "SqlDialect.DEFAULT, SqlDialect.HIVE." % sql_dialect
+            )

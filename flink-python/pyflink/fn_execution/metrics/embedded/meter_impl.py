@@ -19,7 +19,6 @@ from pyflink.metrics import Meter
 
 
 class MeterImpl(Meter):
-
     def __init__(self, inner_counter):
         self._inner_counter = inner_counter
 

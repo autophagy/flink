@@ -28,8 +28,13 @@ from pyflink.common import Row, RowKind
 from pyflink.common.time import Instant
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.fn_execution.formats.avro import FlinkAvroDecoder, FlinkAvroDatumReader, \
-    FlinkAvroBufferWrapper, FlinkAvroEncoder, FlinkAvroDatumWriter
+from pyflink.fn_execution.formats.avro import (
+    FlinkAvroDecoder,
+    FlinkAvroDatumReader,
+    FlinkAvroBufferWrapper,
+    FlinkAvroEncoder,
+    FlinkAvroDatumWriter,
+)
 from pyflink.fn_execution.stream_slow import InputStream, OutputStream
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
@@ -42,7 +47,7 @@ class LengthPrefixBaseCoderImpl(ABC):
     LengthPrefixBaseCoder.
     """
 
-    def __init__(self, field_coder: 'FieldCoderImpl'):
+    def __init__(self, field_coder: "FieldCoderImpl"):
         self._field_coder = field_coder
         self._data_out_stream = OutputStream()
 
@@ -90,7 +95,7 @@ class IterableCoderImpl(LengthPrefixBaseCoderImpl):
     message 0x00 to output stream after encoding data.
     """
 
-    def __init__(self, field_coder: 'FieldCoderImpl', separated_with_end_message: bool):
+    def __init__(self, field_coder: "FieldCoderImpl", separated_with_end_message: bool):
         super(IterableCoderImpl, self).__init__(field_coder)
         self._separated_with_end_message = separated_with_end_message
 
@@ -115,7 +120,7 @@ class ValueCoderImpl(LengthPrefixBaseCoderImpl):
     Encodes a single data to output stream.
     """
 
-    def __init__(self, field_coder: 'FieldCoderImpl'):
+    def __init__(self, field_coder: "FieldCoderImpl"):
         super(ValueCoderImpl, self).__init__(field_coder)
 
     def encode_to_stream(self, value, out_stream: OutputStream):
@@ -150,8 +155,16 @@ class MaskUtils:
         """
         null_mask = []
         for b in range(256):
-            every_num_null_mask = [(b & 0x80) > 0, (b & 0x40) > 0, (b & 0x20) > 0, (b & 0x10) > 0,
-                                   (b & 0x08) > 0, (b & 0x04) > 0, (b & 0x02) > 0, (b & 0x01) > 0]
+            every_num_null_mask = [
+                (b & 0x80) > 0,
+                (b & 0x40) > 0,
+                (b & 0x20) > 0,
+                (b & 0x10) > 0,
+                (b & 0x08) > 0,
+                (b & 0x04) > 0,
+                (b & 0x02) > 0,
+                (b & 0x01) > 0,
+            ]
             null_mask.append(tuple(every_num_null_mask))
 
         return tuple(null_mask)
@@ -210,7 +223,7 @@ class FlattenRowCoderImpl(FieldCoderImpl):
 
     def encode_to_stream(self, value, out_stream: OutputStream):
         if not isinstance(value, List):
-            raise TypeError('Expected list, got {0}'.format(type(value)))
+            raise TypeError("Expected list, got {0}".format(type(value)))
         # encode mask value
         self._mask_utils.write_mask(value, 0, out_stream)
 
@@ -222,12 +235,15 @@ class FlattenRowCoderImpl(FieldCoderImpl):
 
     def decode_from_stream(self, in_stream: InputStream, length: int = 0):
         row_kind_and_null_mask = self._mask_utils.read_mask(in_stream)
-        return [None if row_kind_and_null_mask[idx + ROW_KIND_BIT_SIZE] else
-                self._field_coders[idx].decode_from_stream(in_stream)
-                for idx in range(0, self._field_count)]
+        return [
+            None
+            if row_kind_and_null_mask[idx + ROW_KIND_BIT_SIZE]
+            else self._field_coders[idx].decode_from_stream(in_stream)
+            for idx in range(0, self._field_count)
+        ]
 
     def __repr__(self):
-        return 'FlattenRowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
+        return "FlattenRowCoderImpl[%s]" % ", ".join(str(c) for c in self._field_coders)
 
 
 class RowCoderImpl(FieldCoderImpl):
@@ -254,14 +270,17 @@ class RowCoderImpl(FieldCoderImpl):
 
     def decode_from_stream(self, in_stream: InputStream, length=0) -> Row:
         row_kind_and_null_mask = self._mask_utils.read_mask(in_stream)
-        fields = [None if row_kind_and_null_mask[idx + ROW_KIND_BIT_SIZE] else
-                  self._field_coders[idx].decode_from_stream(in_stream)
-                  for idx in range(0, self._field_count)]
+        fields = [
+            None
+            if row_kind_and_null_mask[idx + ROW_KIND_BIT_SIZE]
+            else self._field_coders[idx].decode_from_stream(in_stream)
+            for idx in range(0, self._field_count)
+        ]
 
         # compute the row_kind value
         row_kind_value = 0
         for i in range(ROW_KIND_BIT_SIZE):
-            row_kind_value += int(row_kind_and_null_mask[i]) * 2 ** i
+            row_kind_value += int(row_kind_and_null_mask[i]) * 2**i
 
         row = Row(*fields)
         row.set_field_names(self._field_names)
@@ -269,8 +288,10 @@ class RowCoderImpl(FieldCoderImpl):
         return row
 
     def __repr__(self):
-        return 'RowCoderImpl[%s, %s]' % \
-               (', '.join(str(c) for c in self._field_coders), self._field_names)
+        return "RowCoderImpl[%s, %s]" % (
+            ", ".join(str(c) for c in self._field_coders),
+            self._field_names,
+        )
 
 
 class ArrowCoderImpl(FieldCoderImpl):
@@ -291,7 +312,8 @@ class ArrowCoderImpl(FieldCoderImpl):
         self._resettable_io.set_output_stream(out_stream)
         batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
         batch_writer.write_batch(
-            pandas_to_arrow(self._schema, self._timezone, self._field_types, cols))
+            pandas_to_arrow(self._schema, self._timezone, self._field_types, cols)
+        )
 
     def decode_from_stream(self, in_stream: InputStream, length=0):
         return self.decode_one_batch_from_stream(in_stream, length)
@@ -310,7 +332,7 @@ class ArrowCoderImpl(FieldCoderImpl):
             yield reader.read_next_batch()
 
     def __repr__(self):
-        return 'ArrowCoderImpl[%s]' % self._schema
+        return "ArrowCoderImpl[%s]" % self._schema
 
 
 class OverWindowArrowCoderImpl(FieldCoderImpl):
@@ -334,15 +356,16 @@ class OverWindowArrowCoderImpl(FieldCoderImpl):
             window_size = self._int_coder.decode_from_stream(in_stream)
             length -= 4
             window_boundaries_and_arrow_data.append(
-                [self._int_coder.decode_from_stream(in_stream)
-                 for _ in range(window_size)])
+                [self._int_coder.decode_from_stream(in_stream) for _ in range(window_size)]
+            )
             length -= 4 * window_size
         window_boundaries_and_arrow_data.append(
-            self._arrow_coder.decode_one_batch_from_stream(in_stream, length))
+            self._arrow_coder.decode_one_batch_from_stream(in_stream, length)
+        )
         return window_boundaries_and_arrow_data
 
     def __repr__(self):
-        return 'OverWindowArrowCoderImpl[%s]' % self._arrow_coder
+        return "OverWindowArrowCoderImpl[%s]" % self._arrow_coder
 
 
 class TinyIntCoderImpl(FieldCoderImpl):
@@ -527,10 +550,7 @@ class TimeCoderImpl(FieldCoderImpl):
 
     @staticmethod
     def time_to_internal(t):
-        milliseconds = (t.hour * 3600000
-                        + t.minute * 60000
-                        + t.second * 1000
-                        + t.microsecond // 1000)
+        milliseconds = t.hour * 3600000 + t.minute * 60000 + t.second * 1000 + t.microsecond // 1000
         return milliseconds
 
     @staticmethod
@@ -579,8 +599,10 @@ class TimestampCoderImpl(FieldCoderImpl):
         return milliseconds, nanoseconds
 
     def internal_to_timestamp(self, milliseconds, nanoseconds):
-        second, microsecond = (milliseconds // 1000,
-                               milliseconds % 1000 * 1000 + nanoseconds // 1000)
+        second, microsecond = (
+            milliseconds // 1000,
+            milliseconds % 1000 * 1000 + nanoseconds // 1000,
+        )
         return datetime.datetime.utcfromtimestamp(second).replace(microsecond=microsecond)
 
 
@@ -596,13 +618,16 @@ class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     def internal_to_timestamp(self, milliseconds, nanoseconds):
         return self.timezone.localize(
             super(LocalZonedTimestampCoderImpl, self).internal_to_timestamp(
-                milliseconds, nanoseconds))
+                milliseconds, nanoseconds
+            )
+        )
 
 
 class InstantCoderImpl(FieldCoderImpl):
     """
     A coder for Instant.
     """
+
     def __init__(self):
         self._null_seconds = -9223372036854775808
         self._null_nanos = -2147483648
@@ -645,7 +670,7 @@ class CloudPickleCoderImpl(FieldCoderImpl):
         return value
 
     def __repr__(self) -> str:
-        return 'CloudPickleCoderImpl[%s]' % str(self.field_coder)
+        return "CloudPickleCoderImpl[%s]" % str(self.field_coder)
 
 
 class PickleCoderImpl(FieldCoderImpl):
@@ -666,7 +691,7 @@ class PickleCoderImpl(FieldCoderImpl):
         return value
 
     def __repr__(self) -> str:
-        return 'PickleCoderImpl[%s]' % str(self.field_coder)
+        return "PickleCoderImpl[%s]" % str(self.field_coder)
 
 
 class TupleCoderImpl(FieldCoderImpl):
@@ -684,12 +709,13 @@ class TupleCoderImpl(FieldCoderImpl):
             field_coders[i].encode_to_stream(value[i], out_stream)
 
     def decode_from_stream(self, stream: InputStream, length=0):
-        decoded_list = [field_coder.decode_from_stream(stream)
-                        for field_coder in self._field_coders]
+        decoded_list = [
+            field_coder.decode_from_stream(stream) for field_coder in self._field_coders
+        ]
         return (*decoded_list,)
 
     def __repr__(self) -> str:
-        return 'TupleCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
+        return "TupleCoderImpl[%s]" % ", ".join(str(c) for c in self._field_coders)
 
 
 class GenericArrayCoderImpl(FieldCoderImpl):
@@ -711,12 +737,14 @@ class GenericArrayCoderImpl(FieldCoderImpl):
 
     def decode_from_stream(self, in_stream: InputStream, length=0):
         size = in_stream.read_int32()
-        elements = [self._elem_coder.decode_from_stream(in_stream)
-                    if in_stream.read_byte() else None for _ in range(size)]
+        elements = [
+            self._elem_coder.decode_from_stream(in_stream) if in_stream.read_byte() else None
+            for _ in range(size)
+        ]
         return elements
 
     def __repr__(self):
-        return 'GenericArrayCoderImpl[%s]' % repr(self._elem_coder)
+        return "GenericArrayCoderImpl[%s]" % repr(self._elem_coder)
 
 
 class PrimitiveArrayCoderImpl(FieldCoderImpl):
@@ -738,7 +766,7 @@ class PrimitiveArrayCoderImpl(FieldCoderImpl):
         return elements
 
     def __repr__(self):
-        return 'PrimitiveArrayCoderImpl[%s]' % repr(self._elem_coder)
+        return "PrimitiveArrayCoderImpl[%s]" % repr(self._elem_coder)
 
 
 class MapCoderImpl(FieldCoderImpl):
@@ -775,7 +803,7 @@ class MapCoderImpl(FieldCoderImpl):
         return map_value
 
     def __repr__(self):
-        return 'MapCoderImpl[%s]' % ' : '.join([repr(self._key_coder), repr(self._value_coder)])
+        return "MapCoderImpl[%s]" % " : ".join([repr(self._key_coder), repr(self._value_coder)])
 
 
 class TimeWindowCoderImpl(FieldCoderImpl):
@@ -822,6 +850,7 @@ class DataViewFilterCoderImpl(FieldCoderImpl):
     """
     A coder for data view filter.
     """
+
     def __init__(self, udf_data_view_specs):
         self._udf_data_view_specs = udf_data_view_specs
         self._pickle_coder = PickleCoderImpl()
@@ -842,7 +871,6 @@ class DataViewFilterCoderImpl(FieldCoderImpl):
 
 
 class AvroCoderImpl(FieldCoderImpl):
-
     def __init__(self, schema_string: str):
         self._buffer_wrapper = FlinkAvroBufferWrapper()
         self._schema = avro_schema.parse(schema_string)
@@ -862,7 +890,6 @@ class AvroCoderImpl(FieldCoderImpl):
 
 
 class LocalDateCoderImpl(FieldCoderImpl):
-
     @staticmethod
     def _encode_to_stream(value: datetime.date, out_stream: OutputStream):
         if value is None:
@@ -891,7 +918,6 @@ class LocalDateCoderImpl(FieldCoderImpl):
 
 
 class LocalTimeCoderImpl(FieldCoderImpl):
-
     @staticmethod
     def _encode_to_stream(value: datetime.time, out_stream: OutputStream):
         if value is None:
@@ -923,7 +949,6 @@ class LocalTimeCoderImpl(FieldCoderImpl):
 
 
 class LocalDateTimeCoderImpl(FieldCoderImpl):
-
     def encode_to_stream(self, value: datetime.datetime, out_stream: OutputStream):
         if value is None:
             LocalDateCoderImpl._encode_to_stream(None, out_stream)
@@ -937,5 +962,6 @@ class LocalDateTimeCoderImpl(FieldCoderImpl):
         time = LocalTimeCoderImpl._decode_from_stream(in_stream)
         if date is None or time is None:
             return None
-        return datetime.datetime(date.year, date.month, date.day, time.hour, time.minute,
-                                 time.second, time.microsecond)
+        return datetime.datetime(
+            date.year, date.month, date.day, time.hour, time.minute, time.second, time.microsecond
+        )

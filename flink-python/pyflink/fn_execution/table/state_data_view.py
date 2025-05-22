@@ -34,11 +34,13 @@ def extract_data_view_specs_from_accumulator(current_index, accumulator):
         i += 1
         # TODO: infer the coder from the input types and output type of the built-in functions
         if isinstance(field, MapView):
-            extracted_specs.append(MapViewSpec(
-                "builtInAgg%df%d" % (current_index, i), i, PickleCoder(), PickleCoder()))
+            extracted_specs.append(
+                MapViewSpec("builtInAgg%df%d" % (current_index, i), i, PickleCoder(), PickleCoder())
+            )
         elif isinstance(field, ListView):
-            extracted_specs.append(ListViewSpec(
-                "builtInAgg%df%d" % (current_index, i), i, PickleCoder()))
+            extracted_specs.append(
+                ListViewSpec("builtInAgg%df%d" % (current_index, i), i, PickleCoder())
+            )
     return extracted_specs
 
 
@@ -53,7 +55,8 @@ def extract_data_view_specs(udfs):
                 built_in_function = load_aggregate_function(udf.payload)
                 accumulator = built_in_function.create_accumulator()
                 extracted_udf_data_view_specs.append(
-                    extract_data_view_specs_from_accumulator(current_index, accumulator))
+                    extract_data_view_specs_from_accumulator(current_index, accumulator)
+                )
             else:
                 extracted_udf_data_view_specs.append([])
         else:
@@ -68,7 +71,8 @@ def extract_data_view_specs(udfs):
                     key_coder = from_proto(spec_proto.map_view.key_type)
                     value_coder = from_proto(spec_proto.map_view.value_type)
                     extracted_specs.append(
-                        MapViewSpec(state_id, field_index, key_coder, value_coder))
+                        MapViewSpec(state_id, field_index, key_coder, value_coder)
+                    )
                 else:
                     raise Exception("Unsupported data view spec type: " + spec_proto.type)
             extracted_udf_data_view_specs.append(extracted_specs)
@@ -77,7 +81,7 @@ def extract_data_view_specs(udfs):
     return extracted_udf_data_view_specs
 
 
-N = TypeVar('N')
+N = TypeVar("N")
 
 
 class StateDataView(DataView, Generic[N]):
@@ -90,7 +94,6 @@ class StateDataView(DataView, Generic[N]):
 
 
 class StateListView(ListView, StateDataView[N], ABC):
-
     def __init__(self, list_state: Union[ListState, InternalListState]):
         super().__init__()
         self._list_state = list_state
@@ -138,7 +141,6 @@ class NamespacedStateListView(StateListView[N]):
 
 
 class StateMapView(MapView, StateDataView[N], ABC):
-
     def __init__(self, map_state: Union[MapState, InternalMapState]):
         super().__init__()
         self._map_state = map_state
@@ -201,21 +203,18 @@ class NamespacedStateMapView(StateMapView[N]):
 
 
 class DataViewSpec(object):
-
     def __init__(self, state_id, field_index):
         self.state_id = state_id
         self.field_index = field_index
 
 
 class ListViewSpec(DataViewSpec):
-
     def __init__(self, state_id, field_index, element_coder):
         super(ListViewSpec, self).__init__(state_id, field_index)
         self.element_coder = element_coder
 
 
 class MapViewSpec(DataViewSpec):
-
     def __init__(self, state_id, field_index, key_coder, value_coder):
         super(MapViewSpec, self).__init__(state_id, field_index)
         self.key_coder = key_coder
@@ -227,9 +226,7 @@ class StateDataViewStore(ABC):
     This interface contains methods for registering StateDataView with a managed store.
     """
 
-    def __init__(self,
-                 function_context: FunctionContext,
-                 keyed_state_backend):
+    def __init__(self, function_context: FunctionContext, keyed_state_backend):
         self._function_context = function_context
         self._keyed_state_backend = keyed_state_backend
 
@@ -265,18 +262,18 @@ class PerKeyStateDataViewStore(StateDataViewStore):
     Default implementation of StateDataViewStore.
     """
 
-    def __init__(self,
-                 function_context: FunctionContext,
-                 keyed_state_backend):
+    def __init__(self, function_context: FunctionContext, keyed_state_backend):
         super(PerKeyStateDataViewStore, self).__init__(function_context, keyed_state_backend)
 
     def get_state_list_view(self, state_name, element_coder):
         return KeyedStateListView(
-            self._keyed_state_backend.get_list_state(state_name, element_coder))
+            self._keyed_state_backend.get_list_state(state_name, element_coder)
+        )
 
     def get_state_map_view(self, state_name, key_coder, value_coder):
         return KeyedStateMapView(
-            self._keyed_state_backend.get_map_state(state_name, key_coder, value_coder))
+            self._keyed_state_backend.get_map_state(state_name, key_coder, value_coder)
+        )
 
 
 class PerWindowStateDataViewStore(StateDataViewStore):
@@ -286,15 +283,15 @@ class PerWindowStateDataViewStore(StateDataViewStore):
     ability to switch window namespaces.
     """
 
-    def __init__(self,
-                 function_context: FunctionContext,
-                 keyed_state_backend):
+    def __init__(self, function_context: FunctionContext, keyed_state_backend):
         super(PerWindowStateDataViewStore, self).__init__(function_context, keyed_state_backend)
 
     def get_state_list_view(self, state_name, element_coder):
         return NamespacedStateListView(
-            self._keyed_state_backend.get_list_state(state_name, element_coder))
+            self._keyed_state_backend.get_list_state(state_name, element_coder)
+        )
 
     def get_state_map_view(self, state_name, key_coder, value_coder):
         return NamespacedStateMapView(
-            self._keyed_state_backend.get_map_state(state_name, key_coder, value_coder))
+            self._keyed_state_backend.get_map_state(state_name, key_coder, value_coder)
+        )

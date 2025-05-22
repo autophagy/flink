@@ -24,32 +24,31 @@ from pyflink.fn_execution.metrics.embedded.distribution_impl import Distribution
 from pyflink.fn_execution.metrics.embedded.meter_impl import MeterImpl
 from pyflink.metrics import MetricGroup, Counter, Distribution, Meter
 
-JMeterView = findClass('org.apache.flink.metrics.MeterView')
-JMetricGauge = findClass('org.apache.flink.python.metric.embedded.MetricGauge')
-JMetricDistribution = findClass('org.apache.flink.python.metric.embedded.MetricDistribution')
+JMeterView = findClass("org.apache.flink.metrics.MeterView")
+JMetricGauge = findClass("org.apache.flink.python.metric.embedded.MetricGauge")
+JMetricDistribution = findClass("org.apache.flink.python.metric.embedded.MetricDistribution")
 
 
 class MetricGroupImpl(MetricGroup):
-
     def __init__(self, metrics):
         self._metrics = metrics
 
-    def add_group(self, name: str, extra: str = None) -> 'MetricGroup':
+    def add_group(self, name: str, extra: str = None) -> "MetricGroup":
         if extra is None:
             return MetricGroupImpl(self._metrics.addGroup(name))
         else:
             return MetricGroupImpl(self._metrics.addGroup(name, extra))
 
-    def counter(self, name: str) -> 'Counter':
+    def counter(self, name: str) -> "Counter":
         return CounterImpl(self._metrics.counter(name))
 
     def gauge(self, name: str, obj: Callable[[], int]) -> None:
         self._metrics.gauge(name, JMetricGauge(PythonGaugeCallable(obj)))
 
-    def meter(self, name: str, time_span_in_seconds: int = 60) -> 'Meter':
+    def meter(self, name: str, time_span_in_seconds: int = 60) -> "Meter":
         return MeterImpl(self._metrics.meter(name, JMeterView(time_span_in_seconds)))
 
-    def distribution(self, name: str) -> 'Distribution':
+    def distribution(self, name: str) -> "Distribution":
         return DistributionImpl(self._metrics.gauge(name, JMetricDistribution()))
 
 

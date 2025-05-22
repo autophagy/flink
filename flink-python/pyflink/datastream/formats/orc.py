@@ -26,9 +26,7 @@ from pyflink.util.java_utils import to_jarray
 if TYPE_CHECKING:
     from pyflink.table.types import RowType
 
-__all__ = [
-    'OrcBulkWriters'
-]
+__all__ = ["OrcBulkWriters"]
 
 
 class OrcBulkWriters(object):
@@ -56,10 +54,11 @@ class OrcBulkWriters(object):
     """
 
     @staticmethod
-    def for_row_type(row_type: 'RowType',
-                     writer_properties: Optional[Configuration] = None,
-                     hadoop_config: Optional[Configuration] = None) \
-            -> BulkWriterFactory:
+    def for_row_type(
+        row_type: "RowType",
+        writer_properties: Optional[Configuration] = None,
+        hadoop_config: Optional[Configuration] = None,
+    ) -> BulkWriterFactory:
         """
         Create a :class:`~pyflink.common.serialization.BulkWriterFactory` that writes records
         with a predefined schema into Orc files in a batch fashion.
@@ -69,19 +68,22 @@ class OrcBulkWriters(object):
         :param hadoop_config: Hadoop configuration.
         """
         from pyflink.table.types import RowType
+
         if not isinstance(row_type, RowType):
-            raise TypeError('row_type must be an instance of RowType')
+            raise TypeError("row_type must be an instance of RowType")
 
         from pyflink.table.types import _to_java_data_type
+
         j_data_type = _to_java_data_type(row_type)
         jvm = get_gateway().jvm
         j_row_type = j_data_type.getLogicalType()
         orc_types = to_jarray(
             jvm.org.apache.flink.table.types.logical.LogicalType,
-            [i for i in j_row_type.getChildren()]
+            [i for i in j_row_type.getChildren()],
         )
-        type_description = jvm.org.apache.flink.orc \
-            .OrcSplitReaderUtil.logicalTypeToOrcType(j_row_type)
+        type_description = jvm.org.apache.flink.orc.OrcSplitReaderUtil.logicalTypeToOrcType(
+            j_row_type
+        )
         if writer_properties is None:
             writer_properties = Configuration()
         if hadoop_config is None:
@@ -90,11 +92,10 @@ class OrcBulkWriters(object):
         return RowDataBulkWriterFactory(
             jvm.org.apache.flink.orc.writer.OrcBulkWriterFactory(
                 jvm.org.apache.flink.orc.vector.RowDataVectorizer(
-                    type_description.toString(),
-                    orc_types
+                    type_description.toString(), orc_types
                 ),
                 create_java_properties(writer_properties),
-                create_hadoop_configuration(hadoop_config)
+                create_hadoop_configuration(hadoop_config),
             ),
-            row_type
+            row_type,
         )

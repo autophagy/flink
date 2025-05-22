@@ -24,68 +24,86 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkT
 
 
 class StreamTableWindowTests(PyFlinkStreamTableTestCase):
-
     def test_over_window(self):
         t_env = self.t_env
-        t = t_env.from_elements([(1, 1, "Hello")], ['a', 'b', 'c'])
+        t = t_env.from_elements([(1, 1, "Hello")], ["a", "b", "c"])
 
         result = t.over_window(
             Over.partition_by(t.c)
-                .order_by(t.a)
-                .preceding(expr.row_interval(2))
-                .following(expr.CURRENT_ROW)
-                .alias("w"))
+            .order_by(t.a)
+            .preceding(expr.row_interval(2))
+            .following(expr.CURRENT_ROW)
+            .alias("w")
+        )
 
         self.assertRaisesRegex(
             Py4JJavaError,
             "Second argument in OVER window must be a TIME ATTRIBUTE, but is: BIGINT",
-            result.select, expr.col("b").sum.over(expr.col("w")))
+            result.select,
+            expr.col("b").sum.over(expr.col("w")),
+        )
 
 
 class BatchTableWindowTests(PyFlinkTestCase):
-
     def setUp(self):
         from pyflink.table import TableEnvironment
         from pyflink.table import EnvironmentSettings
+
         self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
 
     def test_tumble_window(self):
         t = self.t_env.from_elements([(1, 1, "Hello")], ["a", "b", "c"])
-        result = t.window(Tumble.over(expr.row_interval(2)).on(expr.col("a")).alias("w"))\
-            .group_by(expr.col('w'), expr.col('c')).select(t.b.sum)
+        result = (
+            t.window(Tumble.over(expr.row_interval(2)).on(expr.col("a")).alias("w"))
+            .group_by(expr.col("w"), expr.col("c"))
+            .select(t.b.sum)
+        )
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
-        self.assertEqual('[c]', query_operation.getGroupingExpressions().toString())
-        self.assertEqual('TumbleWindow(field: [a], size: [2])',
-                         query_operation.getGroupWindow().asSummaryString())
+        self.assertEqual("[c]", query_operation.getGroupingExpressions().toString())
+        self.assertEqual(
+            "TumbleWindow(field: [a], size: [2])",
+            query_operation.getGroupWindow().asSummaryString(),
+        )
 
     def test_slide_window(self):
         t = self.t_env.from_elements([(1000, 1, "Hello")], ["a", "b", "c"])
-        result = t.window(Slide.over(expr.lit(2).seconds).every(expr.lit(1).seconds).on(t.a)
-                          .alias("w")).group_by(expr.col('w'), expr.col('c')).select(t.b.sum)
+        result = (
+            t.window(Slide.over(expr.lit(2).seconds).every(expr.lit(1).seconds).on(t.a).alias("w"))
+            .group_by(expr.col("w"), expr.col("c"))
+            .select(t.b.sum)
+        )
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
-        self.assertEqual('[c]', query_operation.getGroupingExpressions().toString())
-        self.assertEqual('SlideWindow(field: [a], slide: [1000], size: [2000])',
-                         query_operation.getGroupWindow().asSummaryString())
+        self.assertEqual("[c]", query_operation.getGroupingExpressions().toString())
+        self.assertEqual(
+            "SlideWindow(field: [a], slide: [1000], size: [2000])",
+            query_operation.getGroupWindow().asSummaryString(),
+        )
 
     def test_session_window(self):
         t = self.t_env.from_elements([(1000, 1, "Hello")], ["a", "b", "c"])
-        result = t.window(Session.with_gap(expr.lit(1).seconds).on(t.a).alias("w"))\
-            .group_by(expr.col('w'), expr.col('c')).select(t.b.sum)
+        result = (
+            t.window(Session.with_gap(expr.lit(1).seconds).on(t.a).alias("w"))
+            .group_by(expr.col("w"), expr.col("c"))
+            .select(t.b.sum)
+        )
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
-        self.assertEqual('[c]', query_operation.getGroupingExpressions().toString())
-        self.assertEqual('SessionWindow(field: [a], gap: [1000])',
-                         query_operation.getGroupWindow().asSummaryString())
+        self.assertEqual("[c]", query_operation.getGroupingExpressions().toString())
+        self.assertEqual(
+            "SessionWindow(field: [a], gap: [1000])",
+            query_operation.getGroupWindow().asSummaryString(),
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)

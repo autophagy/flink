@@ -19,18 +19,35 @@
 from pyflink.java_gateway import get_gateway
 from pyflink.table import Schema, TableSchema, DataTypes
 
-from pyflink.table.catalog import ObjectPath, Catalog, CatalogDatabase, CatalogBaseTable, \
-    CatalogFunction, CatalogPartition, CatalogPartitionSpec, CatalogModel
+from pyflink.table.catalog import (
+    ObjectPath,
+    Catalog,
+    CatalogDatabase,
+    CatalogBaseTable,
+    CatalogFunction,
+    CatalogPartition,
+    CatalogPartitionSpec,
+    CatalogModel,
+)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
-from pyflink.util.exceptions import DatabaseNotExistException, FunctionNotExistException, \
-    PartitionNotExistException, TableNotExistException, DatabaseAlreadyExistException, \
-    FunctionAlreadyExistException, PartitionAlreadyExistsException, PartitionSpecInvalidException, \
-    TableNotPartitionedException, TableAlreadyExistException, DatabaseNotEmptyException, \
-    ModelNotExistException, ModelAlreadyExistException
+from pyflink.util.exceptions import (
+    DatabaseNotExistException,
+    FunctionNotExistException,
+    PartitionNotExistException,
+    TableNotExistException,
+    DatabaseAlreadyExistException,
+    FunctionAlreadyExistException,
+    PartitionAlreadyExistsException,
+    PartitionSpecInvalidException,
+    TableNotPartitionedException,
+    TableAlreadyExistException,
+    DatabaseNotEmptyException,
+    ModelNotExistException,
+    ModelAlreadyExistException,
+)
 
 
 class CatalogTestBase(PyFlinkTestCase):
-
     db1 = "db1"
     db2 = "db2"
     non_exist_database = "non-exist-db"
@@ -89,8 +106,9 @@ class CatalogTestBase(PyFlinkTestCase):
 
     @staticmethod
     def create_table_schema():
-        return TableSchema(["first", "second", "third"],
-                           [DataTypes.STRING(), DataTypes.INT(), DataTypes.STRING()])
+        return TableSchema(
+            ["first", "second", "third"], [DataTypes.STRING(), DataTypes.INT(), DataTypes.STRING()]
+        )
 
     @staticmethod
     def create_model_schema():
@@ -98,8 +116,10 @@ class CatalogTestBase(PyFlinkTestCase):
 
     @staticmethod
     def create_another_table_schema():
-        return TableSchema(["first2", "second", "third"],
-                           [DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()])
+        return TableSchema(
+            ["first2", "second", "third"],
+            [DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()],
+        )
 
     @staticmethod
     def get_batch_table_properties():
@@ -119,7 +139,8 @@ class CatalogTestBase(PyFlinkTestCase):
             CatalogTestBase.create_model_schema(),
             CatalogTestBase.create_model_schema(),
             options={},
-            comment="some comment")
+            comment="some comment",
+        )
 
     @staticmethod
     def create_another_model():
@@ -127,28 +148,32 @@ class CatalogTestBase(PyFlinkTestCase):
             CatalogTestBase.create_model_schema(),
             CatalogTestBase.create_model_schema(),
             options={"key": "value"},
-            comment="some comment")
+            comment="some comment",
+        )
 
     @staticmethod
     def create_table():
         return CatalogBaseTable.create_table(
             schema=CatalogTestBase.create_table_schema(),
             properties=CatalogTestBase.get_batch_table_properties(),
-            comment=CatalogTestBase.test_comment)
+            comment=CatalogTestBase.test_comment,
+        )
 
     @staticmethod
     def create_another_table():
         return CatalogBaseTable.create_table(
             schema=CatalogTestBase.create_another_table_schema(),
             properties=CatalogTestBase.get_batch_table_properties(),
-            comment=CatalogTestBase.test_comment)
+            comment=CatalogTestBase.test_comment,
+        )
 
     @staticmethod
     def create_stream_table():
         return CatalogBaseTable.create_table(
             schema=CatalogTestBase.create_table_schema(),
             properties=CatalogTestBase.get_streaming_table_properties(),
-            comment=CatalogTestBase.test_comment)
+            comment=CatalogTestBase.test_comment,
+        )
 
     @staticmethod
     def create_partitioned_table():
@@ -156,7 +181,8 @@ class CatalogTestBase(PyFlinkTestCase):
             schema=CatalogTestBase.create_table_schema(),
             partition_keys=CatalogTestBase.create_partition_keys(),
             properties=CatalogTestBase.get_batch_table_properties(),
-            comment=CatalogTestBase.test_comment)
+            comment=CatalogTestBase.test_comment,
+        )
 
     @staticmethod
     def create_another_partitioned_table():
@@ -164,7 +190,8 @@ class CatalogTestBase(PyFlinkTestCase):
             schema=CatalogTestBase.create_another_table_schema(),
             partition_keys=CatalogTestBase.create_partition_keys(),
             properties=CatalogTestBase.get_batch_table_properties(),
-            comment=CatalogTestBase.test_comment)
+            comment=CatalogTestBase.test_comment,
+        )
 
     @staticmethod
     def create_view():
@@ -174,7 +201,8 @@ class CatalogTestBase(PyFlinkTestCase):
             "select * from test-catalog.db1.t1",
             table_schema,
             {},
-            "This is a view")
+            "This is a view",
+        )
 
     @staticmethod
     def create_another_view():
@@ -184,17 +212,20 @@ class CatalogTestBase(PyFlinkTestCase):
             "select * from test-catalog.db2.t2",
             table_schema,
             {},
-            "This is another view")
+            "This is another view",
+        )
 
     @staticmethod
     def create_function():
         return CatalogFunction.create_instance(
-            "org.apache.flink.table.functions.python.PythonScalarFunction", "Java")
+            "org.apache.flink.table.functions.python.PythonScalarFunction", "Java"
+        )
 
     @staticmethod
     def create_another_function():
         return CatalogFunction.create_instance(
-            "org.apache.flink.table.functions.ScalarFunction", "Java")
+            "org.apache.flink.table.functions.ScalarFunction", "Java"
+        )
 
     @staticmethod
     def create_partition_spec():
@@ -207,7 +238,8 @@ class CatalogTestBase(PyFlinkTestCase):
     @staticmethod
     def create_partition():
         return CatalogPartition.create_instance(
-            CatalogTestBase.get_batch_table_properties(), "catalog partition tests")
+            CatalogTestBase.get_batch_table_properties(), "catalog partition tests"
+        )
 
     @staticmethod
     def create_partition_spec_subset():
@@ -684,8 +716,10 @@ class CatalogTestBase(PyFlinkTestCase):
         self.catalog.create_table(self.path3, self.create_table(), False)
 
         self.assertEqual(2, len(self.catalog.list_tables(self.db1)))
-        self.assertEqual({self.path1.get_object_name(), self.path3.get_object_name()},
-                         set(self.catalog.list_tables(self.db1)))
+        self.assertEqual(
+            {self.path1.get_object_name(), self.path3.get_object_name()},
+            set(self.catalog.list_tables(self.db1)),
+        )
         self.assertEqual([self.path1.get_object_name()], self.catalog.list_views(self.db1))
 
     def test_rename_view(self):
@@ -798,34 +832,40 @@ class CatalogTestBase(PyFlinkTestCase):
 
         self.assertTrue(0 == len(self.catalog.list_partitions(self.path1)))
 
-        self.catalog.create_partition(self.path1, self.create_partition_spec(),
-                                      self.create_partition(), False)
+        self.catalog.create_partition(
+            self.path1, self.create_partition_spec(), self.create_partition(), False
+        )
 
-        self.check_catalog_partition_equals(self.create_partition(),
-                                            self.catalog.get_partition(
-                                                self.path1, self.create_partition_spec()))
+        self.check_catalog_partition_equals(
+            self.create_partition(),
+            self.catalog.get_partition(self.path1, self.create_partition_spec()),
+        )
 
         self.catalog.create_partition(
-            self.path1, self.create_another_partition_spec(), self.create_partition(), False)
+            self.path1, self.create_another_partition_spec(), self.create_partition(), False
+        )
 
-        self.check_catalog_partition_equals(self.create_partition(),
-                                            self.catalog.get_partition(
-                                                self.path1, self.create_another_partition_spec()))
+        self.check_catalog_partition_equals(
+            self.create_partition(),
+            self.catalog.get_partition(self.path1, self.create_another_partition_spec()),
+        )
 
     def test_create_partition_table_not_exist_exception(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
 
         with self.assertRaises(TableNotExistException):
-            self.catalog.create_partition(self.path1, self.create_partition_spec(),
-                                          self.create_partition(), False)
+            self.catalog.create_partition(
+                self.path1, self.create_partition_spec(), self.create_partition(), False
+            )
 
     def test_create_partition_table_not_partitoned_exception(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.create_table(self.path1, self.create_table(), False)
 
         with self.assertRaises(TableNotPartitionedException):
-            self.catalog.create_partition(self.path1, self.create_partition_spec(),
-                                          self.create_partition(), False)
+            self.catalog.create_partition(
+                self.path1, self.create_partition_spec(), self.create_partition(), False
+            )
 
     def test_create_partition_partition_spec_invalid_exception(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
@@ -836,7 +876,8 @@ class CatalogTestBase(PyFlinkTestCase):
 
         with self.assertRaises(PartitionSpecInvalidException):
             self.catalog.create_partition(
-                self.path1, partition_spec, self.create_partition(), False)
+                self.path1, partition_spec, self.create_partition(), False
+            )
 
     def test_create_partition_partition_already_exists_exception(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
@@ -847,7 +888,8 @@ class CatalogTestBase(PyFlinkTestCase):
         partition_spec = self.create_partition_spec()
         with self.assertRaises(PartitionAlreadyExistsException):
             self.catalog.create_partition(
-                self.path1, partition_spec, self.create_partition(), False)
+                self.path1, partition_spec, self.create_partition(), False
+            )
 
     def test_create_partition_partition_already_exists_ignored(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
@@ -860,8 +902,9 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_drop_partition(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.create_table(self.path1, self.create_partitioned_table(), False)
-        self.catalog.create_partition(self.path1, self.create_partition_spec(),
-                                      self.create_partition(), False)
+        self.catalog.create_partition(
+            self.path1, self.create_partition_spec(), self.create_partition(), False
+        )
 
         self.catalog.drop_partition(self.path1, self.create_partition_spec(), False)
 
@@ -911,15 +954,17 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_alter_partition(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.create_table(self.path1, self.create_partitioned_table(), False)
-        self.catalog.create_partition(self.path1, self.create_partition_spec(),
-                                      self.create_partition(), False)
+        self.catalog.create_partition(
+            self.path1, self.create_partition_spec(), self.create_partition(), False
+        )
 
         cp = self.catalog.get_partition(self.path1, self.create_partition_spec())
         self.check_catalog_partition_equals(self.create_partition(), cp)
         self.assertIsNone(cp.get_properties().get("k"))
 
         another = CatalogPartition.create_instance(
-            {"is_streaming": "false", "k": "v"}, "catalog partition")
+            {"is_streaming": "false", "k": "v"}, "catalog partition"
+        )
         self.catalog.alter_partition(self.path1, self.create_partition_spec(), another, False)
 
         cp = self.catalog.get_partition(self.path1, self.create_partition_spec())
@@ -965,8 +1010,9 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_alter_partition_partition_not_exist_ignored(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.create_table(self.path1, self.create_partitioned_table(), False)
-        self.catalog.alter_partition(self.path1, self.create_partition_spec(),
-                                     self.create_partition(), True)
+        self.catalog.alter_partition(
+            self.path1, self.create_partition_spec(), self.create_partition(), True
+        )
 
     def test_get_partition_table_not_exists(self):
         partition_spec = self.create_partition_spec()
@@ -1015,25 +1061,36 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_partition_exists(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.create_table(self.path1, self.create_partitioned_table(), False)
-        self.catalog.create_partition(self.path1, self.create_partition_spec(),
-                                      self.create_partition(), False)
+        self.catalog.create_partition(
+            self.path1, self.create_partition_spec(), self.create_partition(), False
+        )
 
         self.assertTrue(self.catalog.partition_exists(self.path1, self.create_partition_spec()))
         self.assertFalse(self.catalog.partition_exists(self.path2, self.create_partition_spec()))
-        self.assertFalse(self.catalog.partition_exists(ObjectPath.from_string("non.exist"),
-                                                       self.create_partition_spec()))
+        self.assertFalse(
+            self.catalog.partition_exists(
+                ObjectPath.from_string("non.exist"), self.create_partition_spec()
+            )
+        )
 
     def test_list_partition_partial_spec(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.create_table(self.path1, self.create_partitioned_table(), False)
-        self.catalog.create_partition(self.path1, self.create_partition_spec(),
-                                      self.create_partition(), False)
-        self.catalog.create_partition(self.path1, self.create_another_partition_spec(),
-                                      self.create_partition(), False)
+        self.catalog.create_partition(
+            self.path1, self.create_partition_spec(), self.create_partition(), False
+        )
+        self.catalog.create_partition(
+            self.path1, self.create_another_partition_spec(), self.create_partition(), False
+        )
 
-        self.assertEqual(2,
-                         len(self.catalog.list_partitions(
-                             self.path1, self.create_partition_spec_subset())))
-        self.assertEqual(1,
-                         len(self.catalog.list_partitions(
-                             self.path1, self.create_another_partition_spec_subset())))
+        self.assertEqual(
+            2, len(self.catalog.list_partitions(self.path1, self.create_partition_spec_subset()))
+        )
+        self.assertEqual(
+            1,
+            len(
+                self.catalog.list_partitions(
+                    self.path1, self.create_another_partition_spec_subset()
+                )
+            ),
+        )

@@ -20,7 +20,7 @@ from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.job_id import JobID
 from pyflink.common.job_status import JobStatus
 
-__all__ = ['JobClient']
+__all__ = ["JobClient"]
 
 
 class JobClient(object):
@@ -64,8 +64,9 @@ class JobClient(object):
         """
         return CompletableFuture(self._j_job_client.cancel())
 
-    def stop_with_savepoint(self, advance_to_end_of_event_time: bool,
-                            savepoint_directory: str = None) -> CompletableFuture:
+    def stop_with_savepoint(
+        self, advance_to_end_of_event_time: bool, savepoint_directory: str = None
+    ) -> CompletableFuture:
         """
         Stops the associated job on Flink cluster.
 
@@ -82,7 +83,8 @@ class JobClient(object):
         """
         return CompletableFuture(
             self._j_job_client.stopWithSavepoint(advance_to_end_of_event_time, savepoint_directory),
-            str)
+            str,
+        )
 
     def trigger_savepoint(self, savepoint_directory: str = None) -> CompletableFuture:
         """
@@ -117,5 +119,4 @@ class JobClient(object):
 
         .. versionadded:: 1.11.0
         """
-        return CompletableFuture(self._j_job_client.getJobExecutionResult(),
-                                 JobExecutionResult)
+        return CompletableFuture(self._j_job_client.getJobExecutionResult(), JobExecutionResult)

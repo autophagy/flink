@@ -19,7 +19,7 @@ from typing import Dict, Any
 
 from pyflink.common.job_id import JobID
 
-__all__ = ['JobExecutionResult']
+__all__ = ["JobExecutionResult"]
 
 
 class JobExecutionResult(object):

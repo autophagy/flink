@@ -28,7 +28,7 @@ class Configuration:
     Lightweight configuration object which stores key/value pairs.
     """
 
-    def __init__(self, other: 'Configuration' = None, j_configuration: JavaObject = None):
+    def __init__(self, other: "Configuration" = None, j_configuration: JavaObject = None):
         """
         Creates a new configuration.
 
@@ -58,7 +58,7 @@ class Configuration:
         """
         return self._j_configuration.getString(key, default_value)
 
-    def set_string(self, key: str, value: str) -> 'Configuration':
+    def set_string(self, key: str, value: str) -> "Configuration":
         """
         Adds the given key/value pair to the configuration object.
 
@@ -79,7 +79,8 @@ class Configuration:
         if not value:
             return []
         from ruamel.yaml import YAML
-        yaml = YAML(typ='safe')
+
+        yaml = YAML(typ="safe")
         value_list = yaml.load(value)
         if isinstance(value_list, list):
             return value_list
@@ -99,7 +100,7 @@ class Configuration:
         config_option = JConfigOptions.key(key).longType().noDefaultValue()
         return self._j_configuration.get(config_option, default_value)
 
-    def set_integer(self, key: str, value: int) -> 'Configuration':
+    def set_integer(self, key: str, value: int) -> "Configuration":
         """
         Adds the given key/value pair to the configuration object.
 
@@ -126,7 +127,7 @@ class Configuration:
         config_option = JConfigOptions.key(key).booleanType().noDefaultValue()
         return self._j_configuration.get(config_option, default_value)
 
-    def set_boolean(self, key: str, value: bool) -> 'Configuration':
+    def set_boolean(self, key: str, value: bool) -> "Configuration":
         """
         Adds the given key/value pair to the configuration object.
 
@@ -153,7 +154,7 @@ class Configuration:
         config_option = JConfigOptions.key(key).doubleType().noDefaultValue()
         return self._j_configuration.get(config_option, float(default_value))
 
-    def set_float(self, key: str, value: float) -> 'Configuration':
+    def set_float(self, key: str, value: float) -> "Configuration":
         """
         Adds the given key/value pair to the configuration object.
 
@@ -177,7 +178,7 @@ class Configuration:
         """
         return bytearray(self._j_configuration.getBytes(key, default_value))
 
-    def set_bytearray(self, key: str, value: bytearray) -> 'Configuration':
+    def set_bytearray(self, key: str, value: bytearray) -> "Configuration":
         """
         Adds the given byte array to the configuration object.
 
@@ -205,7 +206,7 @@ class Configuration:
         self._j_configuration.addAllToProperties(properties)
         target_dict.update(properties)
 
-    def add_all(self, other: 'Configuration', prefix: str = None) -> 'Configuration':
+    def add_all(self, other: "Configuration", prefix: str = None) -> "Configuration":
         """
         Adds all entries from the given configuration into this configuration. The keys are
         prepended with the given prefix if exist.

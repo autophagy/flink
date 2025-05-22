@@ -144,7 +144,7 @@ class CountTumblingWindowAssigner(WindowAssigner[CountWindow]):
         self._count: ValueState = None
 
     def open(self, ctx: Context[Any, CountWindow]):
-        value_state_descriptor = ValueStateDescriptor('tumble-count-assigner', Types.LONG())
+        value_state_descriptor = ValueStateDescriptor("tumble-count-assigner", Types.LONG())
         self._count = ctx.get_partitioned_state(value_state_descriptor)
 
     def assign_windows(self, element: List, timestamp: int) -> Iterable[CountWindow]:
@@ -194,8 +194,10 @@ class SlidingWindowAssigner(PanedWindowAssigner[TimeWindow]):
 
     def assign_windows(self, element: List, timestamp: int) -> Iterable[TimeWindow]:
         last_start = TimeWindow.get_window_start_with_offset(timestamp, self._offset, self._slide)
-        windows = [TimeWindow(start, start + self._size)
-                   for start in range(last_start, timestamp - self._size, -self._slide)]
+        windows = [
+            TimeWindow(start, start + self._size)
+            for start in range(last_start, timestamp - self._size, -self._slide)
+        ]
         return windows
 
     def is_event_time(self) -> bool:
@@ -217,7 +219,7 @@ class CountSlidingWindowAssigner(WindowAssigner[CountWindow]):
         self._count: ValueState = None
 
     def open(self, ctx: Context[Any, CountWindow]):
-        count_descriptor = ValueStateDescriptor('slide-count-assigner', Types.LONG())
+        count_descriptor = ValueStateDescriptor("slide-count-assigner", Types.LONG())
         self._count = ctx.get_partitioned_state(count_descriptor)
 
     def assign_windows(self, element: List, timestamp: int) -> Iterable[W]:
@@ -256,8 +258,12 @@ class SessionWindowAssigner(MergingWindowAssigner[TimeWindow]):
         self._session_gap = session_gap
         self._is_event_time = is_event_time
 
-    def merge_windows(self, new_window: W, sorted_windows: List[TimeWindow],
-                      merge_callback: MergingWindowAssigner.MergeCallback):
+    def merge_windows(
+        self,
+        new_window: W,
+        sorted_windows: List[TimeWindow],
+        merge_callback: MergingWindowAssigner.MergeCallback,
+    ):
         ceiling = self._ceiling_window(new_window, sorted_windows)
         floor = self._floor_window(new_window, sorted_windows)
         merge_result = new_window

@@ -44,7 +44,6 @@ def _replace_exec_node_id(plan: str) -> str:
 
 
 class CompiledPlanTest(PyFlinkStreamTableTestCase, PyFlinkTestCase):
-
     def test_compile_plan_sql(self):
         src = """
         CREATE TABLE MyTable (a BIGINT, b INT, c VARCHAR)

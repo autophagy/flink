@@ -25,8 +25,13 @@ import time
 from logging import WARN
 from threading import RLock
 
-from py4j.java_gateway import (java_import, logger, JavaGateway, GatewayParameters,
-                               CallbackServerParameters)
+from py4j.java_gateway import (
+    java_import,
+    logger,
+    JavaGateway,
+    GatewayParameters,
+    CallbackServerParameters,
+)
 
 from pyflink.find_flink_home import _find_flink_home
 from pyflink.pyflink_gateway_server import launch_gateway_server_process
@@ -37,8 +42,9 @@ _lock = RLock()
 
 
 def is_launch_gateway_disabled():
-    if "PYFLINK_GATEWAY_DISABLED" in os.environ \
-            and os.environ["PYFLINK_GATEWAY_DISABLED"].lower() not in ["0", "false", ""]:
+    if "PYFLINK_GATEWAY_DISABLED" in os.environ and os.environ[
+        "PYFLINK_GATEWAY_DISABLED"
+    ].lower() not in ["0", "false", ""]:
         return True
     else:
         return False
@@ -51,13 +57,15 @@ def get_gateway() -> JavaGateway:
             # Set the level to WARN to mute the noisy INFO level logs
             logger.level = WARN
             # if Java Gateway is already running
-            if 'PYFLINK_GATEWAY_PORT' in os.environ:
-                gateway_port = int(os.environ['PYFLINK_GATEWAY_PORT'])
+            if "PYFLINK_GATEWAY_PORT" in os.environ:
+                gateway_port = int(os.environ["PYFLINK_GATEWAY_PORT"])
                 gateway_param = GatewayParameters(port=gateway_port, auto_convert=True)
                 _gateway = JavaGateway(
                     gateway_parameters=gateway_param,
                     callback_server_parameters=CallbackServerParameters(
-                        port=0, daemonize=True, daemonize_connections=True))
+                        port=0, daemonize=True, daemonize_connections=True
+                    ),
+                )
             else:
                 _gateway = launch_gateway()
 
@@ -67,7 +75,8 @@ def get_gateway() -> JavaGateway:
             _gateway.jvm.org.apache.flink.client.python.PythonEnvUtils.resetCallbackClient(
                 _gateway.java_gateway_server,
                 callback_server_listening_address,
-                callback_server_listening_port)
+                callback_server_listening_port,
+            )
             # import the flink view
             import_flink_view(_gateway)
             install_exception_handler()
@@ -82,12 +91,14 @@ def launch_gateway() -> JavaGateway:
     launch jvm gateway
     """
     if is_launch_gateway_disabled():
-        raise Exception("It's launching the PythonGatewayServer during Python UDF execution "
-                        "which is unexpected. It usually happens when the job codes are "
-                        "in the top level of the Python script file and are not enclosed in a "
-                        "`if name == 'main'` statement.")
+        raise Exception(
+            "It's launching the PythonGatewayServer during Python UDF execution "
+            "which is unexpected. It usually happens when the job codes are "
+            "in the top level of the Python script file and are not enclosed in a "
+            "`if name == 'main'` statement."
+        )
 
-    args = ['-c', 'org.apache.flink.client.python.PythonGatewayServer']
+    args = ["-c", "org.apache.flink.client.python.PythonGatewayServer"]
 
     submit_args = os.environ.get("SUBMIT_ARGS", "local")
     args += shlex.split(submit_args)
@@ -110,7 +121,7 @@ def launch_gateway() -> JavaGateway:
             time.sleep(0.1)
 
         if not os.path.isfile(conn_info_file):
-            stderr_info = p.stderr.read().decode('utf-8')
+            stderr_info = p.stderr.read().decode("utf-8")
             raise RuntimeError(
                 "Java gateway process exited before sending its port number.\nStderr:\n"
                 + stderr_info
@@ -125,7 +136,9 @@ def launch_gateway() -> JavaGateway:
     gateway = JavaGateway(
         gateway_parameters=GatewayParameters(port=gateway_port, auto_convert=True),
         callback_server_parameters=CallbackServerParameters(
-            port=0, daemonize=True, daemonize_connections=True))
+            port=0, daemonize=True, daemonize_connections=True
+        ),
+    )
 
     return gateway
 
@@ -161,8 +174,9 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.api.common.typeinfo.TypeInformation")
     java_import(gateway.jvm, "org.apache.flink.api.common.typeinfo.Types")
     java_import(gateway.jvm, "org.apache.flink.api.java.ExecutionEnvironment")
-    java_import(gateway.jvm,
-                "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
+    java_import(
+        gateway.jvm, "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment"
+    )
     java_import(gateway.jvm, "org.apache.flink.python.util.PythonDependencyUtils")
     java_import(gateway.jvm, "org.apache.flink.python.PythonOptions")
     java_import(gateway.jvm, "org.apache.flink.client.python.PythonGatewayServer")
@@ -189,6 +203,7 @@ class Watchdog(object):
     """
     Used to provide to Java side to check whether its parent process is alive.
     """
+
     def ping(self):
         time.sleep(10)
         return True

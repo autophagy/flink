@@ -32,7 +32,7 @@ class MetricGroup(ABC):
     """
 
     @abstractmethod
-    def add_group(self, name: str, extra: str = None) -> 'MetricGroup':
+    def add_group(self, name: str, extra: str = None) -> "MetricGroup":
         """
         Creates a new MetricGroup and adds it to this groups sub-groups.
 
@@ -46,7 +46,7 @@ class MetricGroup(ABC):
         pass
 
     @abstractmethod
-    def counter(self, name: str) -> 'Counter':
+    def counter(self, name: str) -> "Counter":
         """
         Registers a new `Counter` with Flink.
 
@@ -64,7 +64,7 @@ class MetricGroup(ABC):
         pass
 
     @abstractmethod
-    def meter(self, name: str, time_span_in_seconds: int = 60) -> 'Meter':
+    def meter(self, name: str, time_span_in_seconds: int = 60) -> "Meter":
         """
         Registers a new `Meter` with Flink.
 
@@ -73,7 +73,7 @@ class MetricGroup(ABC):
         pass
 
     @abstractmethod
-    def distribution(self, name: str) -> 'Distribution':
+    def distribution(self, name: str) -> "Distribution":
         """
         Registers a new `Distribution` with Flink.
 
@@ -88,6 +88,7 @@ class Metric(ABC):
 
     .. versionadded:: 1.11.0
     """
+
     pass
 
 

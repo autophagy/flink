@@ -23,9 +23,7 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class EnvironmentSettingsTests(PyFlinkTestCase):
-
     def test_mode_selection(self):
-
         builder = EnvironmentSettings.new_instance()
 
         # test the default behaviour to make sure it is consistent with the python doc
@@ -47,7 +45,6 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
         self.assertFalse(environment_settings.is_streaming_mode())
 
     def test_with_built_in_catalog_name(self):
-
         gateway = get_gateway()
 
         DEFAULT_BUILTIN_CATALOG = gateway.jvm.TableConfigOptions.TABLE_CATALOG_NAME.defaultValue()
@@ -64,7 +61,6 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
         self.assertEqual(environment_settings.get_built_in_catalog_name(), "my_catalog")
 
     def test_with_built_in_database_name(self):
-
         gateway = get_gateway()
 
         DEFAULT_BUILTIN_DATABASE = gateway.jvm.TableConfigOptions.TABLE_DATABASE_NAME.defaultValue()
@@ -74,22 +70,21 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
         # test the default behaviour to make sure it is consistent with the python doc
         environment_settings = builder.build()
 
-        self.assertEqual(environment_settings.get_built_in_database_name(),
-                         DEFAULT_BUILTIN_DATABASE)
+        self.assertEqual(
+            environment_settings.get_built_in_database_name(), DEFAULT_BUILTIN_DATABASE
+        )
 
         environment_settings = builder.with_built_in_database_name("my_database").build()
 
         self.assertEqual(environment_settings.get_built_in_database_name(), "my_database")
 
     def test_to_configuration(self):
-
         expected_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
         config = expected_settings.get_configuration()
 
         self.assertEqual("BATCH", config.get_string("execution.runtime-mode", "stream"))
 
     def test_from_configuration(self):
-
         config = Configuration()
         config.set_string("execution.runtime-mode", "batch")
 

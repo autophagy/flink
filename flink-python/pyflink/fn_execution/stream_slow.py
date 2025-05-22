@@ -29,29 +29,29 @@ class InputStream(object):
 
     def read(self, size):
         self.pos += size
-        return self.data[self.pos - size: self.pos]
+        return self.data[self.pos - size : self.pos]
 
     def read_byte(self):
         self.pos += 1
         return self.data[self.pos - 1]
 
     def read_int8(self):
-        return struct.unpack('b', self.read(1))[0]
+        return struct.unpack("b", self.read(1))[0]
 
     def read_int16(self):
-        return struct.unpack('>h', self.read(2))[0]
+        return struct.unpack(">h", self.read(2))[0]
 
     def read_int32(self):
-        return struct.unpack('>i', self.read(4))[0]
+        return struct.unpack(">i", self.read(4))[0]
 
     def read_int64(self):
-        return struct.unpack('>q', self.read(8))[0]
+        return struct.unpack(">q", self.read(8))[0]
 
     def read_float(self):
-        return struct.unpack('>f', self.read(4))[0]
+        return struct.unpack(">f", self.read(4))[0]
 
     def read_double(self):
-        return struct.unpack('>d', self.read(8))[0]
+        return struct.unpack(">d", self.read(8))[0]
 
     def read_bytes(self):
         size = self.read_int32()
@@ -63,11 +63,11 @@ class InputStream(object):
         while True:
             byte = self.read_byte()
             if byte < 0:
-                raise RuntimeError('VarLong not terminated.')
+                raise RuntimeError("VarLong not terminated.")
 
             bits = byte & 0x7F
             if shift >= 64 or (shift >= 63 and bits > 1):
-                raise RuntimeError('VarLong too long.')
+                raise RuntimeError("VarLong too long.")
             result |= bits << shift
             shift += 7
             if not byte & 0x80:
@@ -94,26 +94,26 @@ class OutputStream(object):
         self.byte_count += len(b)
 
     def write_byte(self, v):
-        self.data.append(chr(v).encode('latin-1'))
+        self.data.append(chr(v).encode("latin-1"))
         self.byte_count += 1
 
     def write_int8(self, v: int):
-        self.write(struct.pack('b', v))
+        self.write(struct.pack("b", v))
 
     def write_int16(self, v: int):
-        self.write(struct.pack('>h', v))
+        self.write(struct.pack(">h", v))
 
     def write_int32(self, v: int):
-        self.write(struct.pack('>i', v))
+        self.write(struct.pack(">i", v))
 
     def write_int64(self, v: int):
-        self.write(struct.pack('>q', v))
+        self.write(struct.pack(">q", v))
 
     def write_float(self, v: float):
-        self.write(struct.pack('>f', v))
+        self.write(struct.pack(">f", v))
 
     def write_double(self, v: float):
-        self.write(struct.pack('>d', v))
+        self.write(struct.pack(">d", v))
 
     def write_bytes(self, v: bytes, size: int):
         self.write_int32(size)
@@ -123,19 +123,19 @@ class OutputStream(object):
         if v < 0:
             v += 1 << 64
             if v <= 0:
-                raise ValueError('Value too large (negative).')
+                raise ValueError("Value too large (negative).")
         while True:
             bits = v & 0x7F
             v >>= 7
             if v:
                 bits |= 0x80
-            self.data.append(chr(bits).encode('latin-1'))
+            self.data.append(chr(bits).encode("latin-1"))
             self.byte_count += 1
             if not v:
                 break
 
     def get(self) -> bytes:
-        return b''.join(self.data)
+        return b"".join(self.data)
 
     def size(self) -> int:
         return self.byte_count

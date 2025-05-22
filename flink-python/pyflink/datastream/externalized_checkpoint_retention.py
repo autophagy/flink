@@ -17,7 +17,8 @@
 ################################################################################
 from enum import Enum
 from pyflink.java_gateway import get_gateway
-__all__ = ['ExternalizedCheckpointRetention']
+
+__all__ = ["ExternalizedCheckpointRetention"]
 
 
 class ExternalizedCheckpointRetention(Enum):
@@ -59,12 +60,14 @@ class ExternalizedCheckpointRetention(Enum):
     NO_EXTERNALIZED_CHECKPOINTS = 2
 
     @staticmethod
-    def _from_j_externalized_checkpoint_retention(j_retention_mode) \
-            -> 'ExternalizedCheckpointRetention':
+    def _from_j_externalized_checkpoint_retention(
+        j_retention_mode,
+    ) -> "ExternalizedCheckpointRetention":
         return ExternalizedCheckpointRetention[j_retention_mode.name()]
 
     def _to_j_externalized_checkpoint_retention(self):
         gateway = get_gateway()
-        JExternalizedCheckpointRetention = \
+        JExternalizedCheckpointRetention = (
             gateway.jvm.org.apache.flink.configuration.ExternalizedCheckpointRetention
+        )
         return getattr(JExternalizedCheckpointRetention, self.name)

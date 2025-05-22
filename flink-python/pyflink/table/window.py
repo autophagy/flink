@@ -21,14 +21,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table import Expression
 from pyflink.table.expression import _get_java_expression
 
-__all__ = [
-    'Tumble',
-    'Session',
-    'Slide',
-    'Over',
-    'GroupWindow',
-    'OverWindow'
-]
+__all__ = ["Tumble", "Session", "Slide", "Over", "GroupWindow", "OverWindow"]
 
 from pyflink.table.utils import to_expression_jarray
 
@@ -67,7 +60,7 @@ class Tumble(object):
     """
 
     @classmethod
-    def over(cls, size: Expression) -> 'TumbleWithSize':
+    def over(cls, size: Expression) -> "TumbleWithSize":
         """
         Creates a tumbling window. Tumbling windows are fixed-size, consecutive, non-overlapping
         windows of a specified fixed length. For example, a tumbling window of 5 minutes size
@@ -91,7 +84,7 @@ class TumbleWithSize(object):
     def __init__(self, java_window):
         self._java_window = java_window
 
-    def on(self, time_field: Expression) -> 'TumbleWithSizeOnTime':
+    def on(self, time_field: Expression) -> "TumbleWithSizeOnTime":
         """
         Specifies the time attribute on which rows are grouped.
 
@@ -114,7 +107,7 @@ class TumbleWithSizeOnTime(object):
     def __init__(self, java_window):
         self._java_window = java_window
 
-    def alias(self, alias: str) -> 'GroupWindow':
+    def alias(self, alias: str) -> "GroupWindow":
         """
         Assigns an alias for this window that the following
         :func:`~pyflink.table.GroupWindowedTable.group_by` and
@@ -144,7 +137,7 @@ class Session(object):
     """
 
     @classmethod
-    def with_gap(cls, gap: Expression) -> 'SessionWithGap':
+    def with_gap(cls, gap: Expression) -> "SessionWithGap":
         """
         Creates a session window. The boundary of session windows are defined by
         intervals of inactivity, i.e., a session window is closes if no event appears for a defined
@@ -169,7 +162,7 @@ class SessionWithGap(object):
     def __init__(self, java_window):
         self._java_window = java_window
 
-    def on(self, time_field: Expression) -> 'SessionWithGapOnTime':
+    def on(self, time_field: Expression) -> "SessionWithGapOnTime":
         """
         Specifies the time attribute on which rows are grouped.
 
@@ -192,7 +185,7 @@ class SessionWithGapOnTime(object):
     def __init__(self, java_window):
         self._java_window = java_window
 
-    def alias(self, alias: str) -> 'GroupWindow':
+    def alias(self, alias: str) -> "GroupWindow":
         """
         Assigns an alias for this window that the following
         :func:`~pyflink.table.GroupWindowedTable.group_by` and
@@ -227,7 +220,7 @@ class Slide(object):
     """
 
     @classmethod
-    def over(cls, size: Expression) -> 'SlideWithSize':
+    def over(cls, size: Expression) -> "SlideWithSize":
         """
         Creates a sliding window. Sliding windows have a fixed size and slide by
         a specified slide interval. If the slide interval is smaller than the window size, sliding
@@ -252,7 +245,7 @@ class SlideWithSize(object):
     def __init__(self, java_window):
         self._java_window = java_window
 
-    def every(self, slide: Expression) -> 'SlideWithSizeAndSlide':
+    def every(self, slide: Expression) -> "SlideWithSizeAndSlide":
         """
         Specifies the window's slide as time or row-count interval.
 
@@ -281,7 +274,7 @@ class SlideWithSizeAndSlide(object):
     def __init__(self, java_window):
         self._java_window = java_window
 
-    def on(self, time_field: Expression) -> 'SlideWithSizeAndSlideOnTime':
+    def on(self, time_field: Expression) -> "SlideWithSizeAndSlideOnTime":
         """
         Specifies the time attribute on which rows are grouped.
 
@@ -301,7 +294,7 @@ class SlideWithSizeAndSlideOnTime(object):
     def __init__(self, java_window):
         self._java_window = java_window
 
-    def alias(self, alias: str) -> 'GroupWindow':
+    def alias(self, alias: str) -> "GroupWindow":
         """
         Assigns an alias for this window that the following
         :func:`~pyflink.table.GroupWindowedTable.group_by` and
@@ -333,7 +326,7 @@ class Over(object):
     """
 
     @classmethod
-    def order_by(cls, order_by: Expression) -> 'OverWindowPartitionedOrdered':
+    def order_by(cls, order_by: Expression) -> "OverWindowPartitionedOrdered":
         """
         Specifies the time attribute on which rows are ordered.
 
@@ -343,11 +336,12 @@ class Over(object):
         :param order_by: Field reference.
         :return: An over window with defined order.
         """
-        return OverWindowPartitionedOrdered(get_gateway().jvm.Over.orderBy(
-            _get_java_expression(order_by)))
+        return OverWindowPartitionedOrdered(
+            get_gateway().jvm.Over.orderBy(_get_java_expression(order_by))
+        )
 
     @classmethod
-    def partition_by(cls, *partition_by: Expression) -> 'OverWindowPartitioned':
+    def partition_by(cls, *partition_by: Expression) -> "OverWindowPartitioned":
         """
         Partitions the elements on some partition keys.
 
@@ -357,8 +351,9 @@ class Over(object):
         :param partition_by: List of field references.
         :return: An over window with defined partitioning.
         """
-        return OverWindowPartitioned(get_gateway().jvm.Over.partitionBy(
-            to_expression_jarray(partition_by)))
+        return OverWindowPartitioned(
+            get_gateway().jvm.Over.partitionBy(to_expression_jarray(partition_by))
+        )
 
 
 class OverWindowPartitionedOrdered(object):
@@ -369,7 +364,7 @@ class OverWindowPartitionedOrdered(object):
     def __init__(self, java_over_window):
         self._java_over_window = java_over_window
 
-    def alias(self, alias: str) -> 'OverWindow':
+    def alias(self, alias: str) -> "OverWindow":
         """
         Set the preceding offset (based on time or row-count intervals) for over window.
 
@@ -378,7 +373,7 @@ class OverWindowPartitionedOrdered(object):
         """
         return OverWindow(get_method(self._java_over_window, "as")(alias))
 
-    def preceding(self, preceding: Expression) -> 'OverWindowPartitionedOrderedPreceding':
+    def preceding(self, preceding: Expression) -> "OverWindowPartitionedOrderedPreceding":
         """
         Set the preceding offset (based on time or row-count intervals) for over window.
 
@@ -386,7 +381,8 @@ class OverWindowPartitionedOrdered(object):
         :return: An over window with defined preceding.
         """
         return OverWindowPartitionedOrderedPreceding(
-            self._java_over_window.preceding(_get_java_expression(preceding)))
+            self._java_over_window.preceding(_get_java_expression(preceding))
+        )
 
 
 class OverWindowPartitionedOrderedPreceding(object):
@@ -397,7 +393,7 @@ class OverWindowPartitionedOrderedPreceding(object):
     def __init__(self, java_over_window):
         self._java_over_window = java_over_window
 
-    def alias(self, alias: str) -> 'OverWindow':
+    def alias(self, alias: str) -> "OverWindow":
         """
         Assigns an alias for this window that the following
         :func:`~pyflink.table.OverWindowedTable.select` clause can refer to.
@@ -407,7 +403,7 @@ class OverWindowPartitionedOrderedPreceding(object):
         """
         return OverWindow(get_method(self._java_over_window, "as")(alias))
 
-    def following(self, following: Expression) -> 'OverWindowPartitionedOrderedPreceding':
+    def following(self, following: Expression) -> "OverWindowPartitionedOrderedPreceding":
         """
         Set the following offset (based on time or row-count intervals) for over window.
 
@@ -415,7 +411,8 @@ class OverWindowPartitionedOrderedPreceding(object):
         :return: An over window with defined following.
         """
         return OverWindowPartitionedOrderedPreceding(
-            self._java_over_window.following(_get_java_expression(following)))
+            self._java_over_window.following(_get_java_expression(following))
+        )
 
 
 class OverWindowPartitioned(object):
@@ -426,7 +423,7 @@ class OverWindowPartitioned(object):
     def __init__(self, java_over_window):
         self._java_over_window = java_over_window
 
-    def order_by(self, order_by: Expression) -> 'OverWindowPartitionedOrdered':
+    def order_by(self, order_by: Expression) -> "OverWindowPartitionedOrdered":
         """
         Specifies the time attribute on which rows are ordered.
 
@@ -438,8 +435,9 @@ class OverWindowPartitioned(object):
         :param order_by: Field reference.
         :return: An over window with defined order.
         """
-        return OverWindowPartitionedOrdered(self._java_over_window.orderBy(
-            _get_java_expression(order_by)))
+        return OverWindowPartitionedOrdered(
+            self._java_over_window.orderBy(_get_java_expression(order_by))
+        )
 
 
 class OverWindow(object):

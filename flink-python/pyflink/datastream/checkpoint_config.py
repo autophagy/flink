@@ -21,7 +21,7 @@ from pyflink.common import Duration
 from pyflink.datastream.externalized_checkpoint_retention import ExternalizedCheckpointRetention
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 
-__all__ = ['CheckpointConfig']
+__all__ = ["CheckpointConfig"]
 
 
 class CheckpointConfig(object):
@@ -49,9 +49,10 @@ class CheckpointConfig(object):
         :return: The :class:`CheckpointingMode`.
         """
         return CheckpointingMode._from_j_checkpointing_mode(
-            self._j_checkpoint_config.getCheckpointingConsistencyMode())
+            self._j_checkpoint_config.getCheckpointingConsistencyMode()
+        )
 
-    def set_checkpointing_mode(self, checkpointing_mode: CheckpointingMode) -> 'CheckpointConfig':
+    def set_checkpointing_mode(self, checkpointing_mode: CheckpointingMode) -> "CheckpointConfig":
         """
         Sets the checkpointing mode (:data:`CheckpointingMode.EXACTLY_ONCE` vs.
         :data:`CheckpointingMode.AT_LEAST_ONCE`).
@@ -64,7 +65,8 @@ class CheckpointConfig(object):
         :param checkpointing_mode: The :class:`CheckpointingMode`.
         """
         self._j_checkpoint_config.setCheckpointingConsistencyMode(
-            CheckpointingMode._to_j_checkpointing_mode(checkpointing_mode))
+            CheckpointingMode._to_j_checkpointing_mode(checkpointing_mode)
+        )
         return self
 
     def get_checkpoint_interval(self) -> int:
@@ -78,7 +80,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getCheckpointInterval()
 
-    def set_checkpoint_interval(self, checkpoint_interval: int) -> 'CheckpointConfig':
+    def set_checkpoint_interval(self, checkpoint_interval: int) -> "CheckpointConfig":
         """
         Sets the interval in which checkpoints are periodically scheduled.
 
@@ -98,7 +100,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getCheckpointTimeout()
 
-    def set_checkpoint_timeout(self, checkpoint_timeout: int) -> 'CheckpointConfig':
+    def set_checkpoint_timeout(self, checkpoint_timeout: int) -> "CheckpointConfig":
         """
         Sets the maximum time that a checkpoint may take before being discarded.
 
@@ -118,8 +120,9 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getMinPauseBetweenCheckpoints()
 
-    def set_min_pause_between_checkpoints(self,
-                                          min_pause_between_checkpoints: int) -> 'CheckpointConfig':
+    def set_min_pause_between_checkpoints(
+        self, min_pause_between_checkpoints: int
+    ) -> "CheckpointConfig":
         """
         Sets the minimal pause between checkpointing attempts. This setting defines how soon the
         checkpoint coordinator may trigger another checkpoint after it becomes possible to trigger
@@ -147,7 +150,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getMaxConcurrentCheckpoints()
 
-    def set_max_concurrent_checkpoints(self, max_concurrent_checkpoints: int) -> 'CheckpointConfig':
+    def set_max_concurrent_checkpoints(self, max_concurrent_checkpoints: int) -> "CheckpointConfig":
         """
         Sets the maximum number of checkpoint attempts that may be in progress at the same time.
         If this value is *n*, then no checkpoints will be triggered while *n* checkpoint attempts
@@ -171,8 +174,9 @@ class CheckpointConfig(object):
         """
         return self.get_tolerable_checkpoint_failure_number() == 0
 
-    def set_fail_on_checkpointing_errors(self,
-                                         fail_on_checkpointing_errors: bool) -> 'CheckpointConfig':
+    def set_fail_on_checkpointing_errors(
+        self, fail_on_checkpointing_errors: bool
+    ) -> "CheckpointConfig":
         """
         Sets the expected behaviour for tasks in case that they encounter an error in their
         checkpointing procedure. If this is set to true, the task will fail on checkpointing error.
@@ -204,9 +208,9 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getTolerableCheckpointFailureNumber()
 
-    def set_tolerable_checkpoint_failure_number(self,
-                                                tolerable_checkpoint_failure_number: int
-                                                ) -> 'CheckpointConfig':
+    def set_tolerable_checkpoint_failure_number(
+        self, tolerable_checkpoint_failure_number: int
+    ) -> "CheckpointConfig":
         """
         This defines how many consecutive checkpoint failures will be tolerated, before the whole
         job is failed over. The default value is `0`, which means no checkpoint failures will be
@@ -221,12 +225,13 @@ class CheckpointConfig(object):
                                                     failures.
         """
         self._j_checkpoint_config.setTolerableCheckpointFailureNumber(
-            tolerable_checkpoint_failure_number)
+            tolerable_checkpoint_failure_number
+        )
         return self
 
     def set_externalized_checkpoint_retention(
-            self,
-            retention_mode: 'ExternalizedCheckpointRetention') -> 'CheckpointConfig':
+        self, retention_mode: "ExternalizedCheckpointRetention"
+    ) -> "CheckpointConfig":
         """
         Sets the mode for externalized checkpoint clean-up. Externalized checkpoints will be enabled
         automatically unless the mode is set to
@@ -257,7 +262,8 @@ class CheckpointConfig(object):
                              :data:`ExternalizedCheckpointRetention.NO_EXTERNALIZED_CHECKPOINTS`
         """
         self._j_checkpoint_config.setExternalizedCheckpointRetention(
-            ExternalizedCheckpointRetention._to_j_externalized_checkpoint_retention(retention_mode))
+            ExternalizedCheckpointRetention._to_j_externalized_checkpoint_retention(retention_mode)
+        )
         return self
 
     def is_externalized_checkpoints_enabled(self) -> bool:
@@ -268,7 +274,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isExternalizedCheckpointsEnabled()
 
-    def get_externalized_checkpoint_retention(self) -> Optional['ExternalizedCheckpointRetention']:
+    def get_externalized_checkpoint_retention(self) -> Optional["ExternalizedCheckpointRetention"]:
         """
         Returns the cleanup behaviour for externalized checkpoints.
 
@@ -280,7 +286,8 @@ class CheckpointConfig(object):
             return None
         else:
             return ExternalizedCheckpointRetention._from_j_externalized_checkpoint_retention(
-                retention_mode)
+                retention_mode
+            )
 
     def is_unaligned_checkpoints_enabled(self) -> bool:
         """
@@ -290,7 +297,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isUnalignedCheckpointsEnabled()
 
-    def enable_unaligned_checkpoints(self, enabled: bool = True) -> 'CheckpointConfig':
+    def enable_unaligned_checkpoints(self, enabled: bool = True) -> "CheckpointConfig":
         """
         Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.
 
@@ -307,7 +314,7 @@ class CheckpointConfig(object):
         self._j_checkpoint_config.enableUnalignedCheckpoints(enabled)
         return self
 
-    def disable_unaligned_checkpoints(self) -> 'CheckpointConfig':
+    def disable_unaligned_checkpoints(self) -> "CheckpointConfig":
         """
         Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure
         (experimental).
@@ -323,7 +330,7 @@ class CheckpointConfig(object):
         self.enable_unaligned_checkpoints(False)
         return self
 
-    def set_aligned_checkpoint_timeout(self, alignment_timeout: Duration) -> 'CheckpointConfig':
+    def set_aligned_checkpoint_timeout(self, alignment_timeout: Duration) -> "CheckpointConfig":
         """
         Only relevant if :func:`enable_unaligned_checkpoints` is enabled.
 
@@ -338,7 +345,7 @@ class CheckpointConfig(object):
         self._j_checkpoint_config.setAlignedCheckpointTimeout(alignment_timeout._j_duration)
         return self
 
-    def get_aligned_checkpoint_timeout(self) -> 'Duration':
+    def get_aligned_checkpoint_timeout(self) -> "Duration":
         """
         Returns the alignment timeout, as configured via :func:`set_alignment_timeout` or
         ``org.apache.flink.configuration.CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT``.
@@ -347,7 +354,7 @@ class CheckpointConfig(object):
         """
         return Duration(self._j_checkpoint_config.getAlignedCheckpointTimeout())
 
-    def set_alignment_timeout(self, alignment_timeout: Duration) -> 'CheckpointConfig':
+    def set_alignment_timeout(self, alignment_timeout: Duration) -> "CheckpointConfig":
         """
         Only relevant if :func:`enable_unaligned_checkpoints` is enabled.
 
@@ -364,7 +371,7 @@ class CheckpointConfig(object):
         self.set_aligned_checkpoint_timeout(alignment_timeout)
         return self
 
-    def get_alignment_timeout(self) -> 'Duration':
+    def get_alignment_timeout(self) -> "Duration":
         """
         Returns the alignment timeout, as configured via :func:`set_alignment_timeout` or
         ``org.apache.flink.configuration.CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT``.
@@ -376,8 +383,8 @@ class CheckpointConfig(object):
         return self.get_aligned_checkpoint_timeout()
 
     def set_force_unaligned_checkpoints(
-            self,
-            force_unaligned_checkpoints: bool = True) -> 'CheckpointConfig':
+        self, force_unaligned_checkpoints: bool = True
+    ) -> "CheckpointConfig":
         """
         Checks whether unaligned checkpoints are forced, despite currently non-checkpointable
         iteration feedback or custom partitioners.
@@ -387,7 +394,7 @@ class CheckpointConfig(object):
         self._j_checkpoint_config.setForceUnalignedCheckpoints(force_unaligned_checkpoints)
         return self
 
-    def is_force_unaligned_checkpoints(self) -> 'bool':
+    def is_force_unaligned_checkpoints(self) -> "bool":
         """
         Checks whether unaligned checkpoints are forced, despite iteration feedback or custom
         partitioners.

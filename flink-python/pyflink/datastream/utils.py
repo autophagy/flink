@@ -21,14 +21,22 @@ import pickle
 from abc import abstractmethod
 
 from pyflink.common import Row, RowKind, Configuration
-from pyflink.common.typeinfo import (RowTypeInfo, TupleTypeInfo, Types, BasicArrayTypeInfo,
-                                     PrimitiveArrayTypeInfo, MapTypeInfo, ListTypeInfo,
-                                     ObjectArrayTypeInfo, ExternalTypeInfo, TypeInformation)
+from pyflink.common.typeinfo import (
+    RowTypeInfo,
+    TupleTypeInfo,
+    Types,
+    BasicArrayTypeInfo,
+    PrimitiveArrayTypeInfo,
+    MapTypeInfo,
+    ListTypeInfo,
+    ObjectArrayTypeInfo,
+    ExternalTypeInfo,
+    TypeInformation,
+)
 from pyflink.java_gateway import get_gateway
 
 
 class ResultTypeQueryable(object):
-
     @abstractmethod
     def get_produced_type(self) -> TypeInformation:
         pass
@@ -57,14 +65,15 @@ def convert_to_python_obj(data, type_info):
         return convert_to_python_obj(data, type_info._type_info)
     else:
         gateway = get_gateway()
-        pickled_bytes = gateway.jvm.PythonBridgeUtils. \
-            getPickledBytesFromJavaObject(data, type_info.get_java_type_info())
+        pickled_bytes = gateway.jvm.PythonBridgeUtils.getPickledBytesFromJavaObject(
+            data, type_info.get_java_type_info()
+        )
         return pickled_bytes_to_python_obj(pickled_bytes, type_info)
 
 
 def pickled_bytes_to_python_obj(data, type_info):
     if isinstance(type_info, RowTypeInfo):
-        row_kind = RowKind(int.from_bytes(data[0], 'little'))
+        row_kind = RowKind(int.from_bytes(data[0], "little"))
         field_data_with_types = zip(list(data[1:]), type_info.get_field_types())
         fields = []
         for field_data, field_type in field_data_with_types:
@@ -87,18 +96,19 @@ def pickled_bytes_to_python_obj(data, type_info):
     else:
         data = pickle.loads(data)
         if type_info == Types.SQL_TIME():
-            seconds, microseconds = divmod(data, 10 ** 6)
+            seconds, microseconds = divmod(data, 10**6)
             minutes, seconds = divmod(seconds, 60)
             hours, minutes = divmod(minutes, 60)
             return datetime.time(hours, minutes, seconds, microseconds)
         elif type_info == Types.SQL_DATE():
             return type_info.from_internal_type(data)
         elif type_info == Types.SQL_TIMESTAMP():
-            return type_info.from_internal_type(int(data.timestamp() * 10 ** 6))
+            return type_info.from_internal_type(int(data.timestamp() * 10**6))
         elif type_info == Types.FLOAT():
             return type_info.from_internal_type(ast.literal_eval(data))
-        elif isinstance(type_info,
-                        (BasicArrayTypeInfo, PrimitiveArrayTypeInfo, ObjectArrayTypeInfo)):
+        elif isinstance(
+            type_info, (BasicArrayTypeInfo, PrimitiveArrayTypeInfo, ObjectArrayTypeInfo)
+        ):
             element_type = type_info._element_type
             elements = []
             for element_bytes in data:
@@ -108,9 +118,13 @@ def pickled_bytes_to_python_obj(data, type_info):
             key_type = type_info._key_type_info
             value_type = type_info._value_type_info
             zip_kv = zip(data[0], data[1])
-            return dict((pickled_bytes_to_python_obj(k, key_type),
-                         pickled_bytes_to_python_obj(v, value_type))
-                        for k, v in zip_kv)
+            return dict(
+                (
+                    pickled_bytes_to_python_obj(k, key_type),
+                    pickled_bytes_to_python_obj(v, value_type),
+                )
+                for k, v in zip_kv
+            )
         elif isinstance(type_info, ListTypeInfo):
             element_type = type_info.elem_type
             elements = []

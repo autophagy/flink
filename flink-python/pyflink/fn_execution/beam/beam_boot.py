@@ -27,22 +27,28 @@ project. So we add a python implementation which will be used when the python wo
 process mode. It downloads and installs users' python artifacts, then launches the python SDK
 harness of Apache Beam.
 """
+
 import argparse
 import logging
 import os
 import sys
 
 import grpc
-from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_fn_api_pb2 import \
-    StartWorkerRequest
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_fn_api_pb2 import (
+    StartWorkerRequest,
+)
 from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_fn_api_pb2_grpc import (
-    BeamFnExternalWorkerPoolStub)
-from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2 \
-    import GetProvisionInfoRequest
-from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2_grpc \
-    import ProvisionServiceStub
+    BeamFnExternalWorkerPoolStub,
+)
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2 import (
+    GetProvisionInfoRequest,
+)
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2_grpc import (
+    ProvisionServiceStub,
+)
 from apache_beam.portability.api.org.apache.beam.model.pipeline.v1.endpoints_pb2 import (
-    ApiServiceDescriptor)
+    ApiServiceDescriptor,
+)
 from google.protobuf import json_format, text_format
 
 
@@ -62,10 +68,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--id", default="", help="Local identifier (required).")
-    parser.add_argument("--provision_endpoint", default="",
-                        help="Provision endpoint (required).")
-    parser.add_argument("--semi_persist_dir", default="/tmp",
-                        help="Local semi-persistent directory (optional).")
+    parser.add_argument("--provision_endpoint", default="", help="Provision endpoint (required).")
+    parser.add_argument(
+        "--semi_persist_dir", default="/tmp", help="Local semi-persistent directory (optional)."
+    )
 
     args = parser.parse_known_args()[0]
 
@@ -78,17 +84,18 @@ if __name__ == "__main__":
 
     logging.info("Initializing Python harness: %s" % " ".join(sys.argv))
 
-    if 'PYTHON_LOOPBACK_SERVER_ADDRESS' in os.environ:
+    if "PYTHON_LOOPBACK_SERVER_ADDRESS" in os.environ:
         logging.info("Starting up Python harness in loopback mode.")
 
         params = dict(os.environ)
-        params.update({'SEMI_PERSISTENT_DIRECTORY': semi_persist_dir})
-        with grpc.insecure_channel(os.environ['PYTHON_LOOPBACK_SERVER_ADDRESS']) as channel:
+        params.update({"SEMI_PERSISTENT_DIRECTORY": semi_persist_dir})
+        with grpc.insecure_channel(os.environ["PYTHON_LOOPBACK_SERVER_ADDRESS"]) as channel:
             client = BeamFnExternalWorkerPoolStub(channel=channel)
             request = StartWorkerRequest(
                 worker_id=worker_id,
                 provision_endpoint=ApiServiceDescriptor(url=provision_endpoint),
-                params=params)
+                params=params,
+            )
             response = client.StartWorker(request)
             if response.error:
                 raise RuntimeError("Error starting worker: %s" % response.error)
@@ -108,9 +115,11 @@ if __name__ == "__main__":
         os.environ["PIPELINE_OPTIONS"] = options
         os.environ["SEMI_PERSISTENT_DIRECTORY"] = semi_persist_dir
         os.environ["LOGGING_API_SERVICE_DESCRIPTOR"] = text_format.MessageToString(
-            ApiServiceDescriptor(url=logging_endpoint))
+            ApiServiceDescriptor(url=logging_endpoint)
+        )
         os.environ["CONTROL_API_SERVICE_DESCRIPTOR"] = text_format.MessageToString(
-            ApiServiceDescriptor(url=control_endpoint))
+            ApiServiceDescriptor(url=control_endpoint)
+        )
 
         env = dict(os.environ)
 

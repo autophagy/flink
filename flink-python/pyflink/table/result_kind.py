@@ -17,7 +17,7 @@
 ################################################################################
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['ResultKind']
+__all__ = ["ResultKind"]
 
 
 class ResultKind(object):

@@ -33,10 +33,12 @@ from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import endpoints_pb2
-from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2 \
-    import GetProvisionInfoRequest
-from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2_grpc \
-    import ProvisionServiceStub
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2 import (
+    GetProvisionInfoRequest,
+)
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2_grpc import (
+    ProvisionServiceStub,
+)
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
@@ -74,9 +76,8 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
 
     def start(self):
         if not self._worker_address:
-            worker_server = grpc.server(
-                thread_pool_executor.shared_unbounded_instance())
-            worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
+            worker_server = grpc.server(thread_pool_executor.shared_unbounded_instance())
+            worker_address = "localhost:%s" % worker_server.add_insecure_port("[::]:0")
             beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(self, worker_server)
             worker_server.start()
 
@@ -84,18 +85,14 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
             atexit.register(functools.partial(worker_server.stop, 1))
         return self._worker_address
 
-    def StartWorker(self,
-                    start_worker_request: beam_fn_api_pb2.StartWorkerRequest,
-                    unused_context):
+    def StartWorker(self, start_worker_request: beam_fn_api_pb2.StartWorkerRequest, unused_context):
         try:
             self._start_sdk_worker_main(start_worker_request)
             return beam_fn_api_pb2.StartWorkerResponse()
         except Exception:
             return beam_fn_api_pb2.StartWorkerResponse(error=traceback.format_exc())
 
-    def StopWorker(self,
-                   stop_worker_request: beam_fn_api_pb2.StopWorkerRequest,
-                   unused_context):
+    def StopWorker(self, stop_worker_request: beam_fn_api_pb2.StopWorkerRequest, unused_context):
         pass
 
     def _start_sdk_worker_main(self, start_worker_request: beam_fn_api_pb2.StartWorkerRequest):
@@ -103,15 +100,15 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
         self._parse_param_lock.acquire()
         # The first thread to start is responsible for preparing all execution environment.
         if not self._ref_cnt:
-            if 'PYTHONPATH' in params:
+            if "PYTHONPATH" in params:
                 self._old_python_path = sys.path[:]
-                python_path_list = params['PYTHONPATH'].split(':')
+                python_path_list = params["PYTHONPATH"].split(":")
                 python_path_list.reverse()
                 for path in python_path_list:
                     sys.path.insert(0, path)
-            if '_PYTHON_WORKING_DIR' in params:
+            if "_PYTHON_WORKING_DIR" in params:
                 self._old_working_dir = os.getcwd()
-                os.chdir(params['_PYTHON_WORKING_DIR'])
+                os.chdir(params["_PYTHON_WORKING_DIR"])
             os.environ.update(params)
         self._ref_cnt += 1
         self._parse_param_lock.release()
@@ -137,9 +134,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
             logging.getLogger().addHandler(fn_log_handler)
             logging.info("Starting up Python worker in loopback mode.")
         except Exception:
-            _LOGGER.error(
-                "Failed to set up logging handler, continuing without.",
-                exc_info=True)
+            _LOGGER.error("Failed to set up logging handler, continuing without.", exc_info=True)
             fn_log_handler = None
 
         sdk_pipeline_options = sdk_worker_main._parse_pipeline_options(options)
@@ -151,19 +146,22 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
             status_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
 
             experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
-            enable_heap_dump = 'enable_heap_dump' in experiments
+            enable_heap_dump = "enable_heap_dump" in experiments
             SdkHarness(
                 control_address=control_service_descriptor.url,
                 status_address=status_service_descriptor.url,
                 worker_id=_worker_id,
                 state_cache_size=sdk_worker_main._get_state_cache_size_bytes(sdk_pipeline_options),
                 data_buffer_time_limit_ms=sdk_worker_main._get_data_buffer_time_limit_ms(
-                    experiments),
+                    experiments
+                ),
                 profiler_factory=profiler.Profile.factory_from_options(
-                    sdk_pipeline_options.view_as(ProfilingOptions)),
-                enable_heap_dump=enable_heap_dump).run()
+                    sdk_pipeline_options.view_as(ProfilingOptions)
+                ),
+                enable_heap_dump=enable_heap_dump,
+            ).run()
         except:  # pylint: disable=broad-except
-            _LOGGER.exception('Python sdk harness failed: ')
+            _LOGGER.exception("Python sdk harness failed: ")
             raise
         finally:
             self._parse_param_lock.acquire()

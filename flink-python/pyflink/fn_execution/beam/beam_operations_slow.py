@@ -31,7 +31,6 @@ from pyflink.fn_execution.profiler import Profiler
 
 
 class OutputProcessor(abc.ABC):
-
     @abstractmethod
     def process_outputs(self, windowed_value: WindowedValue, results: Iterable[Any]):
         pass
@@ -41,7 +40,6 @@ class OutputProcessor(abc.ABC):
 
 
 class NetworkOutputProcessor(OutputProcessor):
-
     def __init__(self, consumer):
         assert isinstance(consumer, DataOutputOperation)
         self._consumer = consumer
@@ -57,7 +55,6 @@ class NetworkOutputProcessor(OutputProcessor):
 
 
 class IntermediateOutputProcessor(OutputProcessor):
-
     def __init__(self, consumer):
         self._consumer = consumer
 
@@ -71,8 +68,9 @@ class FunctionOperation(Operation):
     each input element.
     """
 
-    def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls,
-                 operator_state_backend):
+    def __init__(
+        self, name, spec, counter_factory, sampler, consumers, operation_cls, operator_state_backend
+    ):
         super(FunctionOperation, self).__init__(name, spec, counter_factory, sampler)
         self._output_processors: Dict[str, List[OutputProcessor]] = self._create_output_processors(
             consumers
@@ -129,9 +127,9 @@ class FunctionOperation(Operation):
         metrics.processed_elements.measured.output_element_counts.clear()
         tag = None
         receiver = self.receivers[0]
-        metrics.processed_elements.measured.output_element_counts[
-            str(tag)
-        ] = receiver.opcounter.element_counter.value()
+        metrics.processed_elements.measured.output_element_counts[str(tag)] = (
+            receiver.opcounter.element_counter.value()
+        )
         return metrics
 
     def process(self, o: WindowedValue):
@@ -178,8 +176,9 @@ class FunctionOperation(Operation):
 
 
 class StatelessFunctionOperation(FunctionOperation):
-    def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls,
-                 operator_state_backend):
+    def __init__(
+        self, name, spec, counter_factory, sampler, consumers, operation_cls, operator_state_backend
+    ):
         super(StatelessFunctionOperation, self).__init__(
             name, spec, counter_factory, sampler, consumers, operation_cls, operator_state_backend
         )
@@ -192,8 +191,17 @@ class StatelessFunctionOperation(FunctionOperation):
 
 
 class StatefulFunctionOperation(FunctionOperation):
-    def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls,
-                 keyed_state_backend, operator_state_backend):
+    def __init__(
+        self,
+        name,
+        spec,
+        counter_factory,
+        sampler,
+        consumers,
+        operation_cls,
+        keyed_state_backend,
+        operator_state_backend,
+    ):
         self._keyed_state_backend = keyed_state_backend
         self._reusable_windowed_value = windowed_value.create(None, -1, None, None)
         super(StatefulFunctionOperation, self).__init__(
@@ -202,8 +210,9 @@ class StatefulFunctionOperation(FunctionOperation):
 
     def generate_operation(self):
         if self.operator_state_backend is not None:
-            return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend,
-                                      self.operator_state_backend)
+            return self.operation_cls(
+                self.spec.serialized_fn, self._keyed_state_backend, self.operator_state_backend
+            )
         else:
             return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend)
 

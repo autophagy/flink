@@ -20,22 +20,29 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class SimpleStringSchemaTests(PyFlinkTestCase):
-
     def test_simple_string_schema(self):
-        expected_string = 'test string'
+        expected_string = "test string"
         simple_string_schema = SimpleStringSchema()
-        self.assertEqual(expected_string.encode(encoding='utf-8'),
-                         simple_string_schema._j_serialization_schema.serialize(expected_string))
+        self.assertEqual(
+            expected_string.encode(encoding="utf-8"),
+            simple_string_schema._j_serialization_schema.serialize(expected_string),
+        )
 
-        self.assertEqual(expected_string, simple_string_schema._j_deserialization_schema
-                         .deserialize(expected_string.encode(encoding='utf-8')))
+        self.assertEqual(
+            expected_string,
+            simple_string_schema._j_deserialization_schema.deserialize(
+                expected_string.encode(encoding="utf-8")
+            ),
+        )
 
 
 class SimpleByteSchemaTests(PyFlinkTestCase):
     def test_simple_byte_schema(self):
-        expected_bytes = "test bytes".encode(encoding='utf-8')
+        expected_bytes = "test bytes".encode(encoding="utf-8")
         simple_byte_schema = ByteArraySchema()
-        self.assertEqual(expected_bytes,
-                         simple_byte_schema._j_serialization_schema.serialize(expected_bytes))
-        self.assertEqual(expected_bytes, simple_byte_schema._j_deserialization_schema
-                         .deserialize(expected_bytes))
+        self.assertEqual(
+            expected_bytes, simple_byte_schema._j_serialization_schema.serialize(expected_bytes)
+        )
+        self.assertEqual(
+            expected_bytes, simple_byte_schema._j_deserialization_schema.deserialize(expected_bytes)
+        )

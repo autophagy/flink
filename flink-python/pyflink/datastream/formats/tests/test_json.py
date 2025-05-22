@@ -22,36 +22,50 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class JsonSerializationSchemaTests(PyFlinkTestCase):
-
     def test_json_row_serialization_deserialization_schema(self):
         jvm = get_gateway().jvm
-        jsons = ["{\"svt\":\"2020-02-24T12:58:09.209+0800\"}",
-                 "{\"svt\":\"2020-02-24T12:58:09.209+0800\", "
-                 "\"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\"},\"ids\":[1, 2, 3]}",
-                 "{\"svt\":\"2020-02-24T12:58:09.209+0800\"}"]
-        expected_jsons = ["{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null,\"ids\":null}",
-                          "{\"svt\":\"2020-02-24T12:58:09.209+0800\","
-                          "\"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\"},"
-                          "\"ids\":[1,2,3]}",
-                          "{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null,\"ids\":null}"]
+        jsons = [
+            '{"svt":"2020-02-24T12:58:09.209+0800"}',
+            '{"svt":"2020-02-24T12:58:09.209+0800", '
+            '"ops":{"id":"281708d0-4092-4c21-9233-931950b6eccf"},"ids":[1, 2, 3]}',
+            '{"svt":"2020-02-24T12:58:09.209+0800"}',
+        ]
+        expected_jsons = [
+            '{"svt":"2020-02-24T12:58:09.209+0800","ops":null,"ids":null}',
+            '{"svt":"2020-02-24T12:58:09.209+0800",'
+            '"ops":{"id":"281708d0-4092-4c21-9233-931950b6eccf"},'
+            '"ids":[1,2,3]}',
+            '{"svt":"2020-02-24T12:58:09.209+0800","ops":null,"ids":null}',
+        ]
 
-        row_schema = Types.ROW_NAMED(["svt", "ops", "ids"],
-                                     [Types.STRING(),
-                                     Types.ROW_NAMED(['id'], [Types.STRING()]),
-                                     Types.PRIMITIVE_ARRAY(Types.INT())])
+        row_schema = Types.ROW_NAMED(
+            ["svt", "ops", "ids"],
+            [
+                Types.STRING(),
+                Types.ROW_NAMED(["id"], [Types.STRING()]),
+                Types.PRIMITIVE_ARRAY(Types.INT()),
+            ],
+        )
 
-        json_row_serialization_schema = JsonRowSerializationSchema.builder() \
-            .with_type_info(row_schema).build()
-        json_row_deserialization_schema = JsonRowDeserializationSchema.builder() \
-            .type_info(row_schema).build()
+        json_row_serialization_schema = (
+            JsonRowSerializationSchema.builder().with_type_info(row_schema).build()
+        )
+        json_row_deserialization_schema = (
+            JsonRowDeserializationSchema.builder().type_info(row_schema).build()
+        )
         json_row_serialization_schema._j_serialization_schema.open(
-            jvm.org.apache.flink.connector.testutils.formats.DummyInitializationContext())
+            jvm.org.apache.flink.connector.testutils.formats.DummyInitializationContext()
+        )
         json_row_deserialization_schema._j_deserialization_schema.open(
-            jvm.org.apache.flink.connector.testutils.formats.DummyInitializationContext())
+            jvm.org.apache.flink.connector.testutils.formats.DummyInitializationContext()
+        )
 
         for i in range(len(jsons)):
-            j_row = json_row_deserialization_schema._j_deserialization_schema\
-                .deserialize(bytes(jsons[i], encoding='utf-8'))
-            result = str(json_row_serialization_schema._j_serialization_schema.serialize(j_row),
-                         encoding='utf-8')
+            j_row = json_row_deserialization_schema._j_deserialization_schema.deserialize(
+                bytes(jsons[i], encoding="utf-8")
+            )
+            result = str(
+                json_row_serialization_schema._j_serialization_schema.serialize(j_row),
+                encoding="utf-8",
+            )
             self.assertEqual(expected_jsons[i], result)

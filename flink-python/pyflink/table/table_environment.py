@@ -34,8 +34,16 @@ from pyflink.datastream.data_stream import DataStream
 
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
-from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
-    Module, ModuleEntry, Schema, ChangelogMode
+from pyflink.table import (
+    Table,
+    EnvironmentSettings,
+    Expression,
+    ExplainDetail,
+    Module,
+    ModuleEntry,
+    Schema,
+    ChangelogMode,
+)
 from pyflink.table.catalog import Catalog, CatalogDescriptor
 from pyflink.table.compiled_plan import CompiledPlan
 from pyflink.table.plan_reference import PlanReference
@@ -44,19 +52,35 @@ from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
-from pyflink.table.types import _create_type_verifier, RowType, DataType, \
-    _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
-    _to_java_data_type
-from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
-    udtaf, TableAggregateFunction
+from pyflink.table.types import (
+    _create_type_verifier,
+    RowType,
+    DataType,
+    _infer_schema_from_data,
+    _create_converter,
+    from_arrow_type,
+    RowField,
+    create_arrow_schema,
+    _to_java_data_type,
+)
+from pyflink.table.udf import (
+    UserDefinedFunctionWrapper,
+    AggregateFunction,
+    udaf,
+    udtaf,
+    TableAggregateFunction,
+)
 from pyflink.table.utils import to_expression_jarray
-from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr, to_jarray, get_field
+from pyflink.util.java_utils import (
+    get_j_env_configuration,
+    is_local_deployment,
+    load_java_class,
+    to_j_explain_detail_arr,
+    to_jarray,
+    get_field,
+)
 
-__all__ = [
-    'StreamTableEnvironment',
-    'TableEnvironment'
-]
+__all__ = ["StreamTableEnvironment", "TableEnvironment"]
 
 
 class TableEnvironment(object):
@@ -102,8 +126,9 @@ class TableEnvironment(object):
         self._open()
 
     @staticmethod
-    def create(environment_settings: Union[EnvironmentSettings, Configuration]) \
-            -> 'TableEnvironment':
+    def create(
+        environment_settings: Union[EnvironmentSettings, Configuration],
+    ) -> "TableEnvironment":
         """
         Creates a table environment that is the entry point and central context for creating Table
         and SQL API programs.
@@ -114,8 +139,9 @@ class TableEnvironment(object):
         """
         gateway = get_gateway()
         if isinstance(environment_settings, Configuration):
-            environment_settings = EnvironmentSettings.new_instance() \
-                .with_configuration(environment_settings).build()
+            environment_settings = (
+                EnvironmentSettings.new_instance().with_configuration(environment_settings).build()
+            )
         elif not isinstance(environment_settings, EnvironmentSettings):
             raise TypeError("argument should be EnvironmentSettings or Configuration")
 
@@ -221,13 +247,16 @@ class TableEnvironment(object):
         .. versionadded:: 1.12.0
         """
         gateway = get_gateway()
-        java_function = gateway.jvm.Thread.currentThread().getContextClassLoader() \
+        java_function = (
+            gateway.jvm.Thread.currentThread()
+            .getContextClassLoader()
             .loadClass(function_class_name)
+        )
         self._j_tenv.createTemporarySystemFunction(name, java_function)
 
-    def create_temporary_system_function(self, name: str,
-                                         function: Union[UserDefinedFunctionWrapper,
-                                                         AggregateFunction]):
+    def create_temporary_system_function(
+        self, name: str, function: Union[UserDefinedFunctionWrapper, AggregateFunction]
+    ):
         """
         Registers a python user defined function class as a temporary system function.
 
@@ -281,8 +310,9 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporarySystemFunction(name)
 
-    def create_java_function(self, path: str, function_class_name: str,
-                             ignore_if_exists: bool = None):
+    def create_java_function(
+        self, path: str, function_class_name: str, ignore_if_exists: bool = None
+    ):
         """
         Registers a java user defined function class as a catalog function in the given path.
 
@@ -309,8 +339,11 @@ class TableEnvironment(object):
         .. versionadded:: 1.12.0
         """
         gateway = get_gateway()
-        java_function = gateway.jvm.Thread.currentThread().getContextClassLoader() \
+        java_function = (
+            gateway.jvm.Thread.currentThread()
+            .getContextClassLoader()
             .loadClass(function_class_name)
+        )
         if ignore_if_exists is None:
             self._j_tenv.createFunction(path, java_function)
         else:
@@ -358,12 +391,16 @@ class TableEnvironment(object):
         .. versionadded:: 1.12.0
         """
         gateway = get_gateway()
-        java_function = gateway.jvm.Thread.currentThread().getContextClassLoader() \
+        java_function = (
+            gateway.jvm.Thread.currentThread()
+            .getContextClassLoader()
             .loadClass(function_class_name)
+        )
         self._j_tenv.createTemporaryFunction(path, java_function)
 
-    def create_temporary_function(self, path: str, function: Union[UserDefinedFunctionWrapper,
-                                                                   AggregateFunction]):
+    def create_temporary_function(
+        self, path: str, function: Union[UserDefinedFunctionWrapper, AggregateFunction]
+    ):
         """
         Registers a python user defined function class as a temporary catalog function.
 
@@ -421,8 +458,9 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryFunction(path)
 
-    def create_temporary_table(self, path: str, descriptor: TableDescriptor,
-                               ignoreIfExists: Optional[bool] = False):
+    def create_temporary_table(
+        self, path: str, descriptor: TableDescriptor, ignoreIfExists: Optional[bool] = False
+    ):
         """
         Registers the given :class:`~pyflink.table.TableDescriptor` as a temporary catalog table.
 
@@ -453,8 +491,9 @@ class TableEnvironment(object):
         """
         self._j_tenv.createTemporaryTable(path, descriptor._j_table_descriptor, ignoreIfExists)
 
-    def create_table(self, path: str, descriptor: TableDescriptor,
-                     ignoreIfExists: Optional[bool] = False):
+    def create_table(
+        self, path: str, descriptor: TableDescriptor, ignoreIfExists: Optional[bool] = False
+    ):
         """
         Registers the given :class:`~pyflink.table.TableDescriptor` as a catalog table.
 
@@ -918,10 +957,12 @@ class TableEnvironment(object):
             setattr(self, "table_config", table_config)
         return getattr(self, "table_config")
 
-    def create_temporary_view(self,
-                              view_path: str,
-                              table_or_data_stream: Union[Table, DataStream],
-                              *fields_or_schema: Union[str, Expression, Schema]):
+    def create_temporary_view(
+        self,
+        view_path: str,
+        table_or_data_stream: Union[Table, DataStream],
+        *fields_or_schema: Union[str, Expression, Schema],
+    ):
         """
         1. When table_or_data_stream is a :class:`~pyflink.table.Table`:
 
@@ -1032,29 +1073,24 @@ class TableEnvironment(object):
             if len(fields_or_schema) == 0:
                 self._j_tenv.createTemporaryView(view_path, j_data_stream)
             elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
-                self._j_tenv.createTemporaryView(
-                    view_path,
-                    j_data_stream,
-                    fields_or_schema[0])
+                self._j_tenv.createTemporaryView(view_path, j_data_stream, fields_or_schema[0])
             elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
                 self._j_tenv.createTemporaryView(
-                    view_path,
-                    j_data_stream,
-                    fields_or_schema[0]._j_schema)
-            elif (len(fields_or_schema) > 0 and
-                  all(isinstance(elem, Expression) for elem in fields_or_schema)):
+                    view_path, j_data_stream, fields_or_schema[0]._j_schema
+                )
+            elif len(fields_or_schema) > 0 and all(
+                isinstance(elem, Expression) for elem in fields_or_schema
+            ):
                 self._j_tenv.createTemporaryView(
-                    view_path,
-                    j_data_stream,
-                    to_expression_jarray(fields_or_schema))
+                    view_path, j_data_stream, to_expression_jarray(fields_or_schema)
+                )
             else:
-                raise ValueError("Invalid arguments for 'fields': %r" %
-                                 ','.join([repr(item) for item in fields_or_schema]))
+                raise ValueError(
+                    "Invalid arguments for 'fields': %r"
+                    % ",".join([repr(item) for item in fields_or_schema])
+                )
 
-    def create_view(self,
-                    view_path: str,
-                    table: Table,
-                    ignore_if_exists: Optional[bool] = False):
+    def create_view(self, view_path: str, table: Table, ignore_if_exists: Optional[bool] = False):
         """
         Registers a :class:`~pyflink.table.Table` API object as a view similar to SQL views.
 
@@ -1092,9 +1128,9 @@ class TableEnvironment(object):
             python_files = file_path
         self.get_config().set(jvm.PythonOptions.PYTHON_FILES.key(), python_files)
 
-    def set_python_requirements(self,
-                                requirements_file_path: str,
-                                requirements_cache_dir: str = None):
+    def set_python_requirements(
+        self, requirements_file_path: str, requirements_cache_dir: str = None
+    ):
         """
         Specifies a requirements.txt file which defines the third-party dependencies.
         These dependencies will be installed to a temporary directory and added to the
@@ -1132,9 +1168,9 @@ class TableEnvironment(object):
         python_requirements = requirements_file_path
         if requirements_cache_dir is not None:
             python_requirements = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
-                [python_requirements, requirements_cache_dir])
-        self.get_config().set(
-            jvm.PythonOptions.PYTHON_REQUIREMENTS.key(), python_requirements)
+                [python_requirements, requirements_cache_dir]
+            )
+        self.get_config().set(jvm.PythonOptions.PYTHON_REQUIREMENTS.key(), python_requirements)
 
     def add_python_archive(self, archive_path: str, target_dir: str = None):
         """
@@ -1190,17 +1226,23 @@ class TableEnvironment(object):
         jvm = get_gateway().jvm
         if target_dir is not None:
             archive_path = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
-                [archive_path, target_dir])
+                [archive_path, target_dir]
+            )
         python_archives = self.get_config().get(jvm.PythonOptions.PYTHON_ARCHIVES.key(), None)
         if python_archives is not None:
             python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join(
-                [python_archives, archive_path])
+                [python_archives, archive_path]
+            )
         else:
             python_files = archive_path
         self.get_config().set(jvm.PythonOptions.PYTHON_ARCHIVES.key(), python_files)
 
-    def from_elements(self, elements: Iterable, schema: Union[DataType, List[str]] = None,
-                      verify_schema: bool = True) -> Table:
+    def from_elements(
+        self,
+        elements: Iterable,
+        schema: Union[DataType, List[str]] = None,
+        verify_schema: bool = True,
+    ) -> Table:
         """
         Creates a table from a collection of elements.
         The elements types must be acceptable atomic types or acceptable composite types.
@@ -1270,13 +1312,17 @@ class TableEnvironment(object):
             data_type = schema
             schema = RowType().add("value", schema)
 
-            verify_func = _create_type_verifier(
-                data_type, name="field value") if verify_schema else lambda _: True
+            verify_func = (
+                _create_type_verifier(data_type, name="field value")
+                if verify_schema
+                else lambda _: True
+            )
 
             def verify_obj(obj):
                 verify_func(obj)
                 return obj
         else:
+
             def verify_obj(obj):
                 return obj
 
@@ -1287,8 +1333,7 @@ class TableEnvironment(object):
             elements = map(converter, elements)
 
         elif not isinstance(schema, RowType):
-            raise TypeError(
-                "schema should be RowType, list, tuple or None, but got: %s" % schema)
+            raise TypeError("schema should be RowType, list, tuple or None, but got: %s" % schema)
 
         elements = list(elements)
 
@@ -1297,12 +1342,17 @@ class TableEnvironment(object):
             if schema is None:
                 return Table(self._j_tenv.fromValues(to_expression_jarray(elements)), self)
             else:
-                return Table(self._j_tenv.fromValues(_to_java_data_type(schema),
-                                                     to_expression_jarray(elements)),
-                             self)
+                return Table(
+                    self._j_tenv.fromValues(
+                        _to_java_data_type(schema), to_expression_jarray(elements)
+                    ),
+                    self,
+                )
         elif any(isinstance(elem, Expression) for elem in elements):
-            raise ValueError("It doesn't support part of the elements are Expression, while the "
-                             "others are not.")
+            raise ValueError(
+                "It doesn't support part of the elements are Expression, while the "
+                "others are not."
+            )
 
         # verifies the elements against the specified schema
         elements = map(verify_obj, elements)
@@ -1325,18 +1375,20 @@ class TableEnvironment(object):
                 serializer.serialize(elements, temp_file)
             j_schema = _to_java_data_type(schema)
             gateway = get_gateway()
-            PythonTableUtils = gateway.jvm \
-                .org.apache.flink.table.utils.python.PythonTableUtils
+            PythonTableUtils = gateway.jvm.org.apache.flink.table.utils.python.PythonTableUtils
             j_table = PythonTableUtils.createTableFromElement(
-                self._j_tenv, temp_file.name, j_schema, True)
+                self._j_tenv, temp_file.name, j_schema, True
+            )
             return Table(j_table, self)
         finally:
             atexit.register(lambda: os.unlink(temp_file.name))
 
-    def from_pandas(self, pdf: 'pandas.DataFrame',
-                    schema: Union[RowType, List[str], Tuple[str], List[DataType],
-                                  Tuple[DataType]] = None,
-                    splits_num: int = 1) -> Table:
+    def from_pandas(
+        self,
+        pdf: "pandas.DataFrame",
+        schema: Union[RowType, List[str], Tuple[str], List[DataType], Tuple[DataType]] = None,
+        splits_num: int = 1,
+    ) -> Table:
         """
         Creates a table from a pandas DataFrame.
 
@@ -1364,10 +1416,12 @@ class TableEnvironment(object):
         """
 
         import pandas as pd
+
         if not isinstance(pdf, pd.DataFrame):
             raise TypeError("Unsupported type, expected pandas.DataFrame, got %s" % type(pdf))
 
         import pyarrow as pa
+
         arrow_schema = pa.Schema.from_pandas(pdf, preserve_index=False)
 
         if schema is not None:
@@ -1375,28 +1429,42 @@ class TableEnvironment(object):
                 result_type = schema
             elif isinstance(schema, (list, tuple)) and isinstance(schema[0], str):
                 result_type = RowType(
-                    [RowField(field_name, from_arrow_type(field.type, field.nullable))
-                     for field_name, field in zip(schema, arrow_schema)])
+                    [
+                        RowField(field_name, from_arrow_type(field.type, field.nullable))
+                        for field_name, field in zip(schema, arrow_schema)
+                    ]
+                )
             elif isinstance(schema, (list, tuple)) and isinstance(schema[0], DataType):
                 result_type = RowType(
-                    [RowField(field_name, field_type) for field_name, field_type in zip(
-                        arrow_schema.names, schema)])
+                    [
+                        RowField(field_name, field_type)
+                        for field_name, field_type in zip(arrow_schema.names, schema)
+                    ]
+                )
             else:
-                raise TypeError("Unsupported schema type, it could only be of RowType, a "
-                                "list of str or a list of DataType, got %s" % schema)
+                raise TypeError(
+                    "Unsupported schema type, it could only be of RowType, a "
+                    "list of str or a list of DataType, got %s" % schema
+                )
         else:
-            result_type = RowType([RowField(field.name, from_arrow_type(field.type, field.nullable))
-                                   for field in arrow_schema])
+            result_type = RowType(
+                [
+                    RowField(field.name, from_arrow_type(field.type, field.nullable))
+                    for field in arrow_schema
+                ]
+            )
 
         # serializes to a file, and we read the file in java
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
         import pytz
+
         serializer = ArrowSerializer(
             create_arrow_schema(result_type.field_names(), result_type.field_types()),
             result_type,
-            pytz.timezone(self.get_config().get_local_timezone()))
+            pytz.timezone(self.get_config().get_local_timezone()),
+        )
         step = -(-len(pdf) // splits_num)
-        pdf_slices = [pdf.iloc[start:start + step] for start in range(0, len(pdf), step)]
+        pdf_slices = [pdf.iloc[start : start + step] for start in range(0, len(pdf), step)]
         data = [[c for (_, c) in pdf_slice.items()] for pdf_slice in pdf_slices]
         try:
             with temp_file:
@@ -1404,12 +1472,13 @@ class TableEnvironment(object):
             jvm = get_gateway().jvm
 
             data_type = _to_java_data_type(result_type).notNull()
-            data_type = data_type.bridgedTo(
-                load_java_class('org.apache.flink.table.data.RowData'))
+            data_type = data_type.bridgedTo(load_java_class("org.apache.flink.table.data.RowData"))
 
-            j_arrow_table_source_descriptor = \
+            j_arrow_table_source_descriptor = (
                 jvm.org.apache.flink.table.runtime.arrow.ArrowUtils.createArrowTableSourceDesc(
-                    data_type, temp_file.name)
+                    data_type, temp_file.name
+                )
+            )
             return Table(getattr(self._j_tenv, "from")(j_arrow_table_source_descriptor), self)
         finally:
             os.unlink(temp_file.name)
@@ -1436,7 +1505,7 @@ class TableEnvironment(object):
         """
         return CompiledPlan(
             j_compiled_plan=self._j_tenv.loadPlan(plan_reference._j_plan_reference),
-            t_env=self._j_tenv
+            t_env=self._j_tenv,
         )
 
     def compile_plan_sql(self, stmt: str) -> CompiledPlan:
@@ -1479,8 +1548,9 @@ class TableEnvironment(object):
     def _set_python_executable_for_local_executor(self):
         jvm = get_gateway().jvm
         j_config = get_j_env_configuration(self._get_j_env())
-        if not j_config.containsKey(jvm.PythonOptions.PYTHON_EXECUTABLE.key()) \
-                and is_local_deployment(j_config):
+        if not j_config.containsKey(
+            jvm.PythonOptions.PYTHON_EXECUTABLE.key()
+        ) and is_local_deployment(j_config):
             j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
 
     def _add_jars_to_j_env_config(self, config_key):
@@ -1491,8 +1561,7 @@ class TableEnvironment(object):
             jar_urls_list = []
             parsed_jar_urls = Configuration.parse_list_value(jar_urls)
             url_strings = [
-                jvm.java.net.URL(url).toString() if url else ""
-                for url in parsed_jar_urls
+                jvm.java.net.URL(url).toString() if url else "" for url in parsed_jar_urls
             ]
             self._parse_urls(url_strings, jar_urls_list)
 
@@ -1517,14 +1586,16 @@ class TableEnvironment(object):
     def _is_table_function(java_function):
         java_function_class = java_function.getClass()
         j_table_function_class = get_java_class(
-            get_gateway().jvm.org.apache.flink.table.functions.TableFunction)
+            get_gateway().jvm.org.apache.flink.table.functions.TableFunction
+        )
         return j_table_function_class.isAssignableFrom(java_function_class)
 
     @staticmethod
     def _is_aggregate_function(java_function):
         java_function_class = java_function.getClass()
         j_aggregate_function_class = get_java_class(
-            get_gateway().jvm.org.apache.flink.table.functions.ImperativeAggregateFunction)
+            get_gateway().jvm.org.apache.flink.table.functions.ImperativeAggregateFunction
+        )
         return j_aggregate_function_class.isAssignableFrom(java_function_class)
 
     def _register_table_function(self, name, table_function):
@@ -1541,7 +1612,8 @@ class TableEnvironment(object):
         result_type = helper.getReturnTypeOfAggregateFunction(aggregate_function)
         acc_type = helper.getAccumulatorTypeOfAggregateFunction(aggregate_function)
         function_catalog.registerTempSystemAggregateFunction(
-            name, aggregate_function, result_type, acc_type)
+            name, aggregate_function, result_type, acc_type
+        )
 
     def _get_function_catalog(self):
         function_catalog_field = self._j_tenv.getClass().getDeclaredField("functionCatalog")
@@ -1558,57 +1630,70 @@ class TableEnvironment(object):
 
     def _wrap_aggregate_function_if_needed(self, function) -> UserDefinedFunctionWrapper:
         if isinstance(function, AggregateFunction):
-            function = udaf(function,
-                            result_type=function.get_result_type(),
-                            accumulator_type=function.get_accumulator_type(),
-                            name=str(function.__class__.__name__))
+            function = udaf(
+                function,
+                result_type=function.get_result_type(),
+                accumulator_type=function.get_accumulator_type(),
+                name=str(function.__class__.__name__),
+            )
         elif isinstance(function, TableAggregateFunction):
-            function = udtaf(function,
-                             result_type=function.get_result_type(),
-                             accumulator_type=function.get_accumulator_type(),
-                             name=str(function.__class__.__name__))
+            function = udtaf(
+                function,
+                result_type=function.get_result_type(),
+                accumulator_type=function.get_accumulator_type(),
+                name=str(function.__class__.__name__),
+            )
         return function
 
     def _config_chaining_optimization(self):
-        JChainingOptimizingExecutor = get_gateway().jvm.org.apache.flink.table.executor.python.\
-            ChainingOptimizingExecutor
+        JChainingOptimizingExecutor = (
+            get_gateway().jvm.org.apache.flink.table.executor.python.ChainingOptimizingExecutor
+        )
         exec_env_field = get_field(self._j_tenv.getClass(), "execEnv")
-        exec_env_field.set(self._j_tenv,
-                           JChainingOptimizingExecutor(exec_env_field.get(self._j_tenv)))
+        exec_env_field.set(
+            self._j_tenv, JChainingOptimizingExecutor(exec_env_field.get(self._j_tenv))
+        )
 
     def _open(self):
         # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
         def startup_loopback_server():
-            from pyflink.fn_execution.beam.beam_worker_pool_service import \
-                BeamFnLoopbackWorkerPoolServicer
-            self.get_config().set("python.loopback-server.address",
-                                  BeamFnLoopbackWorkerPoolServicer().start())
+            from pyflink.fn_execution.beam.beam_worker_pool_service import (
+                BeamFnLoopbackWorkerPoolServicer,
+            )
 
-        python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
+            self.get_config().set(
+                "python.loopback-server.address", BeamFnLoopbackWorkerPoolServicer().start()
+            )
+
+        python_worker_execution_mode = os.environ.get("_python_worker_execution_mode")
 
         if python_worker_execution_mode is None:
             if is_local_deployment(get_j_env_configuration(self._get_j_env())):
                 startup_loopback_server()
-        elif python_worker_execution_mode == 'loopback':
+        elif python_worker_execution_mode == "loopback":
             if is_local_deployment(get_j_env_configuration(self._get_j_env())):
                 startup_loopback_server()
             else:
-                raise ValueError("Loopback mode is enabled, however the job wasn't configured to "
-                                 "run in local deployment mode")
-        elif python_worker_execution_mode != 'process':
+                raise ValueError(
+                    "Loopback mode is enabled, however the job wasn't configured to "
+                    "run in local deployment mode"
+                )
+        elif python_worker_execution_mode != "process":
             raise ValueError(
                 "It only supports to execute the Python worker in 'loopback' mode and 'process' "
-                "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
+                "mode, unknown mode '%s' is configured" % python_worker_execution_mode
+            )
 
 
 class StreamTableEnvironment(TableEnvironment):
-
     def __init__(self, j_tenv):
         super(StreamTableEnvironment, self).__init__(j_tenv)
 
     @staticmethod
-    def create(stream_execution_environment: StreamExecutionEnvironment = None,  # type: ignore
-               environment_settings: EnvironmentSettings = None) -> 'StreamTableEnvironment':
+    def create(
+        stream_execution_environment: StreamExecutionEnvironment = None,  # type: ignore
+        environment_settings: EnvironmentSettings = None,
+    ) -> "StreamTableEnvironment":
         """
         Creates a :class:`~pyflink.table.StreamTableEnvironment`.
 
@@ -1640,28 +1725,32 @@ class StreamTableEnvironment(TableEnvironment):
         :return: The StreamTableEnvironment created from given StreamExecutionEnvironment and
                  configuration.
         """
-        if stream_execution_environment is None and \
-                environment_settings is None:
-            raise ValueError("No argument found, the param 'stream_execution_environment' "
-                             "or 'environment_settings' is required.")
+        if stream_execution_environment is None and environment_settings is None:
+            raise ValueError(
+                "No argument found, the param 'stream_execution_environment' "
+                "or 'environment_settings' is required."
+            )
         gateway = get_gateway()
         if environment_settings is not None:
             if stream_execution_environment is None:
                 j_tenv = gateway.jvm.TableEnvironment.create(
-                    environment_settings._j_environment_settings)
+                    environment_settings._j_environment_settings
+                )
             else:
                 j_tenv = gateway.jvm.StreamTableEnvironment.create(
                     stream_execution_environment._j_stream_execution_environment,
-                    environment_settings._j_environment_settings)
+                    environment_settings._j_environment_settings,
+                )
         else:
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
-                stream_execution_environment._j_stream_execution_environment)
+                stream_execution_environment._j_stream_execution_environment
+            )
 
         return StreamTableEnvironment(j_tenv)
 
-    def from_data_stream(self,
-                         data_stream: DataStream,
-                         *fields_or_schema: Union[Expression, Schema]) -> Table:
+    def from_data_stream(
+        self, data_stream: DataStream, *fields_or_schema: Union[Expression, Schema]
+    ) -> Table:
         """
         1. When fields_or_schema is a sequence of Expression:
 
@@ -1778,17 +1867,22 @@ class StreamTableEnvironment(TableEnvironment):
         if len(fields_or_schema) == 0:
             return Table(j_table=self._j_tenv.fromDataStream(j_data_stream), t_env=self)
         elif all(isinstance(f, Expression) for f in fields_or_schema):
-            return Table(j_table=self._j_tenv.fromDataStream(
-                j_data_stream, to_expression_jarray(fields_or_schema)), t_env=self)
+            return Table(
+                j_table=self._j_tenv.fromDataStream(
+                    j_data_stream, to_expression_jarray(fields_or_schema)
+                ),
+                t_env=self,
+            )
         elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
-            return Table(j_table=self._j_tenv.fromDataStream(
-                j_data_stream, fields_or_schema[0]._j_schema), t_env=self)
+            return Table(
+                j_table=self._j_tenv.fromDataStream(j_data_stream, fields_or_schema[0]._j_schema),
+                t_env=self,
+            )
         raise ValueError("Invalid arguments for 'fields': %r" % fields_or_schema)
 
-    def from_changelog_stream(self,
-                              data_stream: DataStream,
-                              schema: Schema = None,
-                              changelog_mode: ChangelogMode = None) -> Table:
+    def from_changelog_stream(
+        self, data_stream: DataStream, schema: Schema = None, changelog_mode: ChangelogMode = None
+    ) -> Table:
         """
         Converts the given DataStream of changelog entries into a Table.
 
@@ -1830,14 +1924,15 @@ class StreamTableEnvironment(TableEnvironment):
             return Table(self._j_tenv.fromChangelogStream(j_data_stream), t_env=self)
         elif changelog_mode is None:
             return Table(
-                self._j_tenv.fromChangelogStream(j_data_stream, schema._j_schema), t_env=self)
+                self._j_tenv.fromChangelogStream(j_data_stream, schema._j_schema), t_env=self
+            )
         else:
             return Table(
                 self._j_tenv.fromChangelogStream(
-                    j_data_stream,
-                    schema._j_schema,
-                    changelog_mode._j_changelog_mode),
-                t_env=self)
+                    j_data_stream, schema._j_schema, changelog_mode._j_changelog_mode
+                ),
+                t_env=self,
+            )
 
     def to_data_stream(self, table: Table) -> DataStream:
         """
@@ -1861,10 +1956,9 @@ class StreamTableEnvironment(TableEnvironment):
         """
         return DataStream(self._j_tenv.toDataStream(table._j_table))
 
-    def to_changelog_stream(self,
-                            table: Table,
-                            target_schema: Schema = None,
-                            changelog_mode: ChangelogMode = None) -> DataStream:
+    def to_changelog_stream(
+        self, table: Table, target_schema: Schema = None, changelog_mode: ChangelogMode = None
+    ) -> DataStream:
         """
         Converts the given Table into a DataStream of changelog entries.
 
@@ -1947,13 +2041,14 @@ class StreamTableEnvironment(TableEnvironment):
             return DataStream(self._j_tenv.toChangelogStream(table._j_table))
         elif changelog_mode is None:
             return DataStream(
-                self._j_tenv.toChangelogStream(table._j_table, target_schema._j_schema))
+                self._j_tenv.toChangelogStream(table._j_table, target_schema._j_schema)
+            )
         else:
             return DataStream(
                 self._j_tenv.toChangelogStream(
-                    table._j_table,
-                    target_schema._j_schema,
-                    changelog_mode._j_changelog_mode))
+                    table._j_table, target_schema._j_schema, changelog_mode._j_changelog_mode
+                )
+            )
 
     def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
         """

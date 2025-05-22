@@ -23,27 +23,27 @@ from pyflink.common.time import Duration, Time
 from pyflink.common.typeinfo import TypeInformation, Types
 
 __all__ = [
-    'ValueStateDescriptor',
-    'ValueState',
-    'ListStateDescriptor',
-    'ListState',
-    'MapStateDescriptor',
-    'MapState',
-    'ReducingStateDescriptor',
-    'ReducingState',
-    'AggregatingStateDescriptor',
-    'AggregatingState',
-    'ReadOnlyBroadcastState',
-    'BroadcastState',
-    'StateTtlConfig',
-    'OperatorStateStore',
+    "ValueStateDescriptor",
+    "ValueState",
+    "ListStateDescriptor",
+    "ListState",
+    "MapStateDescriptor",
+    "MapState",
+    "ReducingStateDescriptor",
+    "ReducingState",
+    "AggregatingStateDescriptor",
+    "AggregatingState",
+    "ReadOnlyBroadcastState",
+    "BroadcastState",
+    "StateTtlConfig",
+    "OperatorStateStore",
 ]
 
-T = TypeVar('T')
-K = TypeVar('K')
-V = TypeVar('V')
-IN = TypeVar('IN')
-OUT = TypeVar('OUT')
+T = TypeVar("T")
+K = TypeVar("K")
+V = TypeVar("V")
+IN = TypeVar("IN")
+OUT = TypeVar("OUT")
 
 
 class OperatorStateStore(ABC):
@@ -54,7 +54,7 @@ class OperatorStateStore(ABC):
     """
 
     @abstractmethod
-    def get_broadcast_state(self, state_descriptor: 'MapStateDescriptor') -> 'BroadcastState':
+    def get_broadcast_state(self, state_descriptor: "MapStateDescriptor") -> "BroadcastState":
         """
         Fetches the :class:`~state.BroadcastState` described by :class:`~state.MapStateDescriptor`,
         which has read/write access to the broadcast operator state.
@@ -139,6 +139,7 @@ class MergingState(AppendingState[IN, OUT]):
     can be combined into a single instance that contains all the information of the two merged
     states.
     """
+
     pass
 
 
@@ -154,6 +155,7 @@ class ReducingState(MergingState[T, T]):
     supplied by the system, so the function always sees the value mapped to the key of the current
     element. That way, the system can handle stream and state partitioning consistently together.
     """
+
     pass
 
 
@@ -174,6 +176,7 @@ class AggregatingState(MergingState[IN, OUT]):
     supplied by the system, so the function always sees the value mapped to the key of the current
     element. That way, the system can handle stream and state partitioning consistently together.
     """
+
     pass
 
 
@@ -428,7 +431,7 @@ class StateDescriptor(ABC):
         """
         return self.name
 
-    def enable_time_to_live(self, ttl_config: 'StateTtlConfig'):
+    def enable_time_to_live(self, ttl_config: "StateTtlConfig"):
         """
         Configures optional activation of state time-to-live (TTL).
 
@@ -495,10 +498,7 @@ class ReducingStateDescriptor(StateDescriptor):
     RuntimeContext.get_reducing_state(ReducingStateDescriptor).
     """
 
-    def __init__(self,
-                 name: str,
-                 reduce_function,
-                 type_info: TypeInformation):
+    def __init__(self, name: str, reduce_function, type_info: TypeInformation):
         """
         Constructor of the ReducingStateDescriptor.
 
@@ -508,6 +508,7 @@ class ReducingStateDescriptor(StateDescriptor):
         """
         super(ReducingStateDescriptor, self).__init__(name, type_info)
         from pyflink.datastream.functions import ReduceFunction, ReduceFunctionWrapper
+
         if not isinstance(reduce_function, ReduceFunction):
             if callable(reduce_function):
                 reduce_function = ReduceFunctionWrapper(reduce_function)  # type: ignore
@@ -527,12 +528,10 @@ class AggregatingStateDescriptor(StateDescriptor):
     :func:`~pyflink.datastream.functions.AggregateFunction`.
     """
 
-    def __init__(self,
-                 name: str,
-                 agg_function,
-                 state_type_info):
+    def __init__(self, name: str, agg_function, state_type_info):
         super(AggregatingStateDescriptor, self).__init__(name, state_type_info)
         from pyflink.datastream.functions import AggregateFunction
+
         if not isinstance(agg_function, AggregateFunction):
             raise TypeError("The input must be a pyflink.datastream.functions.AggregateFunction!")
         self._agg_function = agg_function
@@ -565,11 +564,13 @@ class StateTtlConfig(object):
 
         def _to_proto(self):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
+
             return getattr(StateDescriptor.StateTTLConfig.UpdateType, self.name)
 
         @staticmethod
         def _from_proto(proto):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
+
             update_type_name = StateDescriptor.StateTTLConfig.UpdateType.Name(proto)
             return StateTtlConfig.UpdateType[update_type_name]
 
@@ -590,11 +591,13 @@ class StateTtlConfig(object):
 
         def _to_proto(self):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
+
             return getattr(StateDescriptor.StateTTLConfig.StateVisibility, self.name)
 
         @staticmethod
         def _from_proto(proto):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
+
             state_visibility_name = StateDescriptor.StateTTLConfig.StateVisibility.Name(proto)
             return StateTtlConfig.StateVisibility[state_visibility_name]
 
@@ -610,21 +613,26 @@ class StateTtlConfig(object):
 
         def _to_proto(self):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
+
             return getattr(StateDescriptor.StateTTLConfig.TtlTimeCharacteristic, self.name)
 
         @staticmethod
         def _from_proto(proto):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
-            ttl_time_characteristic_name = \
+
+            ttl_time_characteristic_name = (
                 StateDescriptor.StateTTLConfig.TtlTimeCharacteristic.Name(proto)
+            )
             return StateTtlConfig.TtlTimeCharacteristic[ttl_time_characteristic_name]
 
-    def __init__(self,
-                 update_type: UpdateType,
-                 state_visibility: StateVisibility,
-                 ttl_time_characteristic: TtlTimeCharacteristic,
-                 ttl: Time,
-                 cleanup_strategies: 'StateTtlConfig.CleanupStrategies'):
+    def __init__(
+        self,
+        update_type: UpdateType,
+        state_visibility: StateVisibility,
+        ttl_time_characteristic: TtlTimeCharacteristic,
+        ttl: Time,
+        cleanup_strategies: "StateTtlConfig.CleanupStrategies",
+    ):
         self._update_type = update_type
         self._state_visibility = state_visibility
         self._ttl_time_characteristic = ttl_time_characteristic
@@ -635,26 +643,27 @@ class StateTtlConfig(object):
     def new_builder(ttl: Time):
         return StateTtlConfig.Builder(ttl)
 
-    def get_update_type(self) -> 'StateTtlConfig.UpdateType':
+    def get_update_type(self) -> "StateTtlConfig.UpdateType":
         return self._update_type
 
-    def get_state_visibility(self) -> 'StateTtlConfig.StateVisibility':
+    def get_state_visibility(self) -> "StateTtlConfig.StateVisibility":
         return self._state_visibility
 
     def get_ttl(self) -> Time:
         return self._ttl
 
-    def get_ttl_time_characteristic(self) -> 'StateTtlConfig.TtlTimeCharacteristic':
+    def get_ttl_time_characteristic(self) -> "StateTtlConfig.TtlTimeCharacteristic":
         return self._ttl_time_characteristic
 
     def is_enabled(self) -> bool:
         return self._update_type.value != StateTtlConfig.UpdateType.Disabled.value
 
-    def get_cleanup_strategies(self) -> 'StateTtlConfig.CleanupStrategies':
+    def get_cleanup_strategies(self) -> "StateTtlConfig.CleanupStrategies":
         return self._cleanup_strategies
 
     def _to_proto(self):
         from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
+
         state_ttl_config = StateDescriptor.StateTTLConfig()
         state_ttl_config.update_type = self._update_type._to_proto()
         state_ttl_config.state_visibility = self._state_visibility._to_proto()
@@ -667,27 +676,31 @@ class StateTtlConfig(object):
     def _from_proto(proto):
         update_type = StateTtlConfig.UpdateType._from_proto(proto.update_type)
         state_visibility = StateTtlConfig.StateVisibility._from_proto(proto.state_visibility)
-        ttl_time_characteristic = \
-            StateTtlConfig.TtlTimeCharacteristic._from_proto(proto.ttl_time_characteristic)
+        ttl_time_characteristic = StateTtlConfig.TtlTimeCharacteristic._from_proto(
+            proto.ttl_time_characteristic
+        )
         ttl = Time.milliseconds(proto.ttl)
         cleanup_strategies = StateTtlConfig.CleanupStrategies._from_proto(proto.cleanup_strategies)
-        builder = StateTtlConfig.new_builder(ttl) \
-            .set_update_type(update_type) \
-            .set_state_visibility(state_visibility) \
+        builder = (
+            StateTtlConfig.new_builder(ttl)
+            .set_update_type(update_type)
+            .set_state_visibility(state_visibility)
             .set_ttl_time_characteristic(ttl_time_characteristic)
+        )
         builder._strategies = cleanup_strategies._strategies
         builder._is_cleanup_in_background = cleanup_strategies._is_cleanup_in_background
         return builder.build()
 
     def __repr__(self):
-        return "StateTtlConfig<" \
-               "update_type={}," \
-               " state_visibility={}," \
-               "ttl_time_characteristic ={}," \
-               "ttl={}>".format(self._update_type,
-                                self._state_visibility,
-                                self._ttl_time_characteristic,
-                                self._ttl)
+        return (
+            "StateTtlConfig<"
+            "update_type={},"
+            " state_visibility={},"
+            "ttl_time_characteristic ={},"
+            "ttl={}>".format(
+                self._update_type, self._state_visibility, self._ttl_time_characteristic, self._ttl
+            )
+        )
 
     class Builder(object):
         """
@@ -702,8 +715,9 @@ class StateTtlConfig(object):
             self._is_cleanup_in_background = True
             self._strategies: Dict = {}
 
-        def set_update_type(self,
-                            update_type: 'StateTtlConfig.UpdateType') -> 'StateTtlConfig.Builder':
+        def set_update_type(
+            self, update_type: "StateTtlConfig.UpdateType"
+        ) -> "StateTtlConfig.Builder":
             """
             Sets the ttl update type.
 
@@ -713,15 +727,15 @@ class StateTtlConfig(object):
             self._update_type = update_type
             return self
 
-        def update_ttl_on_create_and_write(self) -> 'StateTtlConfig.Builder':
+        def update_ttl_on_create_and_write(self) -> "StateTtlConfig.Builder":
             return self.set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite)
 
-        def update_ttl_on_read_and_write(self) -> 'StateTtlConfig.Builder':
+        def update_ttl_on_read_and_write(self) -> "StateTtlConfig.Builder":
             return self.set_update_type(StateTtlConfig.UpdateType.OnReadAndWrite)
 
         def set_state_visibility(
-                self,
-                state_visibility: 'StateTtlConfig.StateVisibility') -> 'StateTtlConfig.Builder':
+            self, state_visibility: "StateTtlConfig.StateVisibility"
+        ) -> "StateTtlConfig.Builder":
             """
             Sets the state visibility.
 
@@ -732,17 +746,17 @@ class StateTtlConfig(object):
             self._state_visibility = state_visibility
             return self
 
-        def return_expired_if_not_cleaned_up(self) -> 'StateTtlConfig.Builder':
+        def return_expired_if_not_cleaned_up(self) -> "StateTtlConfig.Builder":
             return self.set_state_visibility(
-                StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp)
+                StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp
+            )
 
-        def never_return_expired(self) -> 'StateTtlConfig.Builder':
+        def never_return_expired(self) -> "StateTtlConfig.Builder":
             return self.set_state_visibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
 
         def set_ttl_time_characteristic(
-                self,
-                ttl_time_characteristic: 'StateTtlConfig.TtlTimeCharacteristic') \
-                -> 'StateTtlConfig.Builder':
+            self, ttl_time_characteristic: "StateTtlConfig.TtlTimeCharacteristic"
+        ) -> "StateTtlConfig.Builder":
             """
             Sets the time characteristic.
 
@@ -752,22 +766,23 @@ class StateTtlConfig(object):
             self._ttl_time_characteristic = ttl_time_characteristic
             return self
 
-        def use_processing_time(self) -> 'StateTtlConfig.Builder':
+        def use_processing_time(self) -> "StateTtlConfig.Builder":
             return self.set_ttl_time_characteristic(
-                StateTtlConfig.TtlTimeCharacteristic.ProcessingTime)
+                StateTtlConfig.TtlTimeCharacteristic.ProcessingTime
+            )
 
-        def cleanup_full_snapshot(self) -> 'StateTtlConfig.Builder':
+        def cleanup_full_snapshot(self) -> "StateTtlConfig.Builder":
             """
             Cleanup expired state in full snapshot on checkpoint.
             """
             self._strategies[
-                StateTtlConfig.CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT] = \
-                StateTtlConfig.CleanupStrategies.EMPTY_STRATEGY
+                StateTtlConfig.CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT
+            ] = StateTtlConfig.CleanupStrategies.EMPTY_STRATEGY
             return self
 
-        def cleanup_incrementally(self,
-                                  cleanup_size: int,
-                                  run_cleanup_for_every_record) -> 'StateTtlConfig.Builder':
+        def cleanup_incrementally(
+            self, cleanup_size: int, run_cleanup_for_every_record
+        ) -> "StateTtlConfig.Builder":
             """
             Cleanup expired state incrementally cleanup local state.
 
@@ -801,16 +816,16 @@ class StateTtlConfig(object):
                 for any key
             :param run_cleanup_for_every_record: run incremental cleanup per each processed record
             """
-            self._strategies[StateTtlConfig.CleanupStrategies.Strategies.INCREMENTAL_CLEANUP] = \
+            self._strategies[StateTtlConfig.CleanupStrategies.Strategies.INCREMENTAL_CLEANUP] = (
                 StateTtlConfig.CleanupStrategies.IncrementalCleanupStrategy(
-                    cleanup_size, run_cleanup_for_every_record)
+                    cleanup_size, run_cleanup_for_every_record
+                )
+            )
             return self
 
         def cleanup_in_rocksdb_compact_filter(
-                self,
-                query_time_after_num_entries,
-                periodic_compaction_time=None) -> \
-                'StateTtlConfig.Builder':
+            self, query_time_after_num_entries, periodic_compaction_time=None
+        ) -> "StateTtlConfig.Builder":
             """
             Cleanup expired state while Rocksdb compaction is running.
 
@@ -831,13 +846,14 @@ class StateTtlConfig(object):
             :return:
             """
             self._strategies[
-                StateTtlConfig.CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER] = \
-                StateTtlConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategy(
-                    query_time_after_num_entries,
-                    periodic_compaction_time if periodic_compaction_time else Duration.of_days(30))
+                StateTtlConfig.CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER
+            ] = StateTtlConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategy(
+                query_time_after_num_entries,
+                periodic_compaction_time if periodic_compaction_time else Duration.of_days(30),
+            )
             return self
 
-        def disable_cleanup_in_background(self) -> 'StateTtlConfig.Builder':
+        def disable_cleanup_in_background(self) -> "StateTtlConfig.Builder":
             """
             Disable default cleanup of expired state in background (enabled by default).
 
@@ -847,7 +863,7 @@ class StateTtlConfig(object):
             self._is_cleanup_in_background = False
             return self
 
-        def set_ttl(self, ttl: Time) -> 'StateTtlConfig.Builder':
+        def set_ttl(self, ttl: Time) -> "StateTtlConfig.Builder":
             """
             Sets the ttl time.
 
@@ -856,13 +872,13 @@ class StateTtlConfig(object):
             self._ttl = ttl
             return self
 
-        def build(self) -> 'StateTtlConfig':
+        def build(self) -> "StateTtlConfig":
             return StateTtlConfig(
                 self._update_type,
                 self._state_visibility,
                 self._ttl_time_characteristic,
                 self._ttl,
-                StateTtlConfig.CleanupStrategies(self._strategies, self._is_cleanup_in_background)
+                StateTtlConfig.CleanupStrategies(self._strategies, self._is_cleanup_in_background),
             )
 
     class CleanupStrategies(object):
@@ -885,20 +901,25 @@ class StateTtlConfig(object):
 
             def _to_proto(self):
                 from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
+
                 return getattr(
-                    StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies, self.name)
+                    StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies, self.name
+                )
 
             @staticmethod
             def _from_proto(proto):
                 from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
-                strategies_name = \
-                    StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies.Name(proto)
+
+                strategies_name = StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies.Name(
+                    proto
+                )
                 return StateTtlConfig.CleanupStrategies.Strategies[strategies_name]
 
         class CleanupStrategy(ABC):
             """
             Base interface for cleanup strategies configurations.
             """
+
             pass
 
         class EmptyCleanupStrategy(CleanupStrategy):
@@ -924,12 +945,11 @@ class StateTtlConfig(object):
             Configuration of cleanup strategy using custom compaction filter in RocksDB.
             """
 
-            def __init__(self,
-                         query_time_after_num_entries: int,
-                         periodic_compaction_time=None):
+            def __init__(self, query_time_after_num_entries: int, periodic_compaction_time=None):
                 self._query_time_after_num_entries = query_time_after_num_entries
-                self._periodic_compaction_time = periodic_compaction_time \
-                    if periodic_compaction_time else Duration.of_days(30)
+                self._periodic_compaction_time = (
+                    periodic_compaction_time if periodic_compaction_time else Duration.of_days(30)
+                )
 
             def get_query_time_after_num_entries(self) -> int:
                 return self._query_time_after_num_entries
@@ -939,9 +959,9 @@ class StateTtlConfig(object):
 
         EMPTY_STRATEGY = EmptyCleanupStrategy()
 
-        def __init__(self,
-                     strategies: Dict[Strategies, CleanupStrategy],
-                     is_cleanup_in_background: bool):
+        def __init__(
+            self, strategies: Dict[Strategies, CleanupStrategy], is_cleanup_in_background: bool
+        ):
             self._strategies = strategies
             self._is_cleanup_in_background = is_cleanup_in_background
 
@@ -949,33 +969,41 @@ class StateTtlConfig(object):
             return self._is_cleanup_in_background
 
         def in_full_snapshot(self) -> bool:
-            return (StateTtlConfig.CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT in
-                    self._strategies)
+            return (
+                StateTtlConfig.CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT
+                in self._strategies
+            )
 
-        def get_incremental_cleanup_strategy(self) \
-                -> 'StateTtlConfig.CleanupStrategies.IncrementalCleanupStrategy':
+        def get_incremental_cleanup_strategy(
+            self,
+        ) -> "StateTtlConfig.CleanupStrategies.IncrementalCleanupStrategy":
             if self._is_cleanup_in_background:
-                default_strategy = \
-                    StateTtlConfig.CleanupStrategies.IncrementalCleanupStrategy(5, False)
+                default_strategy = StateTtlConfig.CleanupStrategies.IncrementalCleanupStrategy(
+                    5, False
+                )
             else:
                 default_strategy = None
             return self._strategies.get(  # type: ignore
-                StateTtlConfig.CleanupStrategies.Strategies.INCREMENTAL_CLEANUP,
-                default_strategy)
+                StateTtlConfig.CleanupStrategies.Strategies.INCREMENTAL_CLEANUP, default_strategy
+            )
 
-        def get_rocksdb_compact_filter_cleanup_strategy(self) \
-                -> 'StateTtlConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategy':
+        def get_rocksdb_compact_filter_cleanup_strategy(
+            self,
+        ) -> "StateTtlConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategy":
             if self._is_cleanup_in_background:
-                default_strategy = \
+                default_strategy = (
                     StateTtlConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategy(1000)
+                )
             else:
                 default_strategy = None
             return self._strategies.get(  # type: ignore
                 StateTtlConfig.CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER,
-                default_strategy)
+                default_strategy,
+            )
 
         def _to_proto(self):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
+
             DescriptorCleanupStrategies = StateDescriptor.StateTTLConfig.CleanupStrategies
             CleanupStrategies = StateTtlConfig.CleanupStrategies
 
@@ -988,20 +1016,26 @@ class StateTtlConfig(object):
                     empty_strategy = DescriptorCleanupStrategies.EmptyCleanupStrategy.EMPTY_STRATEGY
                     cleanup_strategy.empty_strategy = empty_strategy
                 elif isinstance(v, CleanupStrategies.IncrementalCleanupStrategy):
-                    incremental_cleanup_strategy = \
+                    incremental_cleanup_strategy = (
                         DescriptorCleanupStrategies.IncrementalCleanupStrategy()
+                    )
                     incremental_cleanup_strategy.cleanup_size = v._cleanup_size
-                    incremental_cleanup_strategy.run_cleanup_for_every_record = \
+                    incremental_cleanup_strategy.run_cleanup_for_every_record = (
                         v._run_cleanup_for_every_record
+                    )
                     cleanup_strategy.incremental_cleanup_strategy.CopyFrom(
-                        incremental_cleanup_strategy)
+                        incremental_cleanup_strategy
+                    )
                 elif isinstance(v, CleanupStrategies.RocksdbCompactFilterCleanupStrategy):
-                    rocksdb_compact_filter_cleanup_strategy = \
+                    rocksdb_compact_filter_cleanup_strategy = (
                         DescriptorCleanupStrategies.RocksdbCompactFilterCleanupStrategy()
-                    rocksdb_compact_filter_cleanup_strategy.query_time_after_num_entries = \
+                    )
+                    rocksdb_compact_filter_cleanup_strategy.query_time_after_num_entries = (
                         v._query_time_after_num_entries
+                    )
                     cleanup_strategy.rocksdb_compact_filter_cleanup_strategy.CopyFrom(
-                        rocksdb_compact_filter_cleanup_strategy)
+                        rocksdb_compact_filter_cleanup_strategy
+                    )
             return cleanup_strategies
 
         @staticmethod
@@ -1012,16 +1046,19 @@ class StateTtlConfig(object):
             is_cleanup_in_background = proto.is_cleanup_in_background
             for strategy_entry in proto.strategies:
                 strategy = CleanupStrategies.Strategies._from_proto(strategy_entry.strategy)
-                if strategy_entry.HasField('empty_strategy'):
+                if strategy_entry.HasField("empty_strategy"):
                     strategies[strategy] = CleanupStrategies.EmptyCleanupStrategy
-                elif strategy_entry.HasField('incremental_cleanup_strategy'):
+                elif strategy_entry.HasField("incremental_cleanup_strategy"):
                     incremental_cleanup_strategy = strategy_entry.incremental_cleanup_strategy
                     strategies[strategy] = CleanupStrategies.IncrementalCleanupStrategy(
                         incremental_cleanup_strategy.cleanup_size,
-                        incremental_cleanup_strategy.run_cleanup_for_every_record)
-                elif strategy_entry.HasField('rocksdb_compact_filter_cleanup_strategy'):
-                    rocksdb_compact_filter_cleanup_strategy = \
+                        incremental_cleanup_strategy.run_cleanup_for_every_record,
+                    )
+                elif strategy_entry.HasField("rocksdb_compact_filter_cleanup_strategy"):
+                    rocksdb_compact_filter_cleanup_strategy = (
                         strategy_entry.rocksdb_compact_filter_cleanup_strategy
+                    )
                     strategies[strategy] = CleanupStrategies.RocksdbCompactFilterCleanupStrategy(
-                        rocksdb_compact_filter_cleanup_strategy.query_time_after_num_entries)
+                        rocksdb_compact_filter_cleanup_strategy.query_time_after_num_entries
+                    )
             return CleanupStrategies(strategies, is_cleanup_in_background)

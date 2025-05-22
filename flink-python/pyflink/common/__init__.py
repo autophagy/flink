@@ -49,6 +49,7 @@ Common classes used by both Flink DataStream API and Table API:
       :class:`~SimpleStringSchema` and
       :class:`~SimpleByteSchema` for more details.
 """
+
 from pyflink.common.completable_future import CompletableFuture
 from pyflink.common.config_options import ConfigOption, ConfigOptions
 from pyflink.common.configuration import Configuration
@@ -59,43 +60,50 @@ from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.job_id import JobID
 from pyflink.common.job_status import JobStatus
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
-from pyflink.common.serialization import SerializationSchema, DeserializationSchema, \
-    SimpleStringSchema, ByteArraySchema, Encoder
+from pyflink.common.serialization import (
+    SerializationSchema,
+    DeserializationSchema,
+    SimpleStringSchema,
+    ByteArraySchema,
+    Encoder,
+)
 from pyflink.common.serializer import TypeSerializer
 from pyflink.common.time import Duration, Instant, Time
 from pyflink.common.typeinfo import Types, TypeInformation
 from pyflink.common.types import Row, RowKind
-from pyflink.common.watermark_strategy import WatermarkStrategy, \
-    AssignerWithPeriodicWatermarksWrapper
+from pyflink.common.watermark_strategy import (
+    WatermarkStrategy,
+    AssignerWithPeriodicWatermarksWrapper,
+)
 
 __all__ = [
-    'Configuration',
-    'ConfigOption',
-    'ConfigOptions',
-    'ExecutionConfig',
+    "Configuration",
+    "ConfigOption",
+    "ConfigOptions",
+    "ExecutionConfig",
     "TypeInformation",
     "TypeSerializer",
     "Types",
-    'SerializationSchema',
-    'DeserializationSchema',
-    'SimpleStringSchema',
-    'ByteArraySchema',
-    'Encoder',
-    'CompletableFuture',
-    'InputDependencyConstraint',
-    'JobClient',
-    'JobExecutionResult',
-    'JobID',
-    'JobStatus',
-    'RestartStrategies',
-    'RestartStrategyConfiguration',
+    "SerializationSchema",
+    "DeserializationSchema",
+    "SimpleStringSchema",
+    "ByteArraySchema",
+    "Encoder",
+    "CompletableFuture",
+    "InputDependencyConstraint",
+    "JobClient",
+    "JobExecutionResult",
+    "JobID",
+    "JobStatus",
+    "RestartStrategies",
+    "RestartStrategyConfiguration",
     "Row",
     "RowKind",
     "WatermarkStrategy",
     "Duration",
     "Instant",
     "Time",
-    "AssignerWithPeriodicWatermarksWrapper"
+    "AssignerWithPeriodicWatermarksWrapper",
 ]
 
 
@@ -105,20 +113,23 @@ def _install():
     # json
     from pyflink.datastream.formats.json import JsonRowDeserializationSchema
     from pyflink.datastream.formats.json import JsonRowSerializationSchema
-    setattr(common, 'JsonRowDeserializationSchema', JsonRowDeserializationSchema)
-    setattr(common, 'JsonRowSerializationSchema', JsonRowSerializationSchema)
+
+    setattr(common, "JsonRowDeserializationSchema", JsonRowDeserializationSchema)
+    setattr(common, "JsonRowSerializationSchema", JsonRowSerializationSchema)
 
     # csv
     from pyflink.datastream.formats.csv import CsvRowDeserializationSchema
     from pyflink.datastream.formats.csv import CsvRowSerializationSchema
-    setattr(common, 'CsvRowDeserializationSchema', CsvRowDeserializationSchema)
-    setattr(common, 'CsvRowSerializationSchema', CsvRowSerializationSchema)
+
+    setattr(common, "CsvRowDeserializationSchema", CsvRowDeserializationSchema)
+    setattr(common, "CsvRowSerializationSchema", CsvRowSerializationSchema)
 
     # avro
     from pyflink.datastream.formats.avro import AvroRowDeserializationSchema
     from pyflink.datastream.formats.avro import AvroRowSerializationSchema
-    setattr(common, 'AvroRowDeserializationSchema', AvroRowDeserializationSchema)
-    setattr(common, 'AvroRowSerializationSchema', AvroRowSerializationSchema)
+
+    setattr(common, "AvroRowDeserializationSchema", AvroRowDeserializationSchema)
+    setattr(common, "AvroRowSerializationSchema", AvroRowSerializationSchema)
 
 
 # for backward compatibility

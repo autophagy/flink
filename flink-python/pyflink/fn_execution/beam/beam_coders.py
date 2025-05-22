@@ -49,15 +49,13 @@ class PassThroughLengthPrefixCoder(LengthPrefixCoder):
         return beam_coder_impl.PassThroughLengthPrefixCoderImpl(self._value_coder.get_impl())
 
     def __repr__(self):
-        return 'PassThroughLengthPrefixCoder[%s]' % self._value_coder
+        return "PassThroughLengthPrefixCoder[%s]" % self._value_coder
 
 
-Coder.register_structured_urn(
-    common_urns.coders.LENGTH_PREFIX.urn, PassThroughLengthPrefixCoder)
+Coder.register_structured_urn(common_urns.coders.LENGTH_PREFIX.urn, PassThroughLengthPrefixCoder)
 
 
 class FlinkCoder(FastCoder):
-
     def __init__(self, internal_coder):
         self._internal_coder = internal_coder
 
@@ -75,16 +73,17 @@ class FlinkCoder(FastCoder):
 
     @Coder.register_urn(FLINK_CODER_URN, CoderInfoDescriptor)
     def _pickle_from_runner_api_parameter(
-            coder_info_descriptor_proto, unused_components, unused_context):
-        return FlinkCoder(LengthPrefixBaseCoder.from_coder_info_descriptor_proto(
-            coder_info_descriptor_proto))
+        coder_info_descriptor_proto, unused_components, unused_context
+    ):
+        return FlinkCoder(
+            LengthPrefixBaseCoder.from_coder_info_descriptor_proto(coder_info_descriptor_proto)
+        )
 
     def __repr__(self):
-        return 'FlinkCoder[%s]' % repr(self._internal_coder)
+        return "FlinkCoder[%s]" % repr(self._internal_coder)
 
-    def __eq__(self, other: 'FlinkCoder'):
-        return (self.__class__ == other.__class__
-                and self._internal_coder == other._internal_coder)
+    def __eq__(self, other: "FlinkCoder"):
+        return self.__class__ == other.__class__ and self._internal_coder == other._internal_coder
 
     def __ne__(self, other):
         return not self == other
