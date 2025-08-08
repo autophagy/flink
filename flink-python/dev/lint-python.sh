@@ -448,7 +448,7 @@ function tox_check() {
 
         ENV_LIST_SIZE=${#ENV_LIST[@]}
         index=$(($RANDOM % ENV_LIST_SIZE))
-        $UV_PATH run --group "${PYPROJECT_PATH}:tox" tox -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${ENV_LIST[$index]} --recreate 2>&1 | tee -a $LOG_FILE
+        $UV_PATH run tox tox -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${ENV_LIST[$index]} --recreate 2>&1 | tee -a $LOG_FILE
     fi
 
     TOX_RESULT=$((grep -c "congratulations :)" "$LOG_FILE") 2>&1)
