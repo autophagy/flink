@@ -19,7 +19,7 @@
 if [[ "$@" =~ 'apache-flink-libraries' ]]; then
     # As of Python 3.12, setuptools is no longer a seed package.
     # We should ensure its existence.
-    python -m pip install setuptools
+    python -m pip install --upgrade pip setuptools
     pushd apache-flink-libraries
     python setup.py sdist
     pushd dist
