@@ -446,6 +446,8 @@ function flake8_check() {
 # Sphinx check
 function sphinx_check() {
     export SPHINXBUILD="$UV_PATH run --group sphinx sphinx-build"
+    print_function "STAGE" "sphinx checks"
+
     # cd to $FLINK_PYTHON_DIR
     pushd "$FLINK_PYTHON_DIR"/docs &> /dev/null
     make clean
