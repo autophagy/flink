@@ -137,7 +137,7 @@ function parse_component_args() {
         if [[ `contains_element "${SUPPORTED_INSTALLATION_COMPONENTS[*]}" "${component}"` = true ]]; then
             REAL_COMPONENTS+=(${component})
         else
-            echo "unknown install component ${component}, currently we only support installing basic,py_env,all."
+            echo "unknown install component ${component}, currently we only support installing basic,all."
             exit 1
         fi
     done
@@ -215,44 +215,6 @@ function install_uv() {
     fi
 }
 
-# Create different Python virtual environments for different Python versions
-function install_py_env() {
-    py_env=("3.9" "3.10" "3.11" "3.12")
-    for ((i=0;i<${#py_env[@]};i++)) do
-        if [ -d "$CURRENT_DIR/.uv/envs/${py_env[i]}" ]; then
-            rm -rf "$CURRENT_DIR/.uv/envs/${py_env[i]}"
-            if [ $? -ne 0 ]; then
-                echo "rm -rf $CURRENT_DIR/.uv/envs/${py_env[i]} failed, please \
-                rm -rf $CURRENT_DIR/.uv/envs/${py_env[i]} manually.\
-                Then retry to exec the script."
-                exit 1
-            fi
-        fi
-        print_function "STEP" "installing python${py_env[i]}..."
-        max_retry_times=3
-        retry_times=0
-        install_command="$UV_PATH venv $CURRENT_DIR/.uv/envs/${py_env[i]} -q --python=${py_env[i]} --seed"
-        ${install_command} 2>&1 >/dev/null
-        status=$?
-        while [[ ${status} -ne 0 ]] && [[ ${retry_times} -lt ${max_retry_times} ]]; do
-            retry_times=$((retry_times+1))
-            # sleep 3 seconds and then reinstall.
-            sleep 3
-            echo "uv venv ${py_env[i]} retrying ${retry_times}/${max_retry_times}"
-            ${install_command} 2>&1 >/dev/null
-            status=$?
-        done
-        if [[ ${status} -ne 0 ]]; then
-            echo "uv venv ${py_env[i]} failed after retrying ${max_retry_times} times.\
-            You can retry to execute the script again."
-            exit 1
-        fi
-
-        $CURRENT_DIR/.uv/envs/${py_env[i]}/bin/pip install -q uv==${UV_VERSION}
-        print_function "STEP" "install python${py_env[i]}... [SUCCESS]"
-    done
-}
-
 function need_install_component() {
     if [[ `contains_element "${SUPPORTED_INSTALLATION_COMPONENTS[*]}" "$1"` = true ]]; then
         echo true
@@ -279,16 +241,6 @@ function install_environment() {
         STEP=1
         checkpoint_stage $STAGE $STEP
         print_function "STEP" "install uv... [SUCCESS]"
-    fi
-
-    # step-2 install python environment which includes
-    # 3.9 3.10 3.11 3.12
-    if [ $STEP -lt 2 ] && [ `need_install_component "py_env"` = true ]; then
-        print_function "STEP" "installing python environment..."
-        install_py_env
-        STEP=2
-        checkpoint_stage $STAGE $STEP
-        print_function "STEP" "install python environment... [SUCCESS]"
     fi
 
     print_function "STAGE"  "install environment... [SUCCESS]"
@@ -430,8 +382,7 @@ function tox_check() {
     local TOX="$UV_PATH run --group tox tox"
     LATEST_PYTHON="py312"
     print_function "STAGE" "tox checks"
-    # Set created py-env in $PATH for tox's creating virtual env
-    activate
+
     # Ensure the permission of the scripts set correctly
     chmod +x $FLINK_PYTHON_DIR/../build-target/bin/*
     chmod +x $FLINK_PYTHON_DIR/dev/*
@@ -458,8 +409,6 @@ function tox_check() {
     else
         print_function "STAGE" "tox checks... [SUCCESS]"
     fi
-    # Reset the $PATH
-    deactivate
 
     # If check failed, stop the running script.
     if [ $TOX_RESULT -eq '0' ]; then
@@ -594,7 +543,7 @@ UV_VERSION=0.7.20
 UV_INSTALL_SH=$CURRENT_DIR/download/uv.sh
 
 # stage "install" includes the num of steps.
-STAGE_INSTALL_STEPS=2
+STAGE_INSTALL_STEPS=1
 
 # whether force to restart the script.
 FORCE_START=0
@@ -623,7 +572,7 @@ USAGE="
 usage: $0 [options]
 -h          print this help message and exit
 -f          force to exec from the progress of installing environment
--s [basic,py_env,all]
+-s [basic,all]
             install environment with specified components which split by comma(,)
             note:
                 This option is used to install environment components and will skip all subsequent checks,
@@ -636,8 +585,7 @@ usage: $0 [options]
 -l          list all checks supported.
 Examples:
   ./lint-python.sh -s basic        =>  install environment with basic components.
-  ./lint-python.sh -s all          =>  install environment with all components (uv and python environments).
-  ./lint-python.sh -s py_env       =>  install only python environments.
+  ./lint-python.sh -s all          =>  install environment with all components (uv).
   ./lint-python.sh -e tox,flake8   =>  exclude checks tox,flake8.
   ./lint-python.sh -i flake8       =>  include checks flake8.
   ./lint-python.sh                 =>  exec all checks.
