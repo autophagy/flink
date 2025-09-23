@@ -732,7 +732,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
                  DataTypes.FIELD("j", DataTypes.STRING()),
                  DataTypes.FIELD("k", DataTypes.DATE()),
                  DataTypes.FIELD("l", DataTypes.TIME()),
-                 DataTypes.FIELD("m", DataTypes.TIMESTAMP(3)),
+                 DataTypes.FIELD("m", DataTypes.TIMESTAMP_LTZ(3)),
                  DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
                  DataTypes.FIELD(
                      "o",
