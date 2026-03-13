@@ -192,6 +192,26 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
     }
 
     @Override
+    public Optional<String> getArgumentName(int pos) {
+        final SqlNode sqlNode = adaptedArguments.get(pos);
+
+        if (sqlNode.getKind() == SqlKind.AS && sqlNode instanceof SqlCall) {
+            final SqlCall asCall = (SqlCall) sqlNode;
+            final List<SqlNode> operands = asCall.getOperandList();
+            if (operands.size() >= 2 && operands.get(1) instanceof SqlIdentifier) {
+                return Optional.of(((SqlIdentifier) operands.get(1)).getSimple());
+            }
+        } else if (sqlNode instanceof SqlIdentifier) {
+            final SqlIdentifier identifier = (SqlIdentifier) sqlNode;
+            if (identifier.isSimple()) {
+                return Optional.of(identifier.getSimple());
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    @Override
     public Optional<DataType> getOutputDataType() {
         return Optional.ofNullable(outputType);
     }

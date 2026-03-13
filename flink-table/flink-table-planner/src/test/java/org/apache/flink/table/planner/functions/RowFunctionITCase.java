@@ -36,6 +36,29 @@ class RowFunctionITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.ROW, "with aliased fields using .as()")
+                        .onFieldsWithData(100, "product_abc", 75.50)
+                        .andDataTypes(DataTypes.INT(), DataTypes.STRING(), DataTypes.DOUBLE())
+                        .testTableApiResult(
+                                row(
+                                        $("f0").as("customer_id"),
+                                        $("f1").as("product_id"),
+                                        $("f2").as("price")),
+                                Row.of(100, "product_abc", 75.50),
+                                DataTypes.ROW(
+                                                DataTypes.FIELD("customer_id", DataTypes.INT()),
+                                                DataTypes.FIELD("product_id", DataTypes.STRING()),
+                                                DataTypes.FIELD("price", DataTypes.DOUBLE()))
+                                        .notNull())
+                        .testTableApiResult(
+                                row(
+                                                $("f0").as("customer_id"),
+                                                $("f1").as("product_id"),
+                                                $("f2").as("price"))
+                                        .get("customer_id"),
+                                100,
+                                DataTypes.INT()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ROW, "with field access")
                         .onFieldsWithData(12, "Hello world")
                         .andDataTypes(DataTypes.INT(), DataTypes.STRING())

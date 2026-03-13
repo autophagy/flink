@@ -28,6 +28,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
@@ -679,6 +680,26 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
             return resolvedArgs.stream()
                     .map(ResolvedExpression::getOutputDataType)
                     .collect(Collectors.toList());
+        }
+
+        @Override
+        public Optional<String> getArgumentName(int pos) {
+            final ResolvedExpression arg = getArgument(pos);
+
+            if (arg instanceof CallExpression) {
+                final CallExpression call = (CallExpression) arg;
+                if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AS) {
+                    final List<ResolvedExpression> children = call.getResolvedChildren();
+                    if (children.size() >= 2 && children.get(1) instanceof ValueLiteralExpression) {
+                        return ((ValueLiteralExpression) children.get(1)).getValueAs(String.class);
+                    }
+                }
+            } else if (arg instanceof FieldReferenceExpression) {
+                return Optional.of(((FieldReferenceExpression) arg).getName());
+
+            }
+
+            return Optional.empty();
         }
 
         @Override
