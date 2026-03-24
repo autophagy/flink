@@ -121,18 +121,14 @@ public class OperationUtils {
     }
 
     public static String formatSelectColumns(ResolvedSchema schema, @Nullable String inputAlias) {
-        return schema.getColumnNames().stream()
-                .map(
-                        i -> {
-                            if (inputAlias == null) {
-                                return EncodingUtils.escapeIdentifier(i);
-                            }
-                            return String.format(
-                                    "%s.%s",
-                                    EncodingUtils.escapeIdentifier(inputAlias),
-                                    EncodingUtils.escapeIdentifier(i));
-                        })
-                .collect(Collectors.joining(", "));
+        if (inputAlias == null) {
+            return EncodingUtils.escapeIdentifier("*");
+        } else {
+            return String.format(
+                    "%s.%s",
+                    EncodingUtils.escapeIdentifier(inputAlias),
+                    EncodingUtils.escapeIdentifier("*"));
+        }
     }
 
     public static String formatParameter(String name, Object value) {
