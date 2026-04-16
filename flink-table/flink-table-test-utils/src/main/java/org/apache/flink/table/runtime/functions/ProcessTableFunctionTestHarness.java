@@ -20,7 +20,10 @@ package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.annotation.ArgumentTrait;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.functions.FunctionContext;
@@ -40,6 +43,9 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -47,6 +53,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -92,6 +99,22 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
     private final Map<String, DataStructureConverter<Object, Object>> inputConverters;
     private final Map<String, DataStructureConverter<Object, Object>> outputConverters;
+    private final Map<String, DataStructureConverter<Object, Object>> stateConverters;
+
+    // State storage: partitionKey -> (stateArgumentName -> RowData)
+    // State is stored as RowData internally to ensure it can be serialized like in live PTF runs
+    private final Map<Row, Map<String, RowData>> stateByPartition;
+
+    // System clock (milliseconds since epoch 0)
+    private long systemTimeMillis = 0L;
+
+    // Timestamp metadata storage for all state types:
+    // partitionKey -> (stateArgumentName -> TimestampMetadata)
+    // - ValueTimestamp for value state (POJOs, Row)
+    // - ListTimestamps for ListView state
+    // - MapTimestamps for MapView state
+    // Stored separately from RowData to avoid caching complexity
+    private final Map<Row, Map<String, TimestampMetadata>> timestampsByPartition = new HashMap<>();
 
     private ProcessTableFunctionTestHarness(
             ProcessTableFunction<OUT> function,
@@ -103,7 +126,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             boolean isSingleTableFunction,
             Map<String, Object> scalarArgumentValues,
             Map<String, DataStructureConverter<Object, Object>> inputConverters,
-            Map<String, DataStructureConverter<Object, Object>> outputConverters)
+            Map<String, DataStructureConverter<Object, Object>> outputConverters,
+            Map<String, DataStructureConverter<Object, Object>> stateConverters)
             throws Exception {
         this.function = function;
         this.functionContext = functionContext;
@@ -115,6 +139,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         this.scalarArgumentValues = scalarArgumentValues;
         this.inputConverters = inputConverters;
         this.outputConverters = outputConverters;
+        this.stateConverters = stateConverters;
+        this.stateByPartition = new HashMap<>();
         this.output = new ArrayList<>();
         this.collector = new HarnessCollector();
         this.isOpen = false;
@@ -174,12 +200,15 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         checkNotNull(tableArgument, "tableArgument must not be null");
 
         // Try named arguments first
-        ArgumentInfo tableArg = argumentsByName.get(tableArgument);
-        if (tableArg == null) {
+        ArgumentInfo arg = argumentsByName.get(tableArgument);
+        if (arg == null) {
             throw new IllegalArgumentException("Unknown table argument: " + tableArgument);
-        } else {
-            invokeEval(tableArg, row);
         }
+        if (!(arg instanceof TableArgumentInfo)) {
+            throw new IllegalArgumentException(
+                    "Argument '" + tableArgument + "' is not a table argument");
+        }
+        invokeEval((TableArgumentInfo) arg, row);
     }
 
     /** Process a single element for a specific table argument. */
@@ -207,7 +236,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         checkState(isOpen, "Harness not open");
 
         // Validate this is a scalar-only PTF
-        boolean hasTableArguments = arguments.stream().anyMatch(arg -> arg.isTableArgument);
+        boolean hasTableArguments =
+                arguments.stream().anyMatch(arg -> arg instanceof TableArgumentInfo);
         if (hasTableArguments) {
             throw new IllegalStateException(
                     "invoke() is only for scalar-only PTFs. This PTF has table arguments. "
@@ -221,7 +251,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         Object[] args = new Object[arguments.size()];
         for (int i = 0; i < arguments.size(); i++) {
             ArgumentInfo arg = arguments.get(i);
-            if (arg.isScalar) {
+            if (arg instanceof ScalarArgumentInfo) {
                 args[i] = scalarArgumentValues.get(arg.name);
             } else {
                 throw new IllegalStateException(
@@ -259,46 +289,569 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         output.clear();
     }
 
+    // -------------------------------------------------------------------------
+    // State Introspection
+    // -------------------------------------------------------------------------
+
+    /**
+     * Gets the state for a particular state argument and partition key.
+     *
+     * @param stateArgument the name of the state argument
+     * @param key the partition key as a Row
+     * @param stateClass the class of the state object
+     * @return the state object converted to external format
+     * @throws Exception if state cannot be retrieved or converted
+     */
+    public <S> S getStateForKey(String stateArgument, Row key, Class<S> stateClass)
+            throws Exception {
+        StateArgumentInfo stateInfo = findStateArgument(stateArgument);
+
+        Map<String, RowData> stateMap = stateByPartition.get(key);
+        if (stateMap == null) {
+            return null;
+        }
+
+        RowData stateRowData = stateMap.get(stateInfo.name);
+
+        DataStructureConverter<Object, Object> converter = stateConverters.get(stateInfo.name);
+        @SuppressWarnings("unchecked")
+        S result = (S) converter.toExternalOrNull(stateRowData);
+        return result;
+    }
+
+    /**
+     * Sets the state for a specific state argument and partition key.
+     *
+     * @param stateArgument the name of the state argument
+     * @param key the partition key as a Row
+     * @param state the state object in external format
+     * @throws Exception if state cannot be set or converted
+     */
+    public <S> void setStateForKey(String stateArgument, Row key, S state) throws Exception {
+        StateArgumentInfo stateInfo = findStateArgument(stateArgument);
+
+        Map<String, RowData> stateMap =
+                stateByPartition.computeIfAbsent(key, k -> createFreshState());
+
+        DataStructureConverter<Object, Object> converter = stateConverters.get(stateArgument);
+        RowData stateRowData = (RowData) converter.toInternalOrNull(state);
+
+        stateMap.put(stateArgument, stateRowData);
+
+        // Create timestamp metadata for ListView/MapView state
+        // All elements/entries get currentTimeMillis since they're freshly set
+        if (stateInfo.ttl != null) {
+            if (state instanceof org.apache.flink.table.api.dataview.ListView) {
+                @SuppressWarnings({"unchecked", "rawtypes"})
+                org.apache.flink.table.api.dataview.ListView listView =
+                        (org.apache.flink.table.api.dataview.ListView) state;
+                try {
+                    Iterable<?> elements = listView.get();
+                    java.util.List<Long> timestamps = new java.util.ArrayList<>();
+                    for (Object ignored : elements) {
+                        timestamps.add(systemTimeMillis);
+                    }
+                    timestampsByPartition
+                            .computeIfAbsent(key, k -> new HashMap<>())
+                            .put(stateArgument, new ListTimestamps(timestamps));
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to extract ListView elements", e);
+                }
+            } else if (state instanceof org.apache.flink.table.api.dataview.MapView) {
+                @SuppressWarnings({"unchecked", "rawtypes"})
+                org.apache.flink.table.api.dataview.MapView mapView =
+                        (org.apache.flink.table.api.dataview.MapView) state;
+                java.util.Map<?, ?> map = mapView.getMap();
+                java.util.Map<Object, Long> timestamps = new HashMap<>();
+                for (Object key2 : map.keySet()) {
+                    timestamps.put(key2, systemTimeMillis);
+                }
+                timestampsByPartition
+                        .computeIfAbsent(key, k -> new HashMap<>())
+                        .put(stateArgument, new MapTimestamps(timestamps));
+            } else {
+                // Value state - create ValueTimestamp wrapper
+                timestampsByPartition
+                        .computeIfAbsent(key, k -> new HashMap<>())
+                        .put(stateArgument, new ValueTimestamp(systemTimeMillis));
+            }
+        }
+    }
+
+    /**
+     * Gets all partition keys that have state for a state argument.
+     *
+     * @param stateArgument the name of the state argument
+     * @return set of all partition keys as Rows
+     * @throws Exception if keys cannot be retrieved
+     */
+    public Set<Row> getStateKeys(String stateArgument) throws Exception {
+        StateArgumentInfo stateInfo = findStateArgument(stateArgument);
+
+        Set<Row> keys = new java.util.HashSet<>();
+        for (Map.Entry<Row, Map<String, RowData>> entry : stateByPartition.entrySet()) {
+            RowData stateRowData = entry.getValue().get(stateInfo.name);
+            if (stateRowData != null) {
+                keys.add(entry.getKey());
+            }
+        }
+        return keys;
+    }
+
+    /**
+     * Gets state for all partitions for a state argument.
+     *
+     * @param stateArgument the name of the state argument
+     * @param stateClass the class of the state object
+     * @return map of partition keys to state objects in external format
+     * @throws Exception if state cannot be retrieved
+     */
+    public <S> Map<Row, S> getAllState(String stateArgument, Class<S> stateClass) throws Exception {
+        StateArgumentInfo stateInfo = findStateArgument(stateArgument);
+
+        DataStructureConverter<Object, Object> converter = stateConverters.get(stateInfo.name);
+
+        Map<Row, S> result = new java.util.HashMap<>();
+        for (Map.Entry<Row, Map<String, RowData>> entry : stateByPartition.entrySet()) {
+            Row key = entry.getKey();
+            RowData stateRowData = entry.getValue().get(stateInfo.name);
+            @SuppressWarnings("unchecked")
+            S state = (S) converter.toExternalOrNull(stateRowData);
+            result.put(key, state);
+        }
+        return result;
+    }
+
+    /**
+     * Clears state for the partition key and argument.
+     *
+     * @param stateArgument the name of the state argument
+     * @param key the partition key as a Row
+     * @throws Exception if state cannot be cleared
+     */
+    public void clearStateForKey(String stateArgument, Row key) throws Exception {
+        StateArgumentInfo stateInfo = findStateArgument(stateArgument);
+
+        Map<String, RowData> stateMap = stateByPartition.get(key);
+        if (stateMap == null) {
+            return;
+        }
+
+        Object freshExternalState;
+        if (Row.class.isAssignableFrom(stateInfo.stateClass)) {
+            int fieldCount = stateInfo.dataType.getChildren().size();
+            Object[] fields = new Object[fieldCount];
+            freshExternalState = Row.of(fields);
+        } else {
+            try {
+                freshExternalState = stateInfo.stateClass.getDeclaredConstructor().newInstance();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create fresh state for " + stateArgument, e);
+            }
+        }
+
+        DataStructureConverter<Object, Object> converter = stateConverters.get(stateArgument);
+        RowData freshRowData = (RowData) converter.toInternalOrNull(freshExternalState);
+        stateMap.put(stateArgument, freshRowData);
+    }
+
+    /**
+     * Clears state for the state argument across all partitions.
+     *
+     * @param stateArgument the name of the state argument
+     * @throws Exception if state cannot be cleared
+     */
+    public void clearState(String stateArgument) throws Exception {
+        // Clear the specified state argument for all partitions
+        // We iterate through all partitions and clear just that one state (keys are already Rows)
+        for (Row partitionKey : stateByPartition.keySet()) {
+            clearStateForKey(stateArgument, partitionKey);
+        }
+    }
+
+    /**
+     * Clears all state for all arguments and partitions.
+     *
+     * @throws Exception if state cannot be cleared
+     */
+    public void clearAllState() throws Exception {
+        stateByPartition.clear();
+        timestampsByPartition.clear();
+    }
+
+    // -------------------------------------------------------------------------
+    // Time Control (for State TTL Testing)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Advances the system clock by the given number of milliseconds. Evacuates state with TTL that
+     * has exceeded its time-to-live.
+     *
+     * @param millis The number of milliseconds to advance (must be non-negative)
+     * @throws Exception if state evacuation fails
+     */
+    public void advanceSystemClock(long millis) throws Exception {
+        if (millis < 0) {
+            throw new IllegalArgumentException(
+                    "Cannot advance system clock by negative amount: " + millis);
+        }
+        systemTimeMillis += millis;
+        evacuateExpiredState();
+    }
+
+    /**
+     * Advances the system clock to the given Instant. Evacuates state with TTL that has exceeded
+     * its time-to-live.
+     *
+     * @param instant The target time
+     * @throws Exception if state evacuation fails
+     */
+    public void advanceSystemClock(Instant instant) throws Exception {
+        checkNotNull(instant, "instant must not be null");
+        long newTimeMillis = instant.toEpochMilli();
+        if (newTimeMillis < systemTimeMillis) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Cannot move system clock backward from %d to %d",
+                            systemTimeMillis, newTimeMillis));
+        }
+        systemTimeMillis = newTimeMillis;
+        evacuateExpiredState();
+    }
+
+    /**
+     * Advances the system clock to the given LocalDateTime. Assumes system default timezone for
+     * conversion to milliseconds. Evacuates state with TTL that has exceeded its time-to-live.
+     *
+     * @param localDateTime The target time
+     * @throws Exception if state evacuation fails
+     */
+    public void advanceSystemClock(LocalDateTime localDateTime) throws Exception {
+        checkNotNull(localDateTime, "localDateTime must not be null");
+        long newTimeMillis =
+                localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        if (newTimeMillis < systemTimeMillis) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Cannot move system clock backward from %d to %d",
+                            systemTimeMillis, newTimeMillis));
+        }
+        systemTimeMillis = newTimeMillis;
+        evacuateExpiredState();
+    }
+
+    private void evacuateExpiredState() throws Exception {
+        for (Map.Entry<Row, Map<String, RowData>> partitionEntry : stateByPartition.entrySet()) {
+            Row partitionKey = partitionEntry.getKey();
+            Map<String, RowData> stateMap = partitionEntry.getValue();
+
+            for (ArgumentInfo arg : arguments) {
+                if (!(arg instanceof StateArgumentInfo)) {
+                    continue;
+                }
+
+                StateArgumentInfo stateArg = (StateArgumentInfo) arg;
+                if (stateArg.ttl == null) {
+                    continue;
+                }
+
+                RowData stateRowData = stateMap.get(stateArg.name);
+
+                if (stateRowData == null) {
+                    continue;
+                }
+
+                DataStructureConverter<Object, Object> converter =
+                        stateConverters.get(stateArg.name);
+
+                Map<String, TimestampMetadata> timestampMap =
+                        timestampsByPartition.get(partitionKey);
+                TimestampMetadata metadata =
+                        (timestampMap != null) ? timestampMap.get(stateArg.name) : null;
+
+                if (metadata instanceof ListTimestamps || metadata instanceof MapTimestamps) {
+                    Object externalState = converter.toExternalOrNull(stateRowData);
+
+                    injectTimestampsIntoView(externalState, partitionKey, stateArg.name);
+
+                    if (externalState instanceof TTLAwareDataView) {
+                        ((TTLAwareDataView) externalState).evacuateExpiredEntries(stateArg.ttl);
+                    }
+
+                    RowData updatedRowData = (RowData) converter.toInternalOrNull(externalState);
+                    stateMap.put(stateArg.name, updatedRowData);
+
+                    extractTimestampsFromView(externalState, partitionKey, stateArg.name);
+
+                } else if (metadata instanceof ValueTimestamp) {
+                    long lastUpdateTime = ((ValueTimestamp) metadata).timestamp;
+                    long expirationTime = lastUpdateTime + stateArg.ttl.toMillis();
+                    if (systemTimeMillis >= expirationTime) {
+                        stateMap.put(stateArg.name, null);
+                        timestampMap.remove(stateArg.name);
+                    }
+                }
+            }
+
+            boolean allNull = stateMap.values().stream().allMatch(rowData -> rowData == null);
+            if (allNull) {
+                stateByPartition.remove(partitionKey);
+                timestampsByPartition.remove(partitionKey);
+            }
+        }
+
+        timestampsByPartition.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+    }
+
+    // -------------------------------------------------------------------------
+    // State Introspection Helper Methods
+    // -------------------------------------------------------------------------
+
+    /**
+     * Injects timestamps into a TestListView or TestMapView instance.
+     *
+     * @param externalState the state object (TestListView or TestMapView)
+     * @param partitionKey the partition key
+     * @param stateName the state argument name
+     */
+    private void injectTimestampsIntoView(
+            Object externalState, Row partitionKey, String stateName) {
+        if (externalState instanceof TestListView) {
+            TestListView<?> testListView = (TestListView<?>) externalState;
+            testListView.setCurrentTime(systemTimeMillis);
+
+            // Inject timestamps from metadata storage
+            Map<String, TimestampMetadata> timestampMap = timestampsByPartition.get(partitionKey);
+            if (timestampMap != null) {
+                TimestampMetadata metadata = timestampMap.get(stateName);
+                if (metadata instanceof ListTimestamps) {
+                    testListView.injectTimestamps(((ListTimestamps) metadata).elementTimestamps);
+                }
+            }
+        } else if (externalState instanceof TestMapView) {
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            TestMapView testMapView = (TestMapView) externalState;
+            testMapView.setCurrentTime(systemTimeMillis);
+
+            // Inject timestamps from metadata storage
+            Map<String, TimestampMetadata> timestampMap = timestampsByPartition.get(partitionKey);
+            if (timestampMap != null) {
+                TimestampMetadata metadata = timestampMap.get(stateName);
+                if (metadata instanceof MapTimestamps) {
+                    testMapView.injectTimestamps(((MapTimestamps) metadata).entryTimestamps);
+                }
+            }
+        }
+    }
+
+    /**
+     * Extracts timestamps from a TestListView or TestMapView and stores in metadata.
+     *
+     * @param externalState the state object (TestListView or TestMapView)
+     * @param partitionKey the partition key
+     * @param stateName the state argument name
+     */
+    private void extractTimestampsFromView(
+            Object externalState, Row partitionKey, String stateName) {
+        if (externalState instanceof TestListView) {
+            TestListView<?> testListView = (TestListView<?>) externalState;
+            java.util.List<Long> timestamps = testListView.extractTimestamps();
+            timestampsByPartition
+                    .computeIfAbsent(partitionKey, k -> new HashMap<>())
+                    .put(stateName, new ListTimestamps(timestamps));
+        } else if (externalState instanceof TestMapView) {
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            TestMapView testMapView = (TestMapView) externalState;
+            java.util.Map<Object, Long> timestamps = testMapView.extractTimestamps();
+            timestampsByPartition
+                    .computeIfAbsent(partitionKey, k -> new HashMap<>())
+                    .put(stateName, new MapTimestamps(timestamps));
+        }
+    }
+
+    private StateArgumentInfo findStateArgument(String stateArgument) {
+        for (ArgumentInfo arg : arguments) {
+            if (arg instanceof StateArgumentInfo && arg.name.equals(stateArgument)) {
+                return (StateArgumentInfo) arg;
+            }
+        }
+        throw new IllegalArgumentException(
+                "State argument '" + stateArgument + "' not found in PTF signature");
+    }
+
+    /**
+     * Computes the partition key for a given row based on the active table argument's partition
+     * columns.
+     *
+     * <p>For non-partitioned tables or ROW_SEMANTIC_TABLE, returns an empty Row. For partitioned
+     * tables, returns a Row containing the partition column values.
+     */
+    private Row computePartitionKey(TableArgumentInfo tableArg, Row row) {
+        if (tableArg.partitionColumnNames == null || tableArg.partitionColumnNames.length == 0) {
+            // No partitioning - return empty Row
+            return Row.of();
+        }
+
+        // Extract partition values into a Row
+        Object[] keyValues = new Object[tableArg.partitionColumnNames.length];
+        for (int i = 0; i < tableArg.partitionColumnNames.length; i++) {
+            int fieldIndex = getFieldIndex(tableArg.dataType, tableArg.partitionColumnNames[i]);
+            keyValues[i] = row.getField(fieldIndex);
+        }
+
+        return Row.of(keyValues);
+    }
+
+    /**
+     * Gets the field index for a given field name within a DataType's row structure.
+     *
+     * @throws IllegalStateException if the field name is not found
+     */
+    private int getFieldIndex(DataType dataType, String fieldName) {
+        org.apache.flink.table.types.logical.RowType rowType =
+                (org.apache.flink.table.types.logical.RowType) dataType.getLogicalType();
+        int index = 0;
+        for (org.apache.flink.table.types.logical.RowType.RowField field : rowType.getFields()) {
+            if (field.getName().equals(fieldName)) {
+                return index;
+            }
+            index++;
+        }
+        throw new IllegalStateException(
+                String.format("Field '%s' not found in data type %s", fieldName, dataType));
+    }
+
+    /**
+     * Gets existing state for a partition or creates fresh state if this is the first access.
+     *
+     * <p>State objects are created as new instances with all fields set to null/default values.
+     */
+    private Map<String, RowData> getOrCreateState(Row partitionKey) {
+        Map<String, RowData> stateMap = stateByPartition.get(partitionKey);
+        if (stateMap == null) {
+            stateMap = createFreshState();
+            stateByPartition.put(partitionKey, stateMap);
+
+            // Initialize timestamps for value state with TTL
+            for (ArgumentInfo arg : arguments) {
+                if (arg instanceof StateArgumentInfo) {
+                    StateArgumentInfo stateArg = (StateArgumentInfo) arg;
+                    if (stateArg.ttl != null
+                            && !org.apache.flink.table.api.dataview.ListView.class.isAssignableFrom(
+                                    stateArg.stateClass)
+                            && !org.apache.flink.table.api.dataview.MapView.class.isAssignableFrom(
+                                    stateArg.stateClass)) {
+                        timestampsByPartition
+                                .computeIfAbsent(partitionKey, k -> new HashMap<>())
+                                .put(stateArg.name, new ValueTimestamp(systemTimeMillis));
+                    }
+                }
+            }
+        }
+        return stateMap;
+    }
+
+    /**
+     * Creates fresh state objects for all state parameters.
+     *
+     * <p>Creates external state objects (POJOs or Rows), then converts them to internal RowData
+     * representation for storage.
+     */
+    private Map<String, RowData> createFreshState() {
+        Map<String, RowData> stateMap = new HashMap<>();
+        for (ArgumentInfo arg : arguments) {
+            if (arg instanceof StateArgumentInfo) {
+                StateArgumentInfo stateArg = (StateArgumentInfo) arg;
+                try {
+                    // Create fresh external state object
+                    Object externalState;
+                    if (Row.class.isAssignableFrom(stateArg.stateClass)) {
+                        // Create empty Row with null fields
+                        int fieldCount = stateArg.dataType.getChildren().size();
+                        Object[] fields = new Object[fieldCount];
+                        externalState = Row.of(fields);
+                    } else {
+                        // Create POJO instance using default constructor
+                        externalState = stateArg.stateClass.getDeclaredConstructor().newInstance();
+                    }
+
+                    // Convert to internal RowData for storage
+                    DataStructureConverter<Object, Object> converter =
+                            stateConverters.get(stateArg.name);
+                    RowData rowData = (RowData) converter.toInternalOrNull(externalState);
+                    stateMap.put(stateArg.name, rowData);
+                } catch (Exception e) {
+                    throw new RuntimeException(
+                            "Failed to create state instance for " + stateArg.name, e);
+                }
+            }
+        }
+        return stateMap;
+    }
+
     /**
      * Given a target table argument and a row to process, construct the right set of arguments for
      * the PTF's eval function and attempt to invoke it.
      */
-    private void invokeEval(ArgumentInfo activeTableArg, Row activeRow) throws Exception {
+    private void invokeEval(TableArgumentInfo activeTableArg, Row activeRow) throws Exception {
         // Set collector context so it can prepend columns if needed
         collector.setContext(activeTableArg, activeRow);
 
+        // Compute partition key for state lookup
+        Row partitionKey = computePartitionKey(activeTableArg, activeRow);
+
+        // Get or create state for this partition (stored as RowData internally)
+        Map<String, RowData> stateMap = getOrCreateState(partitionKey);
+
+        // Build full arguments array in eval() signature order
         Object[] args = new Object[arguments.size()];
+
+        // Track state arguments and their converters for post-eval conversion
+        List<StateArgumentWithConverter> stateArgumentsForConversion = new ArrayList<>();
 
         for (int i = 0; i < arguments.size(); i++) {
             ArgumentInfo arg = arguments.get(i);
 
-            if (arg.isTableArgument && arg.name.equals(activeTableArg.name)) {
-                // If the argument is the active table argument, first convert the input row
-                // to an internal RowData type, and then convert the RowData to type that the
-                // argument expects. For Rows, this will structure the Row based on the table
-                // argument structure. Otherwise, for POJOs, it will pass the expected POJO to eval.
+            if (arg instanceof StateArgumentInfo) {
+                StateArgumentInfo stateArg = (StateArgumentInfo) arg;
+                DataStructureConverter<Object, Object> converter =
+                        stateConverters.get(stateArg.name);
+                RowData rowData = stateMap.get(stateArg.name);
 
-                DataStructureConverter<Object, Object> inputConverter =
-                        inputConverters.get(arg.name);
-                DataStructureConverter<Object, Object> outputConverter =
-                        outputConverters.get(arg.name);
+                Object externalState = converter.toExternalOrNull(rowData);
 
-                args[i] =
-                        outputConverter.toExternalOrNull(
-                                inputConverter.toInternalOrNull(activeRow));
+                injectTimestampsIntoView(externalState, partitionKey, stateArg.name);
 
-            } else if (arg.isScalar) {
-                // If the argument is a scalar argument, pull it from the predefined scalar
-                // argument fixtures.
+                args[i] = externalState;
+
+                stateArgumentsForConversion.add(
+                        new StateArgumentWithConverter(i, stateArg, converter));
+
+            } else if (arg instanceof TableArgumentInfo) {
+                TableArgumentInfo tableArg = (TableArgumentInfo) arg;
+                if (tableArg.name.equals(activeTableArg.name)) {
+                    // Active table argument: convert input row to expected type
+                    // First convert to internal RowData, then to external type (Row or POJO)
+                    DataStructureConverter<Object, Object> inputConverter =
+                            inputConverters.get(tableArg.name);
+                    DataStructureConverter<Object, Object> outputConverter =
+                            outputConverters.get(tableArg.name);
+
+                    args[i] =
+                            outputConverter.toExternalOrNull(
+                                    inputConverter.toInternalOrNull(activeRow));
+                } else {
+                    // Inactive table argument: pass null
+                    args[i] = null;
+                }
+
+            } else if (arg instanceof ScalarArgumentInfo) {
+                // Scalar arguments: pull from pre-configured values
                 args[i] = scalarArgumentValues.get(arg.name);
 
-            } else if (arg.isTableArgument) {
-                // If the argument is a table argument but is not the current, active table argument
-                // then just pass in null.
-                args[i] = null;
             } else {
                 throw new IllegalStateException(
-                        "Unexpected argument type at position " + i + ": " + arg.name);
+                        "Unexpected argument type at position " + i + ": " + arg.getClass());
             }
         }
 
@@ -327,6 +880,47 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 throw new RuntimeException("Error invoking PTF eval() method", e);
             }
         }
+
+        // After eval returns, convert mutated state objects back to RowData for storage
+        for (StateArgumentWithConverter stateArg : stateArgumentsForConversion) {
+            Object externalState = args[stateArg.argIndex];
+            RowData rowData = (RowData) stateArg.converter.toInternalOrNull(externalState);
+            stateMap.put(stateArg.stateArg.name, rowData);
+        }
+
+        // Extract timestamps from TestListView/TestMapView after eval() and update value state
+        // timestamps
+        for (StateArgumentWithConverter stateArg : stateArgumentsForConversion) {
+            Object externalState = args[stateArg.argIndex];
+
+            if (stateArg.stateArg.ttl != null) {
+                if (externalState instanceof TestListView || externalState instanceof TestMapView) {
+                    // Extract timestamps from TestListView/TestMapView
+                    extractTimestampsFromView(externalState, partitionKey, stateArg.stateArg.name);
+                } else {
+                    // Value state - create ValueTimestamp wrapper
+                    timestampsByPartition
+                            .computeIfAbsent(partitionKey, k -> new HashMap<>())
+                            .put(stateArg.stateArg.name, new ValueTimestamp(systemTimeMillis));
+                }
+            }
+        }
+    }
+
+    /** Helper class to track state arguments and their converters during eval() invocation. */
+    private static class StateArgumentWithConverter {
+        final int argIndex;
+        final StateArgumentInfo stateArg;
+        final DataStructureConverter<Object, Object> converter;
+
+        StateArgumentWithConverter(
+                int argIndex,
+                StateArgumentInfo stateArg,
+                DataStructureConverter<Object, Object> converter) {
+            this.argIndex = argIndex;
+            this.stateArg = stateArg;
+            this.converter = converter;
+        }
     }
 
     /**
@@ -337,18 +931,18 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
      */
     private class HarnessCollector implements Collector<OUT> {
         // Context set before each eval() invocation
-        private ArgumentInfo activeTableArg;
+        private TableArgumentInfo activeTableArg;
         private Row activeRow;
 
-        void setContext(ArgumentInfo tableArg, Row row) {
+        void setContext(TableArgumentInfo tableArg, Row row) {
             this.activeTableArg = tableArg;
             this.activeRow = row;
         }
 
         @Override
         public void collect(OUT record) {
-            if (activeTableArg == null || !activeTableArg.isTableArgument) {
-                // No active table argument or it's scalar - just collect as-is
+            if (activeTableArg == null) {
+                // No active table argument - just collect as-is
                 output.add(record);
                 return;
             }
@@ -357,7 +951,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             if (activeTableArg.hasPassColumnsThrough) {
                 // PASS_COLUMNS_THROUGH: Prepend ALL input columns
                 output.add(prependAllColumns(record));
-            } else if (activeTableArg.isSetSemantic
+            } else if (activeTableArg.isSetSemantic()
                     && activeTableArg.partitionColumnNames != null) {
                 // SET_SEMANTIC_TABLE: Prepend partition key columns only
                 output.add(prependPartitionKeys(record));
@@ -382,8 +976,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             // nulls
             int totalPartitionKeyCount = 0;
             for (ArgumentInfo arg : arguments) {
-                if (arg.isSetSemantic && arg.partitionColumnNames != null) {
-                    totalPartitionKeyCount += arg.partitionColumnNames.length;
+                if (arg instanceof TableArgumentInfo) {
+                    TableArgumentInfo tableArg = (TableArgumentInfo) arg;
+                    if (tableArg.isSetSemantic() && tableArg.partitionColumnNames != null) {
+                        totalPartitionKeyCount += tableArg.partitionColumnNames.length;
+                    }
                 }
             }
 
@@ -395,19 +992,22 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             // Prepend partition key values from all SET_SEMANTIC_TABLE arguments
             int resultIndex = 0;
             for (ArgumentInfo arg : arguments) {
-                if (arg.isSetSemantic && arg.partitionColumnNames != null) {
-                    // Check if this is the active table
-                    boolean isActive = arg.name.equals(activeTableArg.name);
+                if (arg instanceof TableArgumentInfo) {
+                    TableArgumentInfo tableArg = (TableArgumentInfo) arg;
+                    if (tableArg.isSetSemantic() && tableArg.partitionColumnNames != null) {
+                        // Check if this is the active table
+                        boolean isActive = tableArg.name.equals(activeTableArg.name);
 
-                    for (String columnName : arg.partitionColumnNames) {
-                        if (isActive) {
-                            // Active table: extract partition key value from input row
-                            // Convert column name to position index
-                            int columnIndex = getFieldIndex(arg.dataType, columnName);
-                            result.setField(resultIndex++, activeRow.getField(columnIndex));
-                        } else {
-                            // Inactive table: use null
-                            result.setField(resultIndex++, null);
+                        for (String columnName : tableArg.partitionColumnNames) {
+                            if (isActive) {
+                                // Active table: extract partition key value from input row
+                                // Convert column name to position index
+                                int columnIndex = getFieldIndex(tableArg.dataType, columnName);
+                                result.setField(resultIndex++, activeRow.getField(columnIndex));
+                            } else {
+                                // Inactive table: use null
+                                result.setField(resultIndex++, null);
+                            }
                         }
                     }
                 }
@@ -485,6 +1085,9 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         private final LinkedHashMap<String, TableArgumentConfiguration> tableArgs =
                 new LinkedHashMap<>();
         private final Map<String, PartitionConfiguration> partitionConfigs = new HashMap<>();
+
+        // Initial state: stateArgumentName -> (partitionKey -> stateValue)
+        private final Map<String, Map<Row, Object>> initialState = new HashMap<>();
 
         private Builder(Class<? extends ProcessTableFunction<OUT>> functionClass) {
             this.functionClass = checkNotNull(functionClass, "functionClass must not be null");
@@ -574,6 +1177,39 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         // ---------------------------------------------------------------------
+        // State Initialization
+        // ---------------------------------------------------------------------
+
+        /**
+         * Sets initial state for a specific state argument and partition key.
+         *
+         * <p>This is useful for testing recovery scenarios or resuming from checkpoints.
+         *
+         * @param stateArgument The state argument name (from eval() parameters)
+         * @param key The partition key
+         * @param state The initial state value (POJO, ListView, MapView, etc.)
+         * @return This builder
+         */
+        public <K, S> Builder<OUT> withInitialStateArgument(String stateArgument, K key, S state) {
+            checkNotNull(stateArgument, "stateArgument must not be null");
+            checkNotNull(key, "key must not be null");
+            checkNotNull(state, "state must not be null");
+
+            // Convert key to Row if it isn't already
+            Row partitionKey;
+            if (key instanceof Row) {
+                partitionKey = (Row) key;
+            } else {
+                partitionKey = Row.of(key);
+            }
+
+            initialState
+                    .computeIfAbsent(stateArgument, k -> new HashMap<>())
+                    .put(partitionKey, state);
+            return this;
+        }
+
+        // ---------------------------------------------------------------------
         // Build
         // ---------------------------------------------------------------------
 
@@ -589,15 +1225,14 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         public ProcessTableFunctionTestHarness<OUT> build() throws Exception {
             ProcessTableFunction<OUT> function = instantiateFunction();
 
-            List<ArgumentInfo> arguments = extractAndValidateTypeInference(function);
+            java.lang.reflect.Method evalMethod = findEvalMethod();
+
+            List<ArgumentInfo> arguments = extractAndValidateTypeInference(function, evalMethod);
 
             FunctionContext functionContext =
                     new FunctionContext(null, Thread.currentThread().getContextClassLoader(), null);
 
-            java.lang.reflect.Method evalMethod = findEvalMethod();
-
-            // Validate that the eval method does not have currently unsupported arguments, like
-            // state or context.
+            // Validate that the eval method does not have currently unsupported arguments
             validateEvalMethodSupported(evalMethod, arguments);
 
             // Validate partition consistency for multi-table PTFs
@@ -610,10 +1245,10 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             boolean isSingleTableFunction = false;
 
             // Count table arguments from actual signature (not just builder config)
-            List<ArgumentInfo> tableArguments = new ArrayList<>();
+            List<TableArgumentInfo> tableArguments = new ArrayList<>();
             for (ArgumentInfo arg : arguments) {
-                if (arg.isTableArgument) {
-                    tableArguments.add(arg);
+                if (arg instanceof TableArgumentInfo) {
+                    tableArguments.add((TableArgumentInfo) arg);
                 }
             }
 
@@ -627,6 +1262,31 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             Map<String, DataStructureConverter<Object, Object>> outputConverters = new HashMap<>();
             createConverters(arguments, inputConverters, outputConverters);
 
+            // Create converters for state parameters (for serde to/from RowData)
+            Map<String, DataStructureConverter<Object, Object>> stateConverters = new HashMap<>();
+            createStateConverters(arguments, stateConverters);
+
+            // Wrap ListView/MapView converters to inject TestListView/TestMapView
+            for (ArgumentInfo arg : arguments) {
+                if (arg instanceof StateArgumentInfo) {
+                    StateArgumentInfo stateArg = (StateArgumentInfo) arg;
+                    DataStructureConverter<Object, Object> originalConverter =
+                            stateConverters.get(stateArg.name);
+
+                    // Check if this is ListView or MapView state
+                    if (ListView.class.isAssignableFrom(stateArg.stateClass)) {
+                        // Wrap converter to produce TestListView instead of ListView
+                        stateConverters.put(
+                                stateArg.name, new ListViewConverterWrapper(originalConverter));
+                    } else if (MapView.class.isAssignableFrom(stateArg.stateClass)) {
+                        // Wrap converter to produce TestMapView instead of MapView
+                        stateConverters.put(
+                                stateArg.name, new MapViewConverterWrapper(originalConverter));
+                    }
+                    // For POJOs/Row, use original converter (no wrapping needed)
+                }
+            }
+
             // Build the map of named arguments for quick lookup.
             Map<String, ArgumentInfo> argumentsByName = new HashMap<>();
             for (ArgumentInfo arg : arguments) {
@@ -635,24 +1295,38 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 }
             }
 
-            return new ProcessTableFunctionTestHarness<>(
-                    function,
-                    functionContext,
-                    defaultTableArg,
-                    evalMethod,
-                    arguments,
-                    argumentsByName,
-                    isSingleTableFunction,
-                    extractScalarValues(arguments),
-                    inputConverters,
-                    outputConverters);
+            ProcessTableFunctionTestHarness<OUT> harness =
+                    new ProcessTableFunctionTestHarness<>(
+                            function,
+                            functionContext,
+                            defaultTableArg,
+                            evalMethod,
+                            arguments,
+                            argumentsByName,
+                            isSingleTableFunction,
+                            extractScalarValues(arguments),
+                            inputConverters,
+                            outputConverters,
+                            stateConverters);
+
+            // Populate initial state if provided
+            for (Map.Entry<String, Map<Row, Object>> entry : initialState.entrySet()) {
+                String stateArgument = entry.getKey();
+                for (Map.Entry<Row, Object> stateEntry : entry.getValue().entrySet()) {
+                    Row partitionKey = stateEntry.getKey();
+                    Object stateValue = stateEntry.getValue();
+                    harness.setStateForKey(stateArgument, partitionKey, stateValue);
+                }
+            }
+
+            return harness;
         }
 
         /** Extracts scalar values from configs, creating a map keyed by argument name. */
         private Map<String, Object> extractScalarValues(List<ArgumentInfo> arguments) {
             Map<String, Object> values = new HashMap<>();
             for (ArgumentInfo arg : arguments) {
-                if (arg.isScalar) {
+                if (arg instanceof ScalarArgumentInfo) {
                     ScalarArgumentConfiguration config = scalarArgs.get(arg.name);
                     if (config != null) {
                         values.put(arg.name, config.value);
@@ -678,10 +1352,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
             for (ArgumentInfo arg : arguments) {
-                if (arg.isTableArgument) {
-                    String converterKey = arg.name;
+                if (arg instanceof TableArgumentInfo) {
+                    TableArgumentInfo tableArg = (TableArgumentInfo) arg;
+                    String converterKey = tableArg.name;
 
-                    LogicalType logicalType = arg.dataType.getLogicalType();
+                    LogicalType logicalType = tableArg.dataType.getLogicalType();
                     boolean isStructuredType =
                             logicalType instanceof StructuredType
                                     && ((StructuredType) logicalType)
@@ -703,14 +1378,14 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         inputConverter.open(classLoader);
 
                         DataStructureConverter<Object, Object> outputConverter =
-                                DataStructureConverters.getConverter(arg.dataType);
+                                DataStructureConverters.getConverter(tableArg.dataType);
                         outputConverter.open(classLoader);
 
                         inputConverters.put(converterKey, inputConverter);
                         outputConverters.put(converterKey, outputConverter);
                     } else {
                         DataStructureConverter<Object, Object> converter =
-                                DataStructureConverters.getConverter(arg.dataType);
+                                DataStructureConverters.getConverter(tableArg.dataType);
                         converter.open(classLoader);
 
                         inputConverters.put(converterKey, converter);
@@ -746,8 +1421,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         /**
-         * Validates that the eval() method doesn't use unsupported features. Temporary, until state
-         * and context is supported.
+         * Validates that the eval() method doesn't use unsupported features. Temporary, until
+         * Context is supported.
          */
         private void validateEvalMethodSupported(
                 java.lang.reflect.Method evalMethod, List<ArgumentInfo> arguments) {
@@ -764,23 +1439,38 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                             + "Found Context parameter at position %d in eval() method. ",
                                     i));
                 }
-
-                if (param.isAnnotationPresent(org.apache.flink.table.annotation.StateHint.class)) {
-                    throw new IllegalStateException(
-                            String.format(
-                                    "ProcessTableFunctionTestHarness does not yet support state parameters. "
-                                            + "Found @StateHint parameter at position %d in eval() method. ",
-                                    i));
-                }
             }
 
-            // Parameter count should also match our arguments list
+            // Parameter count should match arguments list
             if (parameters.length != arguments.size()) {
+                long stateCount =
+                        arguments.stream().filter(arg -> arg instanceof StateArgumentInfo).count();
+                long nonStateCount = arguments.size() - stateCount;
                 throw new IllegalStateException(
                         String.format(
-                                "Parameter count mismatch: eval() has %d parameters but only %d arguments were extracted. "
-                                        + "This may indicate missing @ArgumentHint annotations.",
-                                parameters.length, arguments.size()));
+                                "Parameter count mismatch: eval() has %d parameters but expected %d (%d state + %d arguments). "
+                                        + "This may indicate missing @StateHint or @ArgumentHint annotations.",
+                                parameters.length, arguments.size(), stateCount, nonStateCount));
+            }
+        }
+
+        /**
+         * Creates data structure converters for state parameters.
+         *
+         * <p>State is stored internally as RowData and converted to/from the external state type.
+         */
+        private void createStateConverters(
+                List<ArgumentInfo> arguments,
+                Map<String, DataStructureConverter<Object, Object>> converters) {
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+            for (ArgumentInfo arg : arguments) {
+                if (arg instanceof StateArgumentInfo) {
+                    StateArgumentInfo stateArg = (StateArgumentInfo) arg;
+                    DataStructureConverter<Object, Object> converter =
+                            DataStructureConverters.getConverter(stateArg.dataType);
+                    converter.open(classLoader);
+                    converters.put(stateArg.name, converter);
+                }
             }
         }
 
@@ -790,10 +1480,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
          * matching data types.
          */
         private void validatePartitionConsistency(List<ArgumentInfo> arguments) {
-            List<ArgumentInfo> partitionedTables = new ArrayList<>();
+            List<TableArgumentInfo> partitionedTables = new ArrayList<>();
             for (ArgumentInfo arg : arguments) {
-                if (arg.isSetSemantic && arg.partitionColumnNames != null) {
-                    partitionedTables.add(arg);
+                if (arg instanceof TableArgumentInfo) {
+                    TableArgumentInfo tableArg = (TableArgumentInfo) arg;
+                    if (tableArg.isSetSemantic() && tableArg.partitionColumnNames != null) {
+                        partitionedTables.add(tableArg);
+                    }
                 }
             }
 
@@ -801,11 +1494,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 return;
             }
 
-            ArgumentInfo first = partitionedTables.get(0);
+            TableArgumentInfo first = partitionedTables.get(0);
             int expectedPartitionColumnCount = first.partitionColumnNames.length;
 
             for (int i = 1; i < partitionedTables.size(); i++) {
-                ArgumentInfo current = partitionedTables.get(i);
+                TableArgumentInfo current = partitionedTables.get(i);
 
                 if (current.partitionColumnNames.length != expectedPartitionColumnCount) {
                     throw new IllegalArgumentException(
@@ -845,10 +1538,10 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             }
         }
 
-        private DataType extractPartitionColumnType(ArgumentInfo arg, String columnName) {
-            if (arg.dataType instanceof org.apache.flink.table.types.FieldsDataType) {
+        private DataType extractPartitionColumnType(TableArgumentInfo tableArg, String columnName) {
+            if (tableArg.dataType instanceof org.apache.flink.table.types.FieldsDataType) {
                 org.apache.flink.table.types.FieldsDataType fieldsDataType =
-                        (org.apache.flink.table.types.FieldsDataType) arg.dataType;
+                        (org.apache.flink.table.types.FieldsDataType) tableArg.dataType;
 
                 // Get field names and types
                 org.apache.flink.table.types.logical.RowType rowType =
@@ -870,7 +1563,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             throw new IllegalStateException(
                     String.format(
                             "Cannot extract data type for partition column '%s' of argument '%s'",
-                            columnName, arg.name));
+                            columnName, tableArg.name));
         }
 
         // ---------------------------------------------------------------------
@@ -880,17 +1573,58 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         /**
          * Extracts type inference from the PTF and validates builder configuration.
          *
-         * <p>Uses SystemTypeInference to validate things like reserved argument names, multiple
-         * table argument rules, static argument trait validation, etc.
+         * <p>Uses SystemTypeInference to extract both state and non-state arguments, merging them
+         * into a single ordered list matching the eval() signature.
          */
         private List<ArgumentInfo> extractAndValidateTypeInference(
-                ProcessTableFunction<OUT> function) {
+                ProcessTableFunction<OUT> function, java.lang.reflect.Method evalMethod) {
 
             DataTypeFactory dataTypeFactory = createDataTypeFactory();
             TypeInference baseTypeInference = function.getTypeInference(dataTypeFactory);
             TypeInference systemTypeInference =
                     SystemTypeInference.of(FunctionKind.PROCESS_TABLE, baseTypeInference);
 
+            // Extract state parameters (state args come first in eval() signature)
+            List<ArgumentInfo> arguments = new ArrayList<>();
+            LinkedHashMap<String, org.apache.flink.table.types.inference.StateTypeStrategy>
+                    stateStrategies = systemTypeInference.getStateTypeStrategies();
+
+            java.lang.reflect.Parameter[] parameters = evalMethod.getParameters();
+            int paramIndex = 0;
+
+            // Process state parameters first
+            for (Map.Entry<String, org.apache.flink.table.types.inference.StateTypeStrategy> entry :
+                    stateStrategies.entrySet()) {
+                String stateName = entry.getKey();
+                org.apache.flink.table.types.inference.StateTypeStrategy stateStrategy =
+                        entry.getValue();
+
+                if (paramIndex >= parameters.length) {
+                    throw new IllegalStateException(
+                            "State parameter count exceeds eval() parameter count");
+                }
+
+                java.lang.reflect.Parameter param = parameters[paramIndex];
+                Class<?> stateClass = param.getType();
+
+                // Infer data type using the StateTypeStrategy
+                DataType dataType =
+                        stateStrategy
+                                .inferType(null)
+                                .orElseThrow(
+                                        () ->
+                                                new IllegalStateException(
+                                                        "Could not infer data type for state parameter: "
+                                                                + stateName));
+
+                // Extract TTL if present
+                java.time.Duration ttl = stateStrategy.getTimeToLive(null).orElse(null);
+
+                arguments.add(new StateArgumentInfo(stateName, dataType, stateClass, ttl));
+                paramIndex++;
+            }
+
+            // Extract non-state arguments
             Optional<List<StaticArgument>> staticArgsOpt = systemTypeInference.getStaticArguments();
             if (staticArgsOpt.isEmpty()) {
                 throw new IllegalStateException(
@@ -906,10 +1640,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 }
             }
 
-            // At this point, we can now build an ArgumentInfo list from the user-declared
-            // arguments.
-            List<ArgumentInfo> arguments = new ArrayList<>();
-
+            // Build ArgumentInfo for non-state arguments
             for (StaticArgument staticArg : userArgs) {
                 boolean isScalar =
                         staticArg
@@ -971,6 +1702,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                             String.format(
                                     "Cannot determine data type for scalar argument '%s'", name));
                 }
+                return new ScalarArgumentInfo(name, dataType);
             } else {
                 // For table arguments, check both annotation and builder config
                 Optional<DataType> annotationTypeOpt = staticArg.getDataType();
@@ -1010,21 +1742,24 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                             + ".withTableArgument(\"%s\", DataTypes.of(\"ROW<...>\"))",
                                     name, name));
                 }
+
+                String[] partitionColumnNames = null;
+                if (primaryTrait == ArgumentTrait.SET_SEMANTIC_TABLE) {
+                    boolean hasOptionalPartitionBy =
+                            staticArg
+                                    .getTraits()
+                                    .contains(StaticArgumentTrait.OPTIONAL_PARTITION_BY);
+                    partitionColumnNames =
+                            extractAndValidatePartitionColumns(
+                                    name, dataType, hasOptionalPartitionBy);
+                }
+
+                boolean hasPassColumnsThrough =
+                        staticArg.getTraits().contains(StaticArgumentTrait.PASS_COLUMNS_THROUGH);
+
+                return new TableArgumentInfo(
+                        name, dataType, primaryTrait, partitionColumnNames, hasPassColumnsThrough);
             }
-
-            String[] partitionColumnNames = null;
-            if (primaryTrait == ArgumentTrait.SET_SEMANTIC_TABLE) {
-                boolean hasOptionalPartitionBy =
-                        staticArg.getTraits().contains(StaticArgumentTrait.OPTIONAL_PARTITION_BY);
-                partitionColumnNames =
-                        extractAndValidatePartitionColumns(name, dataType, hasOptionalPartitionBy);
-            }
-
-            boolean hasPassColumnsThrough =
-                    staticArg.getTraits().contains(StaticArgumentTrait.PASS_COLUMNS_THROUGH);
-
-            return new ArgumentInfo(
-                    name, dataType, primaryTrait, partitionColumnNames, hasPassColumnsThrough);
         }
 
         private ArgumentTrait extractPrimaryTrait(EnumSet<StaticArgumentTrait> staticTraits) {
@@ -1078,9 +1813,10 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         private void validateArgumentConfiguration(List<ArgumentInfo> arguments) {
             // Check that all arguments have been configured in the builder.
-            // Table arguments with inline types can be elided from configuration via the builder.
+            // Table arguments with inline types and state arguments can be elided from builder
+            // config.
             for (ArgumentInfo arg : arguments) {
-                if (arg.isScalar) {
+                if (arg instanceof ScalarArgumentInfo) {
                     if (!scalarArgs.containsKey(arg.name)) {
                         throw new IllegalStateException(
                                 String.format(
@@ -1088,7 +1824,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                                 + "Use .withScalarArgument(\"%s\", ...)",
                                         arg.name, arg.name));
                     }
-                } else {
+                } else if (arg instanceof TableArgumentInfo) {
                     // For table arguments: builder config is optional if type comes from annotation
                     boolean hasBuilderConfig = tableArgs.containsKey(arg.name);
                     boolean hasInlineType = arg.dataType != null;
@@ -1102,6 +1838,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                         arg.name, arg.name));
                     }
                 }
+                // StateArgumentInfo doesn't need builder configuration - extracted from @StateHint
             }
 
             // Check for extra configured arguments not in signature
@@ -1145,37 +1882,63 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     }
 
     /**
-     * Metadata for a single argument extracted from type inference.
+     * Base class for argument metadata extracted from type inference.
      *
      * <p>Represents validated argument information combining PTF signature, type inference results,
      * and builder configuration.
      *
      * <p>Position in eval() signature is implicit from the list order.
      */
-    private static class ArgumentInfo {
+    private abstract static class ArgumentInfo {
         final String name;
         final DataType dataType;
-        final ArgumentTrait primaryTrait;
-        final String[] partitionColumnNames; // nullable - only for SET_SEMANTIC_TABLE
-        final boolean isScalar;
-        final boolean isTableArgument;
-        final boolean isSetSemantic;
-        final boolean hasPassColumnsThrough;
 
-        ArgumentInfo(
-                String name,
-                DataType dataType,
-                ArgumentTrait primaryTrait,
-                String[] partitionColumnNames,
-                boolean hasPassColumnsThrough) {
+        ArgumentInfo(String name, DataType dataType) {
             this.name = name;
             this.dataType = dataType;
-            this.primaryTrait = primaryTrait;
+        }
+    }
+
+    /** Metadata for scalar arguments. */
+    private static class ScalarArgumentInfo extends ArgumentInfo {
+        ScalarArgumentInfo(String name, DataType dataType) {
+            super(name, dataType);
+        }
+    }
+
+    /** Metadata for table arguments (ROW_SEMANTIC_TABLE or SET_SEMANTIC_TABLE). */
+    private static class TableArgumentInfo extends ArgumentInfo {
+        final ArgumentTrait trait;
+        final String[] partitionColumnNames; // nullable
+        final boolean hasPassColumnsThrough;
+
+        TableArgumentInfo(
+                String name,
+                DataType dataType,
+                ArgumentTrait trait,
+                String[] partitionColumnNames,
+                boolean hasPassColumnsThrough) {
+            super(name, dataType);
+            this.trait = trait;
             this.partitionColumnNames = partitionColumnNames;
-            this.isScalar = (primaryTrait == ArgumentTrait.SCALAR);
-            this.isTableArgument = (primaryTrait != ArgumentTrait.SCALAR);
-            this.isSetSemantic = (primaryTrait == ArgumentTrait.SET_SEMANTIC_TABLE);
             this.hasPassColumnsThrough = hasPassColumnsThrough;
+        }
+
+        boolean isSetSemantic() {
+            return trait == ArgumentTrait.SET_SEMANTIC_TABLE;
+        }
+    }
+
+    /** Metadata for state arguments. */
+    private static class StateArgumentInfo extends ArgumentInfo {
+        final Class<?> stateClass;
+        final java.time.Duration ttl; // nullable
+
+        StateArgumentInfo(
+                String name, DataType dataType, Class<?> stateClass, java.time.Duration ttl) {
+            super(name, dataType);
+            this.stateClass = stateClass;
+            this.ttl = ttl;
         }
     }
 
@@ -1195,6 +1958,89 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         ScalarArgumentConfiguration(String name, Object value) {
             this.name = name;
             this.value = value;
+        }
+    }
+
+    /** Wrapper that converts RowData to TestListView instead of ListView. */
+    private static class ListViewConverterWrapper
+            implements DataStructureConverter<Object, Object> {
+        private final DataStructureConverter<Object, Object> delegate;
+
+        ListViewConverterWrapper(DataStructureConverter<Object, Object> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void open(ClassLoader classLoader) {
+            delegate.open(classLoader);
+        }
+
+        @Override
+        public Object toInternal(Object external) {
+            return delegate.toInternal(external);
+        }
+
+        @Override
+        public Object toExternal(Object internal) {
+            ListView<?> listView = (ListView<?>) delegate.toExternal(internal);
+            // Create TestListView and copy data
+            TestListView testListView = new TestListView<>();
+            testListView.setList(listView.getList());
+            return testListView;
+        }
+
+        @Override
+        public Object toInternalOrNull(Object external) {
+            return delegate.toInternalOrNull(external);
+        }
+
+        @Override
+        public Object toExternalOrNull(Object internal) {
+            if (internal == null) {
+                return null;
+            }
+            return toExternal(internal);
+        }
+    }
+
+    /** Wrapper that converts RowData to TestMapView instead of MapView. */
+    private static class MapViewConverterWrapper implements DataStructureConverter<Object, Object> {
+        private final DataStructureConverter<Object, Object> delegate;
+
+        MapViewConverterWrapper(DataStructureConverter<Object, Object> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void open(ClassLoader classLoader) {
+            delegate.open(classLoader);
+        }
+
+        @Override
+        public Object toInternal(Object external) {
+            return delegate.toInternal(external);
+        }
+
+        @Override
+        public Object toExternal(Object internal) {
+            MapView<?, ?> mapView = (MapView<?, ?>) delegate.toExternal(internal);
+            // Create TestMapView and copy data
+            TestMapView testMapView = new TestMapView<>();
+            testMapView.setMap(mapView.getMap());
+            return testMapView;
+        }
+
+        @Override
+        public Object toInternalOrNull(Object external) {
+            return delegate.toInternalOrNull(external);
+        }
+
+        @Override
+        public Object toExternalOrNull(Object internal) {
+            if (internal == null) {
+                return null;
+            }
+            return toExternal(internal);
         }
     }
 
