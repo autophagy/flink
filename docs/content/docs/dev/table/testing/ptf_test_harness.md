@@ -348,12 +348,333 @@ void testPOJO() throws Exception {
 
 {{< top >}}
 
+## Testing State
+
+Process Table Functions can maintain state across rows within a partition. The test harness fully supports state arguments including value state (POJOs/Row), ListView, MapView, and state with TTL.
+
+### Basic State with POJOs
+
+Use `@StateHint` to declare state arguments. The harness automatically manages state across partitions:
+
+{{< tabs "basic-state" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<count BIGINT>")
+public class CounterPTF extends ProcessTableFunction<Row> {
+
+    public static class CounterState {
+        public long count = 0;
+    }
+
+    public void eval(
+            @StateHint(type = @DataTypeHint("ROW<count BIGINT>")) CounterState state,
+            @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+        state.count++;
+        collect(Row.of(state.count));
+    }
+}
+
+@Test
+void testCounter() throws Exception {
+    try (ProcessTableFunctionTestHarness<Row> harness =
+            ProcessTableFunctionTestHarness.ofClass(CounterPTF.class)
+                    .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                    .withPartitionBy("input", "id")
+                    .build()) {
+
+        // Partition 1: counter increments independently
+        harness.processElement(Row.of(1));
+        harness.processElement(Row.of(1));
+
+        // Partition 2: separate counter
+        harness.processElement(Row.of(2));
+
+        List<Row> output = harness.getOutput();
+        assertThat(output.get(0)).isEqualTo(Row.of(1L));  // First row for partition 1
+        assertThat(output.get(1)).isEqualTo(Row.of(2L));  // Second row for partition 1
+        assertThat(output.get(2)).isEqualTo(Row.of(1L));  // First row for partition 2
+
+        // Inspect state directly
+        CounterState state1 = harness.getStateForKey("state", Row.of(1), CounterState.class);
+        assertThat(state1.count).isEqualTo(2L);
+
+        CounterState state2 = harness.getStateForKey("state", Row.of(2), CounterState.class);
+        assertThat(state2.count).isEqualTo(1L);
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### ListView State
+
+Use `ListView<T>` for state that stores lists of elements:
+
+{{< tabs "listview-state" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<history ARRAY<STRING>>")
+public class HistoryPTF extends ProcessTableFunction<Row> {
+
+    public void eval(
+            @StateHint(type = @DataTypeHint("ARRAY<STRING>")) ListView<String> history,
+            @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) throws Exception {
+
+        String event = input.getFieldAs(1);
+        history.add(event);
+
+        List<String> allEvents = new ArrayList<>();
+        for (String e : history.get()) {
+            allEvents.add(e);
+        }
+        collect(Row.of(allEvents.toArray(new String[0])));
+    }
+}
+
+@Test
+void testListView() throws Exception {
+    try (ProcessTableFunctionTestHarness<Row> harness =
+            ProcessTableFunctionTestHarness.ofClass(HistoryPTF.class)
+                    .withTableArgument("input", DataTypes.of("ROW<id INT, event STRING>"))
+                    .withPartitionBy("input", "id")
+                    .build()) {
+
+        harness.processElement(Row.of(1, "login"));
+        harness.processElement(Row.of(1, "click"));
+
+        List<Row> output = harness.getOutput();
+        assertThat(output.get(1)).isEqualTo(Row.of((Object) new String[]{"login", "click"}));
+
+        // Inspect state directly
+        ListView<String> history = harness.getStateForKey("history", Row.of(1), ListView.class);
+        assertThat(history.get()).containsExactly("login", "click");
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### MapView State
+
+Use `MapView<K, V>` for state that stores key-value pairs:
+
+{{< tabs "mapview-state" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<total BIGINT>")
+public class AggregatePTF extends ProcessTableFunction<Row> {
+
+    public void eval(
+            @StateHint MapView<String, Long> aggregates,
+            @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) throws Exception {
+
+        String category = input.getFieldAs(1);
+        Long amount = input.getFieldAs(2);
+
+        Long current = aggregates.get(category);
+        aggregates.put(category, (current == null ? 0 : current) + amount);
+
+        long total = 0;
+        for (Long value : aggregates.getMap().values()) {
+            total += value;
+        }
+        collect(Row.of(total));
+    }
+}
+
+@Test
+void testMapView() throws Exception {
+    try (ProcessTableFunctionTestHarness<Row> harness =
+            ProcessTableFunctionTestHarness.ofClass(AggregatePTF.class)
+                    .withTableArgument("input",
+                        DataTypes.of("ROW<id INT, category STRING, amount BIGINT>"))
+                    .withPartitionBy("input", "id")
+                    .build()) {
+
+        harness.processElement(Row.of(1, "food", 100L));
+        harness.processElement(Row.of(1, "transport", 50L));
+
+        List<Row> output = harness.getOutput();
+        assertThat(output.get(0)).isEqualTo(Row.of(100L));
+        assertThat(output.get(1)).isEqualTo(Row.of(150L));
+
+        // Inspect state directly
+        MapView<String, Long> aggregates =
+            harness.getStateForKey("aggregates", Row.of(1), MapView.class);
+        assertThat(aggregates.get("food")).isEqualTo(100L);
+        assertThat(aggregates.get("transport")).isEqualTo(50L);
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### Initial State Setup
+
+You can initialize state before processing begins using `withInitialStateArgument()`. This is useful for testing recovery scenarios, checkpoint resumption, or specific state conditions:
+
+{{< tabs "initial-state" >}}
+{{< tab "Java" >}}
+```java
+@Test
+void testInitialState() throws Exception {
+    // Set up initial state before processing
+    CounterPTF.CounterState initialState = new CounterPTF.CounterState();
+    initialState.count = 100L;
+
+    try (ProcessTableFunctionTestHarness<Row> harness =
+            ProcessTableFunctionTestHarness.ofClass(CounterPTF.class)
+                    .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                    .withPartitionBy("input", "id")
+                    .withInitialStateArgument("state", Row.of(1), initialState)
+                    .build()) {
+
+        // Counter starts at 100 for partition 1
+        harness.processElement(Row.of(1));
+        assertThat(harness.getOutput()).containsExactly(Row.of(1, 101L));
+
+        // Partition 2 starts with fresh state (count = 0)
+        harness.processElement(Row.of(2));
+        assertThat(harness.getOutput().get(1)).isEqualTo(Row.of(2, 1L));
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+Initial state works with all state types (POJOs, ListView, MapView). You can set initial state for multiple partitions by calling `withInitialStateArgument()` multiple times with different partition keys.
+
+### State with TTL
+
+State can have a time-to-live (TTL) that automatically expires old data. TTL is specified using the `ttl` parameter in `@StateHint`:
+
+{{< tabs "state-ttl" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<recent_count BIGINT>")
+public class RecentCounterPTF extends ProcessTableFunction<Row> {
+
+    public static class CounterState {
+        public long count = 0;
+    }
+
+    public void eval(
+            // State expires after 1 hour
+            @StateHint(
+                ttl = "1 hour",
+                type = @DataTypeHint("ROW<count BIGINT>")
+            ) CounterState state,
+            @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+        state.count++;
+        collect(Row.of(state.count));
+    }
+}
+
+@Test
+void testStateTTL() throws Exception {
+    try (ProcessTableFunctionTestHarness<Row> harness =
+            ProcessTableFunctionTestHarness.ofClass(RecentCounterPTF.class)
+                    .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                    .withPartitionBy("input", "id")
+                    .build()) {
+
+        // Process at time 0
+        harness.processElement(Row.of(1));
+        assertThat(harness.getOutput()).containsExactly(Row.of(1L));
+        harness.clearOutput();
+
+        // Advance time by 30 minutes (state still valid)
+        harness.advanceSystemClock(Duration.ofMinutes(30));
+        harness.processElement(Row.of(1));
+        assertThat(harness.getOutput()).containsExactly(Row.of(2L));
+        harness.clearOutput();
+
+        // Advance time by 45 minutes more (total: 75 minutes - state expired)
+        harness.advanceSystemClock(Duration.ofMinutes(45));
+
+        // Verify state was expired
+        CounterState state = harness.getStateForKey("state", Row.of(1), CounterState.class);
+        assertThat(state).isNull();
+
+        // Process element - counter resets
+        harness.processElement(Row.of(1));
+        assertThat(harness.getOutput()).containsExactly(Row.of(1L));
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+**TTL Granularity**: TTL semantics vary by state type:
+- **Value State (POJO/Row)**: TTL applies to the entire state object
+- **ListView**: TTL applies per list element - elements expire independently
+- **MapView**: TTL applies per map entry - entries expire independently
+
+{{< tabs "ttl-granularity" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<values ARRAY<INT>>")
+public class ElementTTLPTF extends ProcessTableFunction<Row> {
+
+    public void eval(
+            // Each list element has independent 1-hour TTL
+            @StateHint(ttl = "1 hour", type = @DataTypeHint("ARRAY<INT>"))
+            ListView<Integer> values,
+            @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) throws Exception {
+
+        values.add(input.getFieldAs(1));
+
+        List<Integer> current = new ArrayList<>();
+        for (Integer v : values.get()) {
+            current.add(v);
+        }
+        collect(Row.of(current.toArray(new Integer[0])));
+    }
+}
+
+@Test
+void testElementTTL() throws Exception {
+    try (ProcessTableFunctionTestHarness<Row> harness =
+            ProcessTableFunctionTestHarness.ofClass(ElementTTLPTF.class)
+                    .withTableArgument("input", DataTypes.of("ROW<id INT, value INT>"))
+                    .withPartitionBy("input", "id")
+                    .build()) {
+
+        // Add element 1 at time 0
+        harness.processElement(Row.of(1, 100));
+        harness.clearOutput();
+
+        // Add element 2 at time +30 minutes
+        harness.advanceSystemClock(Duration.ofMinutes(30));
+        harness.processElement(Row.of(1, 200));
+        assertThat(harness.getOutput()).containsExactly(
+            Row.of((Object) new Integer[]{100, 200}));
+        harness.clearOutput();
+
+        // Advance time by 45 minutes more (total: 75 minutes)
+        // Element 1 expires (added at 0, TTL=60 min), element 2 remains (added at 30 min)
+        harness.advanceSystemClock(Duration.ofMinutes(45));
+
+        // Verify element 1 was expired
+        ListView<Integer> values = harness.getStateForKey("values", Row.of(1), ListView.class);
+        assertThat(values.get()).containsExactly(200);  // Only element 2 remains
+
+        harness.processElement(Row.of(1, 300));
+        assertThat(harness.getOutput()).containsExactly(
+            Row.of((Object) new Integer[]{200, 300}));
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}
+
 ## Unimplemented Features
 
 | Feature                                                     | Support                   |
 |-------------------------------------------------------------|---------------------------|
 | **Context parameter**                                       | ❌ Not currently supported |
-| **State (@StateHint)**                                      | ❌ Not currently supported |
 | **Timers (onTimer)**                                        | ❌ Not currently supported |
 | **on_time / rowtime**                                       | ❌ Not currently supported |
 | **Update traits (SUPPORTS_UPDATES, REQUIRE_UPDATE_BEFORE)** | ❌ Not currently supported |

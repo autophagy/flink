@@ -24,13 +24,17 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -267,6 +271,58 @@ class ProcessTableFunctionTestHarnessTest {
                 @StateHint CountState state,
                 @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
             collect(input);
+        }
+    }
+
+    /** PTF with simple value state - counts rows per partition. */
+    @DataTypeHint("ROW<count BIGINT>")
+    public static class PTFWithValueState extends ProcessTableFunction<Row> {
+        public static class CounterState {
+            public long count = 0L;
+        }
+
+        public void eval(
+                @StateHint CounterState state,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            state.count++;
+            collect(Row.of(state.count));
+        }
+    }
+
+    /** PTF with ListView state - accumulates values in a list. */
+    @DataTypeHint("ROW<values ARRAY<INT>>")
+    public static class PTFWithListViewState extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint(type = @DataTypeHint("ARRAY<INT>")) ListView<Integer> listState,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input)
+                throws Exception {
+            Integer value = input.getFieldAs("value");
+            listState.add(value);
+
+            // Collect all values as an array
+            java.util.List<Integer> values = new java.util.ArrayList<>();
+            for (Integer v : listState.get()) {
+                values.add(v);
+            }
+            collect(Row.of((Object) values.toArray(new Integer[0])));
+        }
+    }
+
+    /** PTF with MapView state - counts occurrences of each key. */
+    @DataTypeHint("ROW<key STRING, count INT>")
+    public static class PTFWithMapViewState extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint MapView<String, Integer> mapState,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input)
+                throws Exception {
+            String key = input.getFieldAs("key");
+            Integer count = mapState.get(key);
+            if (count == null) {
+                mapState.put(key, 1);
+            } else {
+                mapState.put(key, count + 1);
+            }
+            collect(Row.of(key, mapState.get(key)));
         }
     }
 
@@ -953,22 +1009,6 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
-    void testStateParameterRejected() {
-        Exception exception =
-                assertThrows(
-                        IllegalStateException.class,
-                        () ->
-                                ProcessTableFunctionTestHarness.ofClass(PTFWithState.class)
-                                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
-                                        .build());
-
-        assertThat(exception.getMessage())
-                .contains("does not yet support state parameters")
-                .contains("@StateHint parameter")
-                .contains("position 0");
-    }
-
-    @Test
     void testSetSemanticMissingPartitionConfigThrows() {
         Exception exception =
                 assertThrows(
@@ -1015,5 +1055,691 @@ class ProcessTableFunctionTestHarnessTest {
                         });
 
         assertThat(exception.getMessage()).contains("Partition config already exists");
+    }
+
+    // -------------------------------------------------------------------------
+    // State Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testSimpleValueState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
+                        .withPartitionBy("input", "name")
+                        .build();
+
+        // Partition "Alice" - first row
+        harness.processElementForTable("input", Row.of("Alice", 10));
+        assertThat(harness.getOutput()).containsExactly(Row.of("Alice", 1L));
+        PTFWithValueState.CounterState aliceState =
+                harness.getStateForKey(
+                        "state", Row.of("Alice"), PTFWithValueState.CounterState.class);
+        assertThat(aliceState.count).isEqualTo(1L);
+        harness.clearOutput();
+
+        // Partition "Bob" - first row
+        harness.processElementForTable("input", Row.of("Bob", 20));
+        assertThat(harness.getOutput()).containsExactly(Row.of("Bob", 1L));
+        PTFWithValueState.CounterState bobState =
+                harness.getStateForKey(
+                        "state", Row.of("Bob"), PTFWithValueState.CounterState.class);
+        assertThat(bobState.count).isEqualTo(1L);
+        harness.clearOutput();
+
+        // Partition "Alice" - second row (state should persist)
+        harness.processElementForTable("input", Row.of("Alice", 15));
+        assertThat(harness.getOutput()).containsExactly(Row.of("Alice", 2L));
+        aliceState =
+                harness.getStateForKey(
+                        "state", Row.of("Alice"), PTFWithValueState.CounterState.class);
+        assertThat(aliceState.count).isEqualTo(2L);
+        harness.clearOutput();
+
+        // Partition "Bob" - second row (state should persist)
+        harness.processElementForTable("input", Row.of("Bob", 25));
+        assertThat(harness.getOutput()).containsExactly(Row.of("Bob", 2L));
+        bobState =
+                harness.getStateForKey(
+                        "state", Row.of("Bob"), PTFWithValueState.CounterState.class);
+        assertThat(bobState.count).isEqualTo(2L);
+        harness.clearOutput();
+
+        // Partition "Alice" - third row
+        harness.processElementForTable("input", Row.of("Alice", 30));
+        assertThat(harness.getOutput()).containsExactly(Row.of("Alice", 3L));
+        aliceState =
+                harness.getStateForKey(
+                        "state", Row.of("Alice"), PTFWithValueState.CounterState.class);
+        assertThat(aliceState.count).isEqualTo(3L);
+
+        // Verify state keys
+        java.util.Set<Row> keys = harness.getStateKeys("state");
+        assertThat(keys).containsExactlyInAnyOrder(Row.of("Alice"), Row.of("Bob"));
+
+        // Verify getAllState
+        java.util.Map<Row, PTFWithValueState.CounterState> allState =
+                harness.getAllState("state", PTFWithValueState.CounterState.class);
+        assertThat(allState).hasSize(2);
+        assertThat(allState.get(Row.of("Alice")).count).isEqualTo(3L);
+        assertThat(allState.get(Row.of("Bob")).count).isEqualTo(2L);
+
+        harness.close();
+    }
+
+    @Test
+    void testListViewState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithListViewState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withPartitionBy("input", "key")
+                        .build();
+
+        // Partition "A" - add first value
+        harness.processElementForTable("input", Row.of("A", 1));
+        assertThat(harness.getOutput()).containsExactly(Row.of("A", new Integer[] {1}));
+        org.apache.flink.table.api.dataview.ListView<Integer> listStateA =
+                harness.getStateForKey(
+                        "listState",
+                        Row.of("A"),
+                        org.apache.flink.table.api.dataview.ListView.class);
+        assertThat(listStateA.get()).containsExactly(1);
+        harness.clearOutput();
+
+        // Partition "A" - add second value (list should grow)
+        harness.processElementForTable("input", Row.of("A", 2));
+        assertThat(harness.getOutput()).containsExactly(Row.of("A", new Integer[] {1, 2}));
+        listStateA =
+                harness.getStateForKey(
+                        "listState",
+                        Row.of("A"),
+                        org.apache.flink.table.api.dataview.ListView.class);
+        assertThat(listStateA.get()).containsExactly(1, 2);
+        harness.clearOutput();
+
+        // Partition "B" - separate state
+        harness.processElementForTable("input", Row.of("B", 10));
+        assertThat(harness.getOutput()).containsExactly(Row.of("B", new Integer[] {10}));
+        org.apache.flink.table.api.dataview.ListView<Integer> listStateB =
+                harness.getStateForKey(
+                        "listState",
+                        Row.of("B"),
+                        org.apache.flink.table.api.dataview.ListView.class);
+        assertThat(listStateB.get()).containsExactly(10);
+        harness.clearOutput();
+
+        // Partition "A" - add third value
+        harness.processElementForTable("input", Row.of("A", 3));
+        assertThat(harness.getOutput()).containsExactly(Row.of("A", new Integer[] {1, 2, 3}));
+        listStateA =
+                harness.getStateForKey(
+                        "listState",
+                        Row.of("A"),
+                        org.apache.flink.table.api.dataview.ListView.class);
+        assertThat(listStateA.get()).containsExactly(1, 2, 3);
+
+        harness.close();
+    }
+
+    @Test
+    void testMapViewState() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithMapViewState.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<partition STRING, key STRING>"))
+                        .withPartitionBy("input", "partition")
+                        .build();
+
+        // Partition "P1" - first occurrence of key "foo"
+        harness.processElementForTable("input", Row.of("P1", "foo"));
+        assertThat(harness.getOutput()).containsExactly(Row.of("P1", "foo", 1));
+        org.apache.flink.table.api.dataview.MapView<String, Integer> mapStateP1 =
+                harness.getStateForKey(
+                        "mapState",
+                        Row.of("P1"),
+                        org.apache.flink.table.api.dataview.MapView.class);
+        assertThat(mapStateP1.get("foo")).isEqualTo(1);
+        harness.clearOutput();
+
+        // Partition "P1" - second occurrence of key "foo"
+        harness.processElementForTable("input", Row.of("P1", "foo"));
+        assertThat(harness.getOutput()).containsExactly(Row.of("P1", "foo", 2));
+        mapStateP1 =
+                harness.getStateForKey(
+                        "mapState",
+                        Row.of("P1"),
+                        org.apache.flink.table.api.dataview.MapView.class);
+        assertThat(mapStateP1.get("foo")).isEqualTo(2);
+        harness.clearOutput();
+
+        // Partition "P1" - first occurrence of key "bar"
+        harness.processElementForTable("input", Row.of("P1", "bar"));
+        assertThat(harness.getOutput()).containsExactly(Row.of("P1", "bar", 1));
+        mapStateP1 =
+                harness.getStateForKey(
+                        "mapState",
+                        Row.of("P1"),
+                        org.apache.flink.table.api.dataview.MapView.class);
+        assertThat(mapStateP1.get("foo")).isEqualTo(2);
+        assertThat(mapStateP1.get("bar")).isEqualTo(1);
+        harness.clearOutput();
+
+        // Partition "P2" - separate state, same key "foo"
+        harness.processElementForTable("input", Row.of("P2", "foo"));
+        assertThat(harness.getOutput()).containsExactly(Row.of("P2", "foo", 1));
+        org.apache.flink.table.api.dataview.MapView<String, Integer> mapStateP2 =
+                harness.getStateForKey(
+                        "mapState",
+                        Row.of("P2"),
+                        org.apache.flink.table.api.dataview.MapView.class);
+        assertThat(mapStateP2.get("foo")).isEqualTo(1);
+        harness.clearOutput();
+
+        // Partition "P1" - third occurrence of key "foo"
+        harness.processElementForTable("input", Row.of("P1", "foo"));
+        assertThat(harness.getOutput()).containsExactly(Row.of("P1", "foo", 3));
+        mapStateP1 =
+                harness.getStateForKey(
+                        "mapState",
+                        Row.of("P1"),
+                        org.apache.flink.table.api.dataview.MapView.class);
+        assertThat(mapStateP1.get("foo")).isEqualTo(3);
+        assertThat(mapStateP1.get("bar")).isEqualTo(1);
+
+        harness.close();
+    }
+
+    @Test
+    void testInitialStateSetup() throws Exception {
+        // Create initial state
+        PTFWithValueState.CounterState initialState = new PTFWithValueState.CounterState();
+        initialState.count = 100L;
+
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .withInitialStateArgument("state", Row.of(1), initialState)
+                        .build();
+
+        // Verify initial state was set
+        PTFWithValueState.CounterState state =
+                harness.getStateForKey("state", Row.of(1), PTFWithValueState.CounterState.class);
+        assertThat(state).isNotNull();
+        assertThat(state.count).isEqualTo(100L);
+
+        // Process element - counter should start at 100
+        harness.processElement(Row.of(1));
+        assertThat(harness.getOutput()).containsExactly(Row.of(1, 101L));
+
+        // Partition 2 should start with fresh state
+        harness.processElement(Row.of(2));
+        assertThat(harness.getOutput().get(1)).isEqualTo(Row.of(2, 1L));
+
+        harness.close();
+    }
+
+    @Test
+    void testInitialStateWithListView() throws Exception {
+        // Create initial ListView state
+        org.apache.flink.table.api.dataview.ListView<Integer> initialList =
+                new org.apache.flink.table.api.dataview.ListView<>();
+        initialList.add(10);
+        initialList.add(20);
+        initialList.add(30);
+
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithListViewState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id STRING, value INT>"))
+                        .withPartitionBy("input", "id")
+                        .withInitialStateArgument("listState", Row.of("P1"), initialList)
+                        .build();
+
+        // Verify initial state
+        org.apache.flink.table.api.dataview.ListView<Integer> listState =
+                harness.getStateForKey(
+                        "listState",
+                        Row.of("P1"),
+                        org.apache.flink.table.api.dataview.ListView.class);
+        assertThat(listState.get()).containsExactly(10, 20, 30);
+
+        // Add another element - should append to existing list
+        harness.processElement(Row.of("P1", 40));
+        assertThat(harness.getOutput())
+                .containsExactly(Row.of("P1", (Object) new Integer[] {10, 20, 30, 40}));
+
+        listState =
+                harness.getStateForKey(
+                        "listState",
+                        Row.of("P1"),
+                        org.apache.flink.table.api.dataview.ListView.class);
+        assertThat(listState.get()).containsExactly(10, 20, 30, 40);
+
+        harness.close();
+    }
+
+    @Test
+    void testInitialStateWithMapView() throws Exception {
+        // Create initial MapView state
+        org.apache.flink.table.api.dataview.MapView<String, Integer> initialMap =
+                new org.apache.flink.table.api.dataview.MapView<>();
+        initialMap.put("apple", 5);
+        initialMap.put("banana", 10);
+
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithMapViewState.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<id STRING, key STRING, value INT>"))
+                        .withPartitionBy("input", "id")
+                        .withInitialStateArgument("mapState", Row.of("P1"), initialMap)
+                        .build();
+
+        // Verify initial state
+        org.apache.flink.table.api.dataview.MapView<String, Integer> mapState =
+                harness.getStateForKey(
+                        "mapState",
+                        Row.of("P1"),
+                        org.apache.flink.table.api.dataview.MapView.class);
+        assertThat(mapState.get("apple")).isEqualTo(5);
+        assertThat(mapState.get("banana")).isEqualTo(10);
+
+        // Add another entry - should merge with existing map
+        harness.processElement(Row.of("P1", "cherry", 999));
+        assertThat(harness.getOutput()).containsExactly(Row.of("P1", "cherry", 1));
+
+        mapState =
+                harness.getStateForKey(
+                        "mapState",
+                        Row.of("P1"),
+                        org.apache.flink.table.api.dataview.MapView.class);
+        assertThat(mapState.get("apple")).isEqualTo(5);
+        assertThat(mapState.get("banana")).isEqualTo(10);
+        assertThat(mapState.get("cherry")).isEqualTo(1);
+
+        harness.close();
+    }
+
+    // -------------------------------------------------------------------------
+    // State TTL Tests
+    // -------------------------------------------------------------------------
+
+    /** PTF with value state (POJO) that has TTL. */
+    @DataTypeHint("ROW<count BIGINT>")
+    public static class PTFWithValueStateTTL extends ProcessTableFunction<Row> {
+        public static class CounterState {
+            public long count = 0L;
+        }
+
+        public void eval(
+                @StateHint(ttl = "1 s") CounterState state,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            state.count++;
+            collect(Row.of(state.count));
+        }
+    }
+
+    @Test
+    void testValueStateTtlExpiration() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueStateTTL.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build();
+
+        // Process element at time 0
+        harness.processElement(Row.of(1));
+
+        PTFWithValueStateTTL.CounterState state =
+                harness.getStateForKey("state", Row.of(1), PTFWithValueStateTTL.CounterState.class);
+        assertThat(state).isNotNull();
+        assertThat(state.count).isEqualTo(1L);
+
+        // Advance past TTL (1000ms)
+        harness.advanceSystemClock(1001);
+
+        // State should be expired
+        state = harness.getStateForKey("state", Row.of(1), PTFWithValueStateTTL.CounterState.class);
+        assertThat(state).isNull();
+
+        harness.close();
+    }
+
+    /** PTF with ListView state that has per-element TTL. */
+    @DataTypeHint("ROW<values ARRAY<INT>>")
+    public static class PTFWithListViewTTL extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint(ttl = "1 s")
+                        org.apache.flink.table.api.dataview.ListView<Integer> listState,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input)
+                throws Exception {
+            int value = input.getFieldAs(1); // value is at index 1 (after id at index 0)
+            listState.add(value);
+
+            java.util.List<Integer> collected = new ArrayList<>();
+            for (Integer v : listState.get()) {
+                collected.add(v);
+            }
+            collect(Row.of((Object) collected.toArray(new Integer[0])));
+        }
+    }
+
+    @Test
+    void testListViewPerElementTtl() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithListViewTTL.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT, value INT>"))
+                        .withPartitionBy("input", "id")
+                        .build();
+
+        // Add element 1 at time 0 (using partition key 0 for all rows to simulate global state)
+        harness.processElement(Row.of(0, 1));
+        assertThat(harness.getOutput()).containsExactly(Row.of(0, (Object) new Integer[] {1}));
+        harness.clearOutput();
+
+        // Advance 500ms, add element 2
+        harness.advanceSystemClock(500);
+        harness.processElement(Row.of(0, 2));
+        assertThat(harness.getOutput()).containsExactly(Row.of(0, (Object) new Integer[] {1, 2}));
+        harness.clearOutput();
+
+        // Advance 600ms more (total 1100ms)
+        // Element 1 expires (1100 > 1000), element 2 remains (600 < 1000)
+        harness.advanceSystemClock(600);
+
+        org.apache.flink.table.api.dataview.ListView<Integer> listState =
+                harness.getStateForKey(
+                        "listState", Row.of(0), org.apache.flink.table.api.dataview.ListView.class);
+        assertThat(listState.get()).containsExactly(2); // Only element 2 remains
+
+        harness.close();
+    }
+
+    /** PTF with MapView state that has per-entry TTL. */
+    @DataTypeHint("ROW<size INT>")
+    public static class PTFWithMapViewTTL extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint(ttl = "1 s")
+                        org.apache.flink.table.api.dataview.MapView<String, Integer> mapState,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input)
+                throws Exception {
+            String key = input.getFieldAs(1); // key is at index 1 (after id at index 0)
+            Integer value = input.getFieldAs(2); // value is at index 2
+            mapState.put(key, value);
+            collect(Row.of(mapState.getMap().size()));
+        }
+    }
+
+    @Test
+    void testMapViewPerEntryTtl() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithMapViewTTL.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<id INT, key STRING, value INT>"))
+                        .withPartitionBy("input", "id")
+                        .build();
+
+        // Insert entry A at time 0
+        harness.processElement(Row.of(0, "A", 1));
+        harness.clearOutput();
+
+        // Advance 500ms, insert entry B
+        harness.advanceSystemClock(500);
+        harness.processElement(Row.of(0, "B", 2));
+        harness.clearOutput();
+
+        // Advance 600ms more (total 1100ms)
+        // Entry A expires (1100 > 1000), entry B remains (600 < 1000)
+        harness.advanceSystemClock(600);
+
+        org.apache.flink.table.api.dataview.MapView<String, Integer> mapState =
+                harness.getStateForKey(
+                        "mapState", Row.of(0), org.apache.flink.table.api.dataview.MapView.class);
+        assertThat(mapState.getMap()).containsOnly(java.util.Map.entry("B", 2));
+
+        harness.close();
+    }
+
+    /** PTF with zero TTL state. */
+    @DataTypeHint("ROW<value INT>")
+    public static class PTFWithZeroTTL extends ProcessTableFunction<Row> {
+        public static class ZeroTtlState {
+            public int value = 0;
+        }
+
+        public void eval(
+                @StateHint(ttl = "0") ZeroTtlState state,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            state.value++;
+            collect(Row.of(state.value));
+        }
+    }
+
+    @Test
+    void testZeroTtl() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithZeroTTL.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build();
+
+        harness.processElement(Row.of(1));
+
+        PTFWithZeroTTL.ZeroTtlState state =
+                harness.getStateForKey("state", Row.of(1), PTFWithZeroTTL.ZeroTtlState.class);
+        assertThat(state).isNotNull();
+
+        // After advancing even 1ms, state expires
+        harness.advanceSystemClock(1);
+
+        state = harness.getStateForKey("state", Row.of(1), PTFWithZeroTTL.ZeroTtlState.class);
+        assertThat(state).isNull();
+
+        harness.close();
+    }
+
+    /** PTF with mixed state types having different TTLs. */
+    @DataTypeHint("ROW<count INT>")
+    public static class PTFWithMixedStateTTL extends ProcessTableFunction<Row> {
+        public static class ValueState {
+            public int count = 0;
+        }
+
+        public void eval(
+                @StateHint(ttl = "500 ms") ValueState valueState,
+                @StateHint(ttl = "1 s")
+                        org.apache.flink.table.api.dataview.ListView<Integer> listState,
+                @StateHint(ttl = "1500 ms")
+                        org.apache.flink.table.api.dataview.MapView<String, Integer> mapState,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input)
+                throws Exception {
+            valueState.count++;
+            listState.add(1);
+            mapState.put("key", 1);
+            collect(Row.of(valueState.count));
+        }
+    }
+
+    @Test
+    void testMixedStateTtls() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithMixedStateTTL.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build();
+
+        harness.processElement(Row.of(1));
+
+        // After 600ms: valueState expired, listState and mapState remain
+        harness.advanceSystemClock(600);
+
+        PTFWithMixedStateTTL.ValueState vs =
+                harness.getStateForKey(
+                        "valueState", Row.of(1), PTFWithMixedStateTTL.ValueState.class);
+        org.apache.flink.table.api.dataview.ListView<Integer> ls =
+                harness.getStateForKey(
+                        "listState", Row.of(1), org.apache.flink.table.api.dataview.ListView.class);
+        org.apache.flink.table.api.dataview.MapView<String, Integer> ms =
+                harness.getStateForKey(
+                        "mapState", Row.of(1), org.apache.flink.table.api.dataview.MapView.class);
+
+        assertThat(vs).isNull(); // Expired
+        assertThat(ls.get()).hasSize(1); // Still valid
+        assertThat(ms.getMap()).hasSize(1); // Still valid
+
+        // After 1100ms total: listState expired, mapState remains
+        harness.advanceSystemClock(500);
+
+        ls =
+                harness.getStateForKey(
+                        "listState", Row.of(1), org.apache.flink.table.api.dataview.ListView.class);
+        ms =
+                harness.getStateForKey(
+                        "mapState", Row.of(1), org.apache.flink.table.api.dataview.MapView.class);
+
+        assertThat(ls.get()).isEmpty(); // Expired (entries removed)
+        assertThat(ms.getMap()).hasSize(1); // Still valid
+
+        // After 1600ms total: all expired
+        harness.advanceSystemClock(500);
+
+        ms =
+                harness.getStateForKey(
+                        "mapState", Row.of(1), org.apache.flink.table.api.dataview.MapView.class);
+        assertThat(ms.getMap()).isEmpty(); // Expired
+
+        harness.close();
+    }
+
+    @Test
+    void testTimeOverloadMethods() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithValueStateTTL.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build();
+
+        // Create state at time 0
+        harness.processElement(Row.of(1));
+        PTFWithValueStateTTL.CounterState state =
+                harness.getStateForKey("state", Row.of(1), PTFWithValueStateTTL.CounterState.class);
+        assertThat(state).isNotNull();
+
+        // Test long millis - advance by 1001ms (state with 1s TTL should expire)
+        harness.advanceSystemClock(1001L);
+        state = harness.getStateForKey("state", Row.of(1), PTFWithValueStateTTL.CounterState.class);
+        assertThat(state).isNull();
+
+        // Create new state at 1001ms
+        harness.processElement(Row.of(2));
+
+        // Test Instant overload - advance to 2002ms (1001ms elapsed since creation)
+        harness.advanceSystemClock(java.time.Instant.ofEpochMilli(2002));
+        state = harness.getStateForKey("state", Row.of(2), PTFWithValueStateTTL.CounterState.class);
+        assertThat(state).isNull();
+
+        harness.close();
+    }
+
+    @Test
+    void testSetStateForKeyWithListViewTtl() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithListViewTTL.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT, value INT>"))
+                        .withPartitionBy("input", "id")
+                        .build();
+
+        // Add element 1 at time 0
+        harness.processElement(Row.of(0, 1));
+        harness.clearOutput();
+
+        // Advance 500ms, add element 2
+        harness.advanceSystemClock(500);
+        harness.processElement(Row.of(0, 2));
+        harness.clearOutput();
+
+        // Advance 300ms (total 800ms)
+        harness.advanceSystemClock(300);
+
+        // Now use setStateForKey to replace the list entirely
+        org.apache.flink.table.api.dataview.ListView<Integer> newList =
+                new org.apache.flink.table.api.dataview.ListView<>();
+        newList.add(10);
+        newList.add(20);
+        harness.setStateForKey("listState", Row.of(0), newList);
+
+        // Advance 300ms more (total 1100ms from start)
+        // Original elements (1, 2) would have expired by now (added at 0ms and 500ms)
+        // But the new elements (10, 20) were added at 800ms, so they should survive
+        harness.advanceSystemClock(300);
+
+        org.apache.flink.table.api.dataview.ListView<Integer> listState =
+                harness.getStateForKey(
+                        "listState", Row.of(0), org.apache.flink.table.api.dataview.ListView.class);
+
+        // Expected: Elements 10 and 20 should still be present (added at 800ms, TTL=1000ms,
+        // current=1100ms)
+        // Bug: If setList() assigns currentTimeMillis, elements get timestamp 800ms and should
+        // survive
+        // But original implementation may lose timestamps entirely
+        assertThat(listState.get()).containsExactly(10, 20);
+
+        // Advance past TTL for the new elements (800ms + 1000ms = 1800ms)
+        harness.advanceSystemClock(800); // Now at 1900ms
+
+        listState =
+                harness.getStateForKey(
+                        "listState", Row.of(0), org.apache.flink.table.api.dataview.ListView.class);
+        assertThat(listState.get()).isEmpty(); // Should be expired now
+
+        harness.close();
+    }
+
+    @Test
+    void testSetStateForKeyWithMapViewTtl() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithMapViewTTL.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<id INT, key STRING, value INT>"))
+                        .withPartitionBy("input", "id")
+                        .build();
+
+        // Insert entry A at time 0
+        harness.processElement(Row.of(0, "A", 1));
+        harness.clearOutput();
+
+        // Advance 500ms, insert entry B
+        harness.advanceSystemClock(500);
+        harness.processElement(Row.of(0, "B", 2));
+        harness.clearOutput();
+
+        // Advance 300ms (total 800ms)
+        harness.advanceSystemClock(300);
+
+        // Use setStateForKey to replace the map entirely
+        org.apache.flink.table.api.dataview.MapView<String, Integer> newMap =
+                new org.apache.flink.table.api.dataview.MapView<>();
+        newMap.put("X", 10);
+        newMap.put("Y", 20);
+        harness.setStateForKey("mapState", Row.of(0), newMap);
+
+        // Advance 300ms more (total 1100ms from start)
+        harness.advanceSystemClock(300);
+
+        org.apache.flink.table.api.dataview.MapView<String, Integer> mapState =
+                harness.getStateForKey(
+                        "mapState", Row.of(0), org.apache.flink.table.api.dataview.MapView.class);
+
+        // Expected: Entries X and Y should still be present (added at 800ms)
+        assertThat(mapState.getMap()).containsOnly(Map.entry("X", 10), Map.entry("Y", 20));
+
+        // Advance past TTL for the new entries
+        harness.advanceSystemClock(800); // Now at 1900ms
+
+        mapState =
+                harness.getStateForKey(
+                        "mapState", Row.of(0), org.apache.flink.table.api.dataview.MapView.class);
+        assertThat(mapState.getMap()).isEmpty(); // Should be expired now
+
+        harness.close();
     }
 }
