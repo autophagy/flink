@@ -80,6 +80,12 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 		<file>
+			<source>../flink-table/flink-table-type-utils/target/flink-table-type-utils-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-table-type-utils-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
 			<source>../flink-table/flink-table-runtime/target/flink-table-runtime-${project.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
 			<destName>flink-table-runtime-${project.version}.jar</destName>
