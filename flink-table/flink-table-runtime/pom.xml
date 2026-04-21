@@ -184,6 +184,7 @@ under the License.
 									<include>org.apache.flink:flink-shaded-jsonpath</include>
 									<include>org.codehaus.janino:*</include>
 									<include>org.apache.flink:flink-table-code-splitter</include>
+									<include>org.apache.flink:flink-table-type-utils</include>
 								</includes>
 							</artifactSet>
 						</configuration>
