@@ -21,6 +21,8 @@ import sys
 import time
 import unittest
 
+from dateutil.relativedelta import relativedelta
+
 from py4j.protocol import Py4JJavaError
 from typing import Iterable
 
@@ -818,6 +820,50 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
         retrieved_epoch = time.mktime(retrieved.timetuple()) + retrieved.microsecond / 1e6
         self.assertAlmostEqual(input_epoch, retrieved_epoch, places=5)
+
+    def test_interval_day_to_second_collection(self):
+        test_cases = [
+            (datetime.timedelta(days=1, hours=2, minutes=30, seconds=45, milliseconds=123),),
+            (datetime.timedelta(seconds=90),),
+            (datetime.timedelta(microseconds=500000),),
+        ]
+
+        schema = DataTypes.ROW([
+            DataTypes.FIELD("interval_col", DataTypes.INTERVAL(DataTypes.SECOND(3)))
+        ])
+
+        table = self.t_env.from_elements(test_cases, schema=schema)
+        result = list(table.execute().collect())
+
+        self.assertEqual(len(result), 3)
+        for row in result:
+            self.assertIsInstance(row[0], datetime.timedelta)
+
+    def test_interval_year_month_collection(self):
+        self.t_env.execute_sql(
+            "CREATE TEMPORARY VIEW interval_ym_view AS "
+            "SELECT INTERVAL '5-3' YEAR TO MONTH AS col1, "
+            "       INTERVAL '2' YEAR AS col2, "
+            "       INTERVAL '25' MONTH AS col3"
+        )
+
+        result = list(self.t_env.execute_sql("SELECT * FROM interval_ym_view").collect())
+
+        self.assertEqual(len(result), 1)
+        row = result[0]
+
+        self.assertIsInstance(row[0], relativedelta)
+        self.assertIsInstance(row[1], relativedelta)
+        self.assertIsInstance(row[2], relativedelta)
+
+        self.assertEqual(row[0].years, 5)
+        self.assertEqual(row[0].months, 3)
+        self.assertEqual(row[1].years, 2)
+        self.assertEqual(row[1].months, 0)
+        self.assertEqual(row[2].years, 2)
+        self.assertEqual(row[2].months, 1)
+
+        self.t_env.execute_sql("DROP TEMPORARY VIEW interval_ym_view")
 
     def test_row_form_consistency_with_elements(self):
         schema = DataTypes.ROW(

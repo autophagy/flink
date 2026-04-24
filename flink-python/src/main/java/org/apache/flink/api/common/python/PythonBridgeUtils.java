@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -46,6 +47,7 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -59,10 +61,12 @@ import java.io.IOException;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Period;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -199,6 +203,18 @@ public final class PythonBridgeUtils {
             } else if (dataType instanceof LocalZonedTimestampType) {
                 if (obj instanceof Instant) {
                     return pickler.dumps(Timestamp.from((Instant) obj));
+                } else {
+                    return pickler.dumps(obj);
+                }
+            } else if (dataType instanceof DayTimeIntervalType) {
+                if (obj instanceof Duration) {
+                    return pickler.dumps(((Duration) obj).toMillis());
+                } else {
+                    return pickler.dumps(obj);
+                }
+            } else if (dataType instanceof YearMonthIntervalType) {
+                if (obj instanceof Period) {
+                    return pickler.dumps((int) ((Period) obj).toTotalMonths());
                 } else {
                     return pickler.dumps(obj);
                 }

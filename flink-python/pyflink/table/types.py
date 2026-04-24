@@ -24,6 +24,7 @@ import sys
 import time
 from array import array
 from copy import copy
+from dateutil.relativedelta import relativedelta
 from enum import Enum
 from functools import reduce
 from threading import RLock
@@ -635,6 +636,24 @@ class YearMonthIntervalType(AtomicType):
     @property
     def precision(self):
         return self._precision
+
+    def need_conversion(self):
+        return True
+
+    def to_sql_type(self, rd):
+        if rd is not None:
+            if isinstance(rd, relativedelta):
+                return rd.years * 12 + rd.months
+            else:
+                return rd
+        return None
+
+    def from_sql_type(self, total_months):
+        if total_months is not None:
+            years = total_months // 12
+            months = total_months % 12
+            return relativedelta(years=years, months=months)
+        return None
 
 
 class DayTimeIntervalType(AtomicType):
@@ -1959,6 +1978,7 @@ _acceptable_types = {
     TimeType: (datetime.time,),
     TimestampType: (datetime.datetime,),
     DayTimeIntervalType: (datetime.timedelta,),
+    YearMonthIntervalType: (relativedelta,),
     LocalZonedTimestampType: (datetime.datetime,),
     ZonedTimestampType: (datetime.datetime,),
     ArrayType: (list, tuple, array),

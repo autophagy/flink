@@ -20,8 +20,9 @@ import ast
 from pyflink.common.types import RowKind
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, LocalZonedTimestampType, Row, RowType, \
-    TimeType, DateType, ArrayType, MapType, TimestampType, FloatType, RawType
+from pyflink.table.types import DataType, DayTimeIntervalType, LocalZonedTimestampType, Row, \
+    RowType, TimeType, DateType, ArrayType, MapType, TimestampType, FloatType, RawType, \
+    YearMonthIntervalType
 from pyflink.util.api_stability_decorators import Internal
 from pyflink.util.java_utils import to_jarray
 import datetime
@@ -134,6 +135,10 @@ def pickled_bytes_to_python_converter(data, field_type: DataType):
             return field_type.from_sql_type(int(data.timestamp() * 10**6))
         elif isinstance(field_type, LocalZonedTimestampType):
             return field_type.from_sql_type(int(data.timestamp() * 10**6))
+        elif isinstance(field_type, DayTimeIntervalType):
+            return field_type.from_sql_type(data * 1000)
+        elif isinstance(field_type, YearMonthIntervalType):
+            return field_type.from_sql_type(data)
         elif isinstance(field_type, MapType):
             key_type = field_type.key_type
             value_type = field_type.value_type
