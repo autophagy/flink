@@ -23,12 +23,14 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.StaticArgument;
@@ -43,15 +45,19 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
+import javax.annotation.Nullable;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -116,6 +122,20 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     // Stored separately from RowData to avoid caching complexity
     private final Map<Row, Map<String, TimestampMetadata>> timestampsByPartition = new HashMap<>();
 
+    private final boolean evalHasContext;
+    private final Map<String, Long> watermarkByTable = new HashMap<>();
+    private long globalWatermark = Long.MIN_VALUE;
+    private final Map<String, String> onTimeColumnByTable = new HashMap<>();
+    private final Map<Row, List<TimerRecord>> pendingTimersByPartition = new HashMap<>();
+    private final List<TimerRecord> firedTimers = new ArrayList<>();
+    @Nullable private final java.lang.reflect.Method onTimerMethod;
+    @Nullable private TimerRecord currentFiringTimer = null;
+    @Nullable private Row currentRow = null;
+    @Nullable private String currentTableArgumentName = null;
+    private final Set<String> statesToClear = new HashSet<>();
+    private boolean clearAllStateFlag = false;
+    private boolean clearAllTimersFlag = false;
+
     private ProcessTableFunctionTestHarness(
             ProcessTableFunction<OUT> function,
             FunctionContext functionContext,
@@ -127,7 +147,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             Map<String, Object> scalarArgumentValues,
             Map<String, DataStructureConverter<Object, Object>> inputConverters,
             Map<String, DataStructureConverter<Object, Object>> outputConverters,
-            Map<String, DataStructureConverter<Object, Object>> stateConverters)
+            Map<String, DataStructureConverter<Object, Object>> stateConverters,
+            boolean evalHasContext,
+            @Nullable java.lang.reflect.Method onTimerMethod,
+            Map<String, String> onTimeColumnByTable,
+            Map<String, Long> initialWatermarksByTable)
             throws Exception {
         this.function = function;
         this.functionContext = functionContext;
@@ -144,6 +168,22 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         this.output = new ArrayList<>();
         this.collector = new HarnessCollector();
         this.isOpen = false;
+
+        // Context, Timer, and Watermark initialization
+        this.evalHasContext = evalHasContext;
+        this.onTimerMethod = onTimerMethod;
+        this.onTimeColumnByTable.putAll(onTimeColumnByTable);
+
+        // Initialize watermark tracking for all table arguments (default to Long.MIN_VALUE)
+        for (ArgumentInfo arg : arguments) {
+            if (arg instanceof TableArgumentInfo) {
+                TableArgumentInfo tableArg = (TableArgumentInfo) arg;
+                this.watermarkByTable.put(tableArg.name, Long.MIN_VALUE);
+            }
+        }
+        // Override with initial watermarks if provided
+        this.watermarkByTable.putAll(initialWatermarksByTable);
+        recalculateGlobalWatermark();
 
         openFunction();
     }
@@ -479,6 +519,125 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         timestampsByPartition.clear();
     }
 
+    /** Creates fresh (null-initialized) state RowData for the given state argument. */
+    private RowData createFreshStateRowData(
+            StateArgumentInfo stateArg, DataStructureConverter<Object, Object> converter) {
+        Object freshExternalState;
+        if (Row.class.isAssignableFrom(stateArg.stateClass)) {
+            int fieldCount = stateArg.dataType.getChildren().size();
+            Object[] fields = new Object[fieldCount];
+            freshExternalState = Row.of(fields);
+        } else {
+            try {
+                freshExternalState = stateArg.stateClass.getDeclaredConstructor().newInstance();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create fresh state for " + stateArg.name, e);
+            }
+        }
+        return (RowData) converter.toInternalOrNull(freshExternalState);
+    }
+
+    // -------------------------------------------------------------------------
+    // Watermark and Timer Control
+    // -------------------------------------------------------------------------
+
+    /** Advances watermark for all table arguments. Fires timers with timestamp <= new watermark. */
+    public void advanceWatermark(Instant watermark) throws Exception {
+        advanceWatermark(watermark.toEpochMilli());
+    }
+
+    public void advanceWatermark(LocalDateTime watermark) throws Exception {
+        advanceWatermark(watermark.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+    }
+
+    public void advanceWatermark(long watermarkMillis) throws Exception {
+        for (String table : watermarkByTable.keySet()) {
+            advanceWatermarkForTable(table, watermarkMillis);
+        }
+    }
+
+    /**
+     * Advances watermark for specific table argument. Fires timers with timestamp <= new watermark.
+     */
+    public void advanceWatermarkForTable(String tableArgument, Instant watermark) throws Exception {
+        advanceWatermarkForTable(tableArgument, watermark.toEpochMilli());
+    }
+
+    public void advanceWatermarkForTable(String tableArgument, LocalDateTime watermark)
+            throws Exception {
+        advanceWatermarkForTable(
+                tableArgument, watermark.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+    }
+
+    public void advanceWatermarkForTable(String tableArgument, long watermarkMillis)
+            throws Exception {
+        Long current = watermarkByTable.get(tableArgument);
+        if (current != null && watermarkMillis < current) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Cannot move watermark backward for table %s from %d to %d",
+                            tableArgument, current, watermarkMillis));
+        }
+
+        long oldGlobalWatermark = globalWatermark;
+        watermarkByTable.put(tableArgument, watermarkMillis);
+        recalculateGlobalWatermark();
+
+        if (globalWatermark > oldGlobalWatermark) {
+            fireTimers(oldGlobalWatermark, globalWatermark);
+        }
+    }
+
+    /**
+     * Gets current watermark for specific table argument. Returns null if no watermark has been
+     * set.
+     */
+    public <TimeType> TimeType getCurrentWatermarkForTable(
+            String tableArgument, Class<TimeType> conversionClass) {
+        Long watermark = watermarkByTable.get(tableArgument);
+        if (watermark == null) {
+            return null;
+        }
+        return convertFromMillis(watermark, conversionClass);
+    }
+
+    /** Returns all pending (not yet fired) timers. */
+    public List<Timer> getPendingTimers() throws Exception {
+        List<Timer> result = new ArrayList<>();
+        for (List<TimerRecord> timerList : pendingTimersByPartition.values()) {
+            for (TimerRecord record : timerList) {
+                result.add(new Timer(record, false));
+            }
+        }
+        return result;
+    }
+
+    /** Returns pending timers with specific name. */
+    public List<Timer> getPendingTimers(String timerName) throws Exception {
+        return getPendingTimers().stream()
+                .filter(t -> Objects.equals(t.getName(), timerName))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /** Returns all fired timers (history). */
+    public List<Timer> getFiredTimers() throws Exception {
+        return firedTimers.stream()
+                .map(record -> new Timer(record, true))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /** Returns fired timers with specific name. */
+    public List<Timer> getFiredTimers(String timerName) throws Exception {
+        return getFiredTimers().stream()
+                .filter(t -> Objects.equals(t.getName(), timerName))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /** Clears fired timer history. */
+    public void clearFiredTimers() {
+        firedTimers.clear();
+    }
+
     // -------------------------------------------------------------------------
     // Time Control (for State TTL Testing)
     // -------------------------------------------------------------------------
@@ -803,14 +962,26 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         // Get or create state for this partition (stored as RowData internally)
         Map<String, RowData> stateMap = getOrCreateState(partitionKey);
 
+        // Set context for time() extraction and timer registration
+        currentRow = activeRow;
+        currentTableArgumentName = activeTableArg.name;
+        currentFiringTimer = null; // Not in timer context
+
         // Build full arguments array in eval() signature order
-        Object[] args = new Object[arguments.size()];
+        // If eval has Context parameter, it comes first, then arguments list
+        int argOffset = evalHasContext ? 1 : 0;
+        Object[] args = new Object[arguments.size() + argOffset];
+
+        if (evalHasContext) {
+            args[0] = new TestContext();
+        }
 
         // Track state arguments and their converters for post-eval conversion
         List<StateArgumentWithConverter> stateArgumentsForConversion = new ArrayList<>();
 
         for (int i = 0; i < arguments.size(); i++) {
             ArgumentInfo arg = arguments.get(i);
+            int argIndex = i + argOffset;
 
             if (arg instanceof StateArgumentInfo) {
                 StateArgumentInfo stateArg = (StateArgumentInfo) arg;
@@ -822,10 +993,10 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
                 injectTimestampsIntoView(externalState, partitionKey, stateArg.name);
 
-                args[i] = externalState;
+                args[argIndex] = externalState;
 
                 stateArgumentsForConversion.add(
-                        new StateArgumentWithConverter(i, stateArg, converter));
+                        new StateArgumentWithConverter(argIndex, stateArg, converter));
 
             } else if (arg instanceof TableArgumentInfo) {
                 TableArgumentInfo tableArg = (TableArgumentInfo) arg;
@@ -837,17 +1008,17 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     DataStructureConverter<Object, Object> outputConverter =
                             outputConverters.get(tableArg.name);
 
-                    args[i] =
+                    args[argIndex] =
                             outputConverter.toExternalOrNull(
                                     inputConverter.toInternalOrNull(activeRow));
                 } else {
                     // Inactive table argument: pass null
-                    args[i] = null;
+                    args[argIndex] = null;
                 }
 
             } else if (arg instanceof ScalarArgumentInfo) {
                 // Scalar arguments: pull from pre-configured values
-                args[i] = scalarArgumentValues.get(arg.name);
+                args[argIndex] = scalarArgumentValues.get(arg.name);
 
             } else {
                 throw new IllegalStateException(
@@ -905,6 +1076,462 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 }
             }
         }
+
+        // Process state and timer clearing flags set during eval()
+        processStateClearingFlags(partitionKey, stateMap);
+        processTimerClearingFlags(partitionKey);
+
+        // Clear context fields
+        currentRow = null;
+        currentTableArgumentName = null;
+    }
+
+    /** Process state clearing flags set by Context methods during eval/onTimer. */
+    private void processStateClearingFlags(Row partitionKey, Map<String, RowData> stateMap)
+            throws Exception {
+        if (clearAllStateFlag) {
+            stateMap.clear();
+            timestampsByPartition.remove(partitionKey);
+        } else {
+            for (String stateName : statesToClear) {
+                stateMap.remove(stateName);
+                Map<String, TimestampMetadata> timestamps = timestampsByPartition.get(partitionKey);
+                if (timestamps != null) {
+                    timestamps.remove(stateName);
+                }
+            }
+        }
+
+        // Reset flags
+        statesToClear.clear();
+        clearAllStateFlag = false;
+    }
+
+    /** Process timer clearing flags set by Context methods during eval/onTimer. */
+    private void processTimerClearingFlags(Row partitionKey) {
+        if (clearAllTimersFlag) {
+            pendingTimersByPartition.remove(partitionKey);
+        }
+
+        clearAllTimersFlag = false;
+    }
+
+    /** Fire all timers between oldWatermark (exclusive) and newWatermark (inclusive). */
+    private void fireTimers(long oldWatermark, long newWatermark) throws Exception {
+        // Collect all timers <= newWatermark across all partitions
+        List<TimerRecord> timersToFire = new ArrayList<>();
+
+        for (List<TimerRecord> timerList : pendingTimersByPartition.values()) {
+            for (TimerRecord timer : timerList) {
+                if (timer.timestamp <= newWatermark) {
+                    timersToFire.add(timer);
+                }
+            }
+        }
+
+        // Sort by timestamp, then name (deterministic order)
+        timersToFire.sort(null);
+
+        // Fire each timer
+        for (TimerRecord timer : timersToFire) {
+            fireTimer(timer);
+        }
+    }
+
+    /** Fire a single timer by invoking onTimer method. */
+    private void fireTimer(TimerRecord timer) throws Exception {
+        if (onTimerMethod == null) {
+            throw new IllegalStateException(
+                    "Timer fired but no onTimer() method is defined in " + function.getClass());
+        }
+
+        // Clear collector context so onTimer output is not prepended with partition keys
+        collector.setContext(null, null);
+
+        // Set current firing timer
+        currentFiringTimer = timer;
+        currentRow = null;
+        currentTableArgumentName = null;
+
+        try {
+            // Build arguments: onTimer(<OnTimerContext>?, <state entry>*)
+            Class<?>[] paramTypes = onTimerMethod.getParameterTypes();
+            boolean needsOnTimerContext =
+                    paramTypes.length > 0
+                            && ProcessTableFunction.OnTimerContext.class.isAssignableFrom(
+                                    paramTypes[0]);
+
+            int argOffset = needsOnTimerContext ? 1 : 0;
+            int stateCount = 0;
+            for (ArgumentInfo arg : arguments) {
+                if (arg instanceof StateArgumentInfo) {
+                    stateCount++;
+                }
+            }
+
+            Object[] args = new Object[argOffset + stateCount];
+
+            if (needsOnTimerContext) {
+                args[0] = new TestOnTimerContext();
+            }
+
+            // Load state for timer's partition key
+            Map<String, RowData> stateMap =
+                    stateByPartition.computeIfAbsent(timer.partitionKey, k -> new HashMap<>());
+
+            int stateIdx = argOffset;
+            List<StateArgumentWithConverter> stateArgs = new ArrayList<>();
+
+            for (ArgumentInfo arg : arguments) {
+                if (arg instanceof StateArgumentInfo) {
+                    StateArgumentInfo stateArg = (StateArgumentInfo) arg;
+                    DataStructureConverter<Object, Object> converter =
+                            stateConverters.get(stateArg.name);
+
+                    RowData stateRowData = stateMap.get(stateArg.name);
+                    if (stateRowData == null) {
+                        stateRowData = createFreshStateRowData(stateArg, converter);
+                        stateMap.put(stateArg.name, stateRowData);
+                    }
+
+                    Object externalState = converter.toExternalOrNull(stateRowData);
+
+                    // Update time in TestListView/TestMapView
+                    if (externalState instanceof TestListView) {
+                        ((TestListView<?>) externalState).setCurrentTime(systemTimeMillis);
+                    } else if (externalState instanceof TestMapView) {
+                        ((TestMapView<?, ?>) externalState).setCurrentTime(systemTimeMillis);
+                    }
+
+                    args[stateIdx] = externalState;
+                    stateArgs.add(new StateArgumentWithConverter(stateIdx, stateArg, converter));
+                    stateIdx++;
+                }
+            }
+
+            // Invoke onTimer
+            onTimerMethod.invoke(function, args);
+
+            // Convert mutated state back to RowData
+            for (StateArgumentWithConverter stateArg : stateArgs) {
+                Object mutatedState = args[stateArg.argIndex];
+                RowData updatedRowData =
+                        (RowData) stateArg.converter.toInternalOrNull(mutatedState);
+                stateMap.put(stateArg.stateArg.name, updatedRowData);
+            }
+
+            // Process clearing flags
+            processStateClearingFlags(timer.partitionKey, stateMap);
+            processTimerClearingFlags(timer.partitionKey);
+
+            // Remove from pending, add to fired
+            List<TimerRecord> timerList = pendingTimersByPartition.get(timer.partitionKey);
+            if (timerList != null) {
+                timerList.remove(timer);
+            }
+            firedTimers.add(timer);
+
+        } finally {
+            currentFiringTimer = null;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Time Conversion Utilities
+    // -------------------------------------------------------------------------
+
+    /** Convert various time types to milliseconds since epoch. */
+    private static long convertToMillis(Object timeValue) {
+        if (timeValue instanceof Long) {
+            return (Long) timeValue;
+        } else if (timeValue instanceof Instant) {
+            return ((Instant) timeValue).toEpochMilli();
+        } else if (timeValue instanceof LocalDateTime) {
+            return ((LocalDateTime) timeValue)
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli();
+        } else if (timeValue instanceof java.sql.Timestamp) {
+            return ((java.sql.Timestamp) timeValue).getTime();
+        } else {
+            throw new IllegalArgumentException("Unsupported time type: " + timeValue.getClass());
+        }
+    }
+
+    /** Convert milliseconds since epoch to requested time type. */
+    @SuppressWarnings("unchecked")
+    private static <TimeType> TimeType convertFromMillis(
+            long millis, Class<TimeType> conversionClass) {
+        if (conversionClass == Long.class) {
+            return (TimeType) Long.valueOf(millis);
+        } else if (conversionClass == Instant.class) {
+            return (TimeType) Instant.ofEpochMilli(millis);
+        } else if (conversionClass == LocalDateTime.class) {
+            return (TimeType)
+                    LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault());
+        } else {
+            throw new IllegalArgumentException("Unsupported conversion class: " + conversionClass);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // TableSemantics Utilities
+    // -------------------------------------------------------------------------
+
+    /** Convert column names to 0-based field indices using RowType field lookup. */
+    private static int[] convertColumnNamesToIndices(
+            String[] columnNames, DataType dataType, String argName, String columnRole) {
+        if (columnNames == null || columnNames.length == 0) {
+            return new int[0];
+        }
+
+        if (!(dataType.getLogicalType() instanceof RowType)) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Expected RowType for table argument '%s', got %s",
+                            argName, dataType.getLogicalType().getClass().getSimpleName()));
+        }
+
+        RowType rowType = (RowType) dataType.getLogicalType();
+        List<String> fieldNames = rowType.getFieldNames();
+
+        int[] indices = new int[columnNames.length];
+        for (int i = 0; i < columnNames.length; i++) {
+            String columnName = columnNames[i];
+            int index = fieldNames.indexOf(columnName);
+
+            if (index < 0) {
+                throw new IllegalStateException(
+                        String.format(
+                                "%s column '%s' not found in table argument '%s'. "
+                                        + "Available columns: %s",
+                                columnRole, columnName, argName, fieldNames));
+            }
+
+            indices[i] = index;
+        }
+
+        return indices;
+    }
+
+    // -------------------------------------------------------------------------
+    // Context Implementations
+    // -------------------------------------------------------------------------
+
+    /** Implementation of ProcessTableFunction.Context for testing. */
+    private class TestContext implements ProcessTableFunction.Context {
+
+        @Override
+        public <TimeType> ProcessTableFunction.TimeContext<TimeType> timeContext(
+                Class<TimeType> conversionClass) {
+            return new TestTimeContext<>(conversionClass);
+        }
+
+        @Override
+        public TableSemantics tableSemanticsFor(String argName) {
+            ArgumentInfo argInfo = argumentsByName.get(argName);
+            if (argInfo == null) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Argument '%s' not found. Available arguments: %s",
+                                argName, argumentsByName.keySet()));
+            }
+
+            if (!(argInfo instanceof TableArgumentInfo)) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Argument '%s' is not a table argument (type: %s)",
+                                argName, argInfo.getClass().getSimpleName()));
+            }
+
+            return ((TableArgumentInfo) argInfo).tableSemantics;
+        }
+
+        @Override
+        public void clearState(String stateName) {
+            statesToClear.add(stateName);
+        }
+
+        @Override
+        public void clearAllState() {
+            clearAllStateFlag = true;
+        }
+
+        @Override
+        public void clearAllTimers() {
+            clearAllTimersFlag = true;
+        }
+
+        @Override
+        public void clearAll() {
+            clearAllStateFlag = true;
+            clearAllTimersFlag = true;
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return ChangelogMode.insertOnly();
+        }
+    }
+
+    /** Implementation of ProcessTableFunction.TimeContext for testing. */
+    private class TestTimeContext<TimeType> implements ProcessTableFunction.TimeContext<TimeType> {
+        private final Class<TimeType> conversionClass;
+
+        TestTimeContext(Class<TimeType> conversionClass) {
+            this.conversionClass = conversionClass;
+        }
+
+        @Override
+        public TimeType time() {
+            long timeMillis;
+
+            if (currentFiringTimer != null) {
+                // Called from onTimer - return timer timestamp
+                timeMillis = currentFiringTimer.timestamp;
+            } else if (currentRow != null && currentTableArgumentName != null) {
+                // Called from eval - extract from on-time column
+                String onTimeColumn = onTimeColumnByTable.get(currentTableArgumentName);
+                if (onTimeColumn == null) {
+                    return null; // No on-time column configured
+                }
+
+                Object timeValue = currentRow.getField(onTimeColumn);
+                if (timeValue == null) {
+                    return null;
+                }
+                timeMillis = convertToMillis(timeValue);
+            } else {
+                return null;
+            }
+
+            return convertFromMillis(timeMillis, conversionClass);
+        }
+
+        @Override
+        public TimeType currentWatermark() {
+            if (globalWatermark == Long.MIN_VALUE) {
+                return null; // No watermark set yet
+            }
+            return convertFromMillis(globalWatermark, conversionClass);
+        }
+
+        @Override
+        public void registerOnTime(String name, TimeType time) {
+            checkNotNull(name, "Timer name must not be null");
+            checkNotNull(time, "Timer timestamp must not be null");
+
+            registerTimerInternal(convertToMillis(time), name);
+        }
+
+        @Override
+        public void registerOnTime(TimeType time) {
+            checkNotNull(time, "Timer timestamp must not be null");
+
+            registerTimerInternal(convertToMillis(time), null);
+        }
+
+        @Override
+        public void clearTimer(String name) {
+            checkNotNull(name, "Timer name must not be null");
+
+            clearTimerInternal(name, null);
+        }
+
+        @Override
+        public void clearTimer(TimeType time) {
+            checkNotNull(time, "Timer timestamp must not be null");
+
+            clearTimerInternal(null, convertToMillis(time));
+        }
+
+        @Override
+        public void clearAllTimers() {
+            Row partitionKey = getCurrentPartitionKey();
+            pendingTimersByPartition.remove(partitionKey);
+        }
+    }
+
+    /** Implementation of ProcessTableFunction.OnTimerContext for testing. */
+    private class TestOnTimerContext extends TestContext
+            implements ProcessTableFunction.OnTimerContext {
+
+        @Override
+        public String currentTimer() {
+            return currentFiringTimer != null ? currentFiringTimer.name : null;
+        }
+    }
+
+    /** Implementation of TableSemantics for test harness. */
+    private static class TestTableSemantics implements TableSemantics {
+        private final DataType dataType;
+        private final int[] partitionByColumns;
+        private final int timeColumn;
+
+        TestTableSemantics(DataType dataType, int[] partitionByColumns, int timeColumn) {
+            this.dataType = dataType;
+            this.partitionByColumns = partitionByColumns;
+            this.timeColumn = timeColumn;
+        }
+
+        @Override
+        public DataType dataType() {
+            return dataType;
+        }
+
+        @Override
+        public int[] partitionByColumns() {
+            return partitionByColumns;
+        }
+
+        @Override
+        public int[] orderByColumns() {
+            // TODO: ORDER BY not yet supported in test harness
+            return new int[0];
+        }
+
+        @Override
+        public int timeColumn() {
+            return timeColumn;
+        }
+
+        @Override
+        public Optional<ChangelogMode> changelogMode() {
+            return Optional.of(ChangelogMode.insertOnly());
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Helper Classes
+    // -------------------------------------------------------------------------
+
+    /** Represents a timer (pending or fired) for testing and introspection. */
+    public static class Timer {
+        private final TimerRecord record;
+        private final boolean hasFired;
+
+        Timer(TimerRecord record, boolean hasFired) {
+            this.record = record;
+            this.hasFired = hasFired;
+        }
+
+        public <TimeType> TimeType getTimestamp(Class<TimeType> conversionClass) {
+            return convertFromMillis(record.timestamp, conversionClass);
+        }
+
+        @Nullable
+        public String getName() {
+            return record.name;
+        }
+
+        @Nullable
+        public Object getKey() {
+            return record.partitionKey;
+        }
+
+        public boolean hasFired() {
+            return hasFired;
+        }
     }
 
     /** Helper class to track state arguments and their converters during eval() invocation. */
@@ -947,7 +1574,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 return;
             }
 
-            // Determine which columns to prepend
+            // PTFs with Context use a different execution model and do not prepend partition keys
+            if (evalHasContext) {
+                output.add(record);
+                return;
+            }
+
+            // Determine which columns to prepend (legacy PTFs without Context)
             if (activeTableArg.hasPassColumnsThrough) {
                 // PASS_COLUMNS_THROUGH: Prepend ALL input columns
                 output.add(prependAllColumns(record));
@@ -1089,6 +1722,10 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         // Initial state: stateArgumentName -> (partitionKey -> stateValue)
         private final Map<String, Map<Row, Object>> initialState = new HashMap<>();
 
+        // Context, Timer, and Watermark Configuration
+        private final Map<String, String> onTimeColumns = new HashMap<>();
+        private final Map<String, Long> initialWatermarksByTable = new HashMap<>();
+
         private Builder(Class<? extends ProcessTableFunction<OUT>> functionClass) {
             this.functionClass = checkNotNull(functionClass, "functionClass must not be null");
         }
@@ -1210,6 +1847,65 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
 
         // ---------------------------------------------------------------------
+        // Time and Watermark Configuration
+        // ---------------------------------------------------------------------
+
+        public Builder<OUT> withOnTimeColumn(String tableArgument, String columnName) {
+            checkNotNull(tableArgument, "tableArgument must not be null");
+            checkNotNull(columnName, "columnName must not be null");
+            onTimeColumns.put(tableArgument, columnName);
+            return this;
+        }
+
+        public Builder<OUT> withInitialWatermark(Instant watermark) {
+            checkNotNull(watermark, "watermark must not be null");
+            long millis = watermark.toEpochMilli();
+            // Set for all table arguments
+            for (String tableArg : tableArgs.keySet()) {
+                initialWatermarksByTable.put(tableArg, millis);
+            }
+            return this;
+        }
+
+        public Builder<OUT> withInitialWatermark(LocalDateTime watermark) {
+            checkNotNull(watermark, "watermark must not be null");
+            return withInitialWatermark(
+                    watermark.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+        }
+
+        public Builder<OUT> withInitialWatermark(long watermarkMillis) {
+            // Set for all table arguments
+            for (String tableArg : tableArgs.keySet()) {
+                initialWatermarksByTable.put(tableArg, watermarkMillis);
+            }
+            return this;
+        }
+
+        public Builder<OUT> withInitialWatermarkForTable(String tableArgument, Instant watermark) {
+            checkNotNull(tableArgument, "tableArgument must not be null");
+            checkNotNull(watermark, "watermark must not be null");
+            initialWatermarksByTable.put(tableArgument, watermark.toEpochMilli());
+            return this;
+        }
+
+        public Builder<OUT> withInitialWatermarkForTable(
+                String tableArgument, LocalDateTime watermark) {
+            checkNotNull(tableArgument, "tableArgument must not be null");
+            checkNotNull(watermark, "watermark must not be null");
+            initialWatermarksByTable.put(
+                    tableArgument,
+                    watermark.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+            return this;
+        }
+
+        public Builder<OUT> withInitialWatermarkForTable(
+                String tableArgument, long watermarkMillis) {
+            checkNotNull(tableArgument, "tableArgument must not be null");
+            initialWatermarksByTable.put(tableArgument, watermarkMillis);
+            return this;
+        }
+
+        // ---------------------------------------------------------------------
         // Build
         // ---------------------------------------------------------------------
 
@@ -1234,6 +1930,18 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             // Validate that the eval method does not have currently unsupported arguments
             validateEvalMethodSupported(evalMethod, arguments);
+
+            // Detect if eval() has Context parameter
+            boolean evalHasContext = false;
+            java.lang.reflect.Parameter[] evalParams = evalMethod.getParameters();
+            if (evalParams.length > 0
+                    && ProcessTableFunction.Context.class.isAssignableFrom(
+                            evalParams[0].getType())) {
+                evalHasContext = true;
+            }
+
+            // Find onTimer method if present
+            java.lang.reflect.Method onTimerMethod = findOnTimerMethod(functionClass);
 
             // Validate partition consistency for multi-table PTFs
             validatePartitionConsistency(arguments);
@@ -1307,7 +2015,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                             extractScalarValues(arguments),
                             inputConverters,
                             outputConverters,
-                            stateConverters);
+                            stateConverters,
+                            evalHasContext,
+                            onTimerMethod,
+                            onTimeColumns,
+                            initialWatermarksByTable);
 
             // Populate initial state if provided
             for (Map.Entry<String, Map<Row, Object>> entry : initialState.entrySet()) {
@@ -1420,37 +2132,56 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             }
         }
 
-        /**
-         * Validates that the eval() method doesn't use unsupported features. Temporary, until
-         * Context is supported.
-         */
+        /** Validates that the eval() method doesn't use unsupported features. */
         private void validateEvalMethodSupported(
                 java.lang.reflect.Method evalMethod, List<ArgumentInfo> arguments) {
             java.lang.reflect.Parameter[] parameters = evalMethod.getParameters();
 
-            for (int i = 0; i < parameters.length; i++) {
-                java.lang.reflect.Parameter param = parameters[i];
-                Class<?> paramType = param.getType();
-
-                if (ProcessTableFunction.Context.class.isAssignableFrom(paramType)) {
-                    throw new IllegalStateException(
-                            String.format(
-                                    "ProcessTableFunctionTestHarness does not yet support Context parameters. "
-                                            + "Found Context parameter at position %d in eval() method. ",
-                                    i));
-                }
+            // Check if first parameter is Context (optional)
+            boolean hasContext = false;
+            int expectedParamCount = arguments.size();
+            if (parameters.length > 0
+                    && ProcessTableFunction.Context.class.isAssignableFrom(
+                            parameters[0].getType())) {
+                hasContext = true;
+                expectedParamCount++; // Context not counted in arguments list
             }
 
-            // Parameter count should match arguments list
-            if (parameters.length != arguments.size()) {
+            // Parameter count should match arguments list (plus optional Context)
+            if (parameters.length != expectedParamCount) {
                 long stateCount =
                         arguments.stream().filter(arg -> arg instanceof StateArgumentInfo).count();
                 long nonStateCount = arguments.size() - stateCount;
                 throw new IllegalStateException(
                         String.format(
-                                "Parameter count mismatch: eval() has %d parameters but expected %d (%d state + %d arguments). "
+                                "Parameter count mismatch: eval() has %d parameters but expected %d (%s%d state + %d arguments). "
                                         + "This may indicate missing @StateHint or @ArgumentHint annotations.",
-                                parameters.length, arguments.size(), stateCount, nonStateCount));
+                                parameters.length,
+                                expectedParamCount,
+                                hasContext ? "1 context + " : "",
+                                stateCount,
+                                nonStateCount));
+            }
+        }
+
+        private static @Nullable java.lang.reflect.Method findOnTimerMethod(
+                Class<?> functionClass) {
+            List<java.lang.reflect.Method> matches = new ArrayList<>();
+            for (java.lang.reflect.Method method : functionClass.getMethods()) {
+                if (method.getName().equals("onTimer")) {
+                    matches.add(method);
+                }
+            }
+
+            if (matches.isEmpty()) {
+                return null; // No onTimer, that's OK
+            } else if (matches.size() == 1) {
+                return matches.get(0);
+            } else {
+                throw new IllegalStateException(
+                        "Found multiple onTimer methods in "
+                                + functionClass
+                                + ". Only one is allowed.");
             }
         }
 
@@ -1591,6 +2322,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             java.lang.reflect.Parameter[] parameters = evalMethod.getParameters();
             int paramIndex = 0;
+
+            // Skip Context parameter if present (Context is first parameter)
+            if (parameters.length > 0
+                    && ProcessTableFunction.Context.class.isAssignableFrom(
+                            parameters[0].getType())) {
+                paramIndex = 1;
+            }
 
             // Process state parameters first
             for (Map.Entry<String, org.apache.flink.table.types.inference.StateTypeStrategy> entry :
@@ -1757,8 +2495,17 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 boolean hasPassColumnsThrough =
                         staticArg.getTraits().contains(StaticArgumentTrait.PASS_COLUMNS_THROUGH);
 
+                // Compute TableSemantics once during build
+                TestTableSemantics tableSemantics =
+                        buildTableSemantics(name, dataType, partitionColumnNames);
+
                 return new TableArgumentInfo(
-                        name, dataType, primaryTrait, partitionColumnNames, hasPassColumnsThrough);
+                        name,
+                        dataType,
+                        primaryTrait,
+                        partitionColumnNames,
+                        hasPassColumnsThrough,
+                        tableSemantics);
             }
         }
 
@@ -1809,6 +2556,26 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 }
             }
             return config.columnNames;
+        }
+
+        /** Build TableSemantics for a table argument during harness construction. */
+        private TestTableSemantics buildTableSemantics(
+                String argName, DataType dataType, String[] partitionColumnNames) {
+            int[] partitionByColumns =
+                    convertColumnNamesToIndices(
+                            partitionColumnNames, dataType, argName, "partition");
+
+            // Find time column index (if configured)
+            int timeColumn = -1;
+            String onTimeColumnName = onTimeColumns.get(argName);
+            if (onTimeColumnName != null) {
+                int[] timeColumns =
+                        convertColumnNamesToIndices(
+                                new String[] {onTimeColumnName}, dataType, argName, "on-time");
+                timeColumn = timeColumns[0];
+            }
+
+            return new TestTableSemantics(dataType, partitionByColumns, timeColumn);
         }
 
         private void validateArgumentConfiguration(List<ArgumentInfo> arguments) {
@@ -1911,17 +2678,20 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         final ArgumentTrait trait;
         final String[] partitionColumnNames; // nullable
         final boolean hasPassColumnsThrough;
+        final TestTableSemantics tableSemantics;
 
         TableArgumentInfo(
                 String name,
                 DataType dataType,
                 ArgumentTrait trait,
                 String[] partitionColumnNames,
-                boolean hasPassColumnsThrough) {
+                boolean hasPassColumnsThrough,
+                TestTableSemantics tableSemantics) {
             super(name, dataType);
             this.trait = trait;
             this.partitionColumnNames = partitionColumnNames;
             this.hasPassColumnsThrough = hasPassColumnsThrough;
+            this.tableSemantics = tableSemantics;
         }
 
         boolean isSetSemantic() {
@@ -2044,6 +2814,80 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Helper Methods for Context/Timer/Watermark Support
+    // -------------------------------------------------------------------------
+
+    private void recalculateGlobalWatermark() {
+        if (watermarkByTable.isEmpty()) {
+            globalWatermark = Long.MIN_VALUE;
+        } else {
+            globalWatermark =
+                    watermarkByTable.values().stream().min(Long::compare).orElse(Long.MIN_VALUE);
+        }
+    }
+
+    private Row getCurrentPartitionKey() {
+        if (currentRow == null || currentTableArgumentName == null) {
+            return Row.of(); // Default partition key for timer context
+        }
+
+        // Find the table argument to get partition configuration
+        TableArgumentInfo tableArg = null;
+        for (ArgumentInfo arg : arguments) {
+            if (arg instanceof TableArgumentInfo
+                    && ((TableArgumentInfo) arg).name.equals(currentTableArgumentName)) {
+                tableArg = (TableArgumentInfo) arg;
+                break;
+            }
+        }
+
+        if (tableArg == null || tableArg.partitionColumnNames == null) {
+            return Row.of(); // No partitioning
+        }
+
+        // Extract partition key values from current row using column indices
+        Object[] partitionKeyValues = new Object[tableArg.partitionColumnNames.length];
+        for (int i = 0; i < tableArg.partitionColumnNames.length; i++) {
+            String columnName = tableArg.partitionColumnNames[i];
+            int columnIndex = getFieldIndex(tableArg.dataType, columnName);
+            partitionKeyValues[i] = currentRow.getField(columnIndex);
+        }
+
+        return Row.of(partitionKeyValues);
+    }
+
+    private void registerTimerInternal(long timestamp, @Nullable String name) {
+        Row partitionKey = getCurrentPartitionKey();
+        TimerRecord newTimer = new TimerRecord(timestamp, name, partitionKey);
+
+        List<TimerRecord> timerList =
+                pendingTimersByPartition.computeIfAbsent(partitionKey, k -> new ArrayList<>());
+
+        // Named timers replace any existing timer with the same name (not additive)
+        if (name != null) {
+            timerList.removeIf(t -> Objects.equals(t.name, name));
+        } else {
+            timerList.removeIf(t -> t.name == null && t.timestamp == timestamp);
+        }
+
+        timerList.add(newTimer);
+        timerList.sort(null);
+    }
+
+    private void clearTimerInternal(@Nullable String name, @Nullable Long timestamp) {
+        Row partitionKey = getCurrentPartitionKey();
+        List<TimerRecord> timerList = pendingTimersByPartition.get(partitionKey);
+
+        if (timerList != null) {
+            if (name != null) {
+                timerList.removeIf(t -> Objects.equals(t.name, name));
+            } else if (timestamp != null) {
+                timerList.removeIf(t -> t.name == null && t.timestamp == timestamp);
+            }
+        }
+    }
+
     private static class PartitionConfiguration {
         final String tableName;
         final String[] columnNames;
@@ -2053,4 +2897,61 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             this.columnNames = columnNames;
         }
     }
+
+    /** Internal representation of a registered timer. */
+    private static class TimerRecord implements Comparable<TimerRecord> {
+        final long timestamp; // milliseconds since epoch
+        @Nullable final String name; // null for unnamed timers
+        final Row partitionKey;
+
+        TimerRecord(long timestamp, @Nullable String name, Row partitionKey) {
+            this.timestamp = timestamp;
+            this.name = name;
+            this.partitionKey = partitionKey;
+        }
+
+        @Override
+        public int compareTo(TimerRecord other) {
+            int timestampCmp = Long.compare(this.timestamp, other.timestamp);
+            if (timestampCmp != 0) {
+                return timestampCmp;
+            }
+
+            // For same timestamp, sort by name (deterministic ordering)
+            if (this.name == null && other.name == null) {
+                return 0;
+            }
+            // Unnamed timers sort after named — ensures named timers fire first
+            if (this.name == null) {
+                return 1;
+            }
+            if (other.name == null) {
+                return -1;
+            }
+            return this.name.compareTo(other.name);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof TimerRecord)) {
+                return false;
+            }
+            TimerRecord that = (TimerRecord) o;
+            return timestamp == that.timestamp
+                    && Objects.equals(name, that.name)
+                    && Objects.equals(partitionKey, that.partitionKey);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(timestamp, name, partitionKey);
+        }
+    }
+
+    /**
+     * Represents a timer (pending or fired).
+     *
+     * <p>Provides access to timer metadata including timestamp, name, partition key, and firing
+     * status.
+     */
 }

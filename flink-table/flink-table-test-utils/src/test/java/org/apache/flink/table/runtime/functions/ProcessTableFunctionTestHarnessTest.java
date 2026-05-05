@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ProcessTableFunctionTestHarnessTest {
@@ -993,19 +994,15 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
-    void testContextParameterRejected() {
-        Exception exception =
-                assertThrows(
-                        IllegalStateException.class,
-                        () ->
-                                ProcessTableFunctionTestHarness.ofClass(PTFWithContext.class)
-                                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
-                                        .build());
+    void testContextParameterSupported() throws Exception {
+        // Verify that Context parameters are now supported
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithContext.class)
+                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                        .build();
 
-        assertThat(exception.getMessage())
-                .contains("does not yet support Context parameters")
-                .contains("Context parameter")
-                .contains("position 0");
+        assertThat(harness).isNotNull();
+        harness.close();
     }
 
     @Test
@@ -1739,6 +1736,520 @@ class ProcessTableFunctionTestHarnessTest {
                 harness.getStateForKey(
                         "mapState", Row.of(0), org.apache.flink.table.api.dataview.MapView.class);
         assertThat(mapState.getMap()).isEmpty(); // Should be expired now
+
+        harness.close();
+    }
+
+    // -------------------------------------------------------------------------
+    // Timer and Watermark Tests
+    // -------------------------------------------------------------------------
+
+    /** PTF that uses Context to register named timers. */
+    @DataTypeHint("ROW<event STRING>")
+    public static class TimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                ProcessTableFunction.Context ctx,
+                @ArgumentHint(
+                                value = ArgumentTrait.SET_SEMANTIC_TABLE,
+                                type = @DataTypeHint("ROW<id INT, ts TIMESTAMP(3), event STRING>"))
+                        Row input) {
+            String event = input.getFieldAs("event");
+            java.time.LocalDateTime timestamp = input.getFieldAs("ts");
+
+            // Register timer 1 second after event
+            ctx.timeContext(java.time.LocalDateTime.class)
+                    .registerOnTime("timeout-" + event, timestamp.plusNanos(1000 * 1_000_000L));
+
+            collect(Row.of("processed-" + event));
+        }
+
+        public void onTimer(ProcessTableFunction.OnTimerContext ctx) {
+            String timerName = ctx.currentTimer();
+            collect(Row.of("timer-fired-" + timerName));
+        }
+    }
+
+    /** PTF that uses unnamed timers. */
+    @DataTypeHint("ROW<event STRING>")
+    public static class UnnamedTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                ProcessTableFunction.Context ctx,
+                @ArgumentHint(
+                                value = ArgumentTrait.SET_SEMANTIC_TABLE,
+                                type = @DataTypeHint("ROW<id INT, ts TIMESTAMP(3)>"))
+                        Row input) {
+            java.time.LocalDateTime timestamp = input.getFieldAs("ts");
+
+            // Register unnamed timer
+            ctx.timeContext(java.time.LocalDateTime.class)
+                    .registerOnTime(timestamp.plusNanos(500 * 1_000_000L));
+
+            collect(Row.of("processed"));
+        }
+
+        public void onTimer(ProcessTableFunction.OnTimerContext ctx) {
+            assertThat(ctx.currentTimer()).isNull(); // Unnamed timer
+            collect(Row.of("timer-fired"));
+        }
+    }
+
+    /** PTF with state that gets accessed in onTimer. */
+    @DataTypeHint("ROW<count INT>")
+    public static class TimerWithStatePTF extends ProcessTableFunction<Row> {
+
+        public static class CounterState {
+            public int count = 0;
+        }
+
+        public void eval(
+                ProcessTableFunction.Context ctx,
+                @StateHint CounterState counter,
+                @ArgumentHint(
+                                value = ArgumentTrait.SET_SEMANTIC_TABLE,
+                                type = @DataTypeHint("ROW<id INT, ts TIMESTAMP(3)>"))
+                        Row input) {
+            counter.count++;
+            java.time.LocalDateTime timestamp = input.getFieldAs("ts");
+
+            // Register unnamed timer to output count (allows multiple timers)
+            ctx.timeContext(java.time.LocalDateTime.class)
+                    .registerOnTime(timestamp.plusNanos(1000 * 1_000_000L));
+        }
+
+        public void onTimer(
+                ProcessTableFunction.OnTimerContext ctx, @StateHint CounterState counter) {
+            collect(Row.of(counter.count));
+        }
+    }
+
+    /** PTF without onTimer method. */
+    @DataTypeHint("ROW<event STRING>")
+    public static class NoOnTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                ProcessTableFunction.Context ctx,
+                @ArgumentHint(
+                                value = ArgumentTrait.SET_SEMANTIC_TABLE,
+                                type = @DataTypeHint("ROW<id INT, ts TIMESTAMP(3)>"))
+                        Row input) {
+            java.time.LocalDateTime timestamp = input.getFieldAs("ts");
+
+            // Register timer but no onTimer method
+            ctx.timeContext(java.time.LocalDateTime.class)
+                    .registerOnTime("timeout", timestamp.plusNanos(1000 * 1_000_000L));
+
+            collect(Row.of("processed"));
+        }
+    }
+
+    @Test
+    void testNamedTimerRegistrationAndFiring() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<id INT, ts TIMESTAMP(3), event STRING>"))
+                        .withPartitionBy("input", "id")
+                        .withOnTimeColumn("input", "ts")
+                        .build();
+
+        // Process event at timestamp 1000ms
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(1000),
+                                java.time.ZoneId.systemDefault()),
+                        "click"));
+
+        List<Row> output = harness.getOutput();
+        assertThat(output).hasSize(1);
+        assertThat(output.get(0).getField(0)).isEqualTo("processed-click");
+
+        // Verify timer is pending
+        List<ProcessTableFunctionTestHarness.Timer> pendingTimers = harness.getPendingTimers();
+        assertThat(pendingTimers).hasSize(1);
+        assertThat(pendingTimers.get(0).getName()).isEqualTo("timeout-click");
+        assertThat(pendingTimers.get(0).getTimestamp(java.time.LocalDateTime.class))
+                .isEqualTo(
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(2000),
+                                java.time.ZoneId.systemDefault()));
+        assertThat(pendingTimers.get(0).hasFired()).isFalse();
+
+        harness.clearOutput();
+
+        // Advance watermark to fire timer
+        harness.advanceWatermark(
+                java.time.LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(2000), java.time.ZoneId.systemDefault()));
+
+        output = harness.getOutput();
+        assertThat(output).hasSize(1);
+        assertThat(output.get(0).getField(0)).isEqualTo("timer-fired-timeout-click");
+
+        // Verify timer has fired
+        assertThat(harness.getPendingTimers()).isEmpty();
+        assertThat(harness.getFiredTimers()).hasSize(1);
+        assertThat(harness.getFiredTimers().get(0).hasFired()).isTrue();
+
+        harness.close();
+    }
+
+    @Test
+    void testUnnamedTimerRegistrationAndFiring() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(UnnamedTimerPTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "id")
+                        .withOnTimeColumn("input", "ts")
+                        .build();
+
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(1000),
+                                java.time.ZoneId.systemDefault())));
+
+        assertThat(harness.getOutput()).hasSize(1);
+        assertThat(harness.getPendingTimers()).hasSize(1);
+        assertThat(harness.getPendingTimers().get(0).getName()).isNull();
+
+        harness.clearOutput();
+        harness.advanceWatermark(
+                java.time.LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(1500), java.time.ZoneId.systemDefault()));
+
+        assertThat(harness.getOutput()).hasSize(1);
+        assertThat(harness.getPendingTimers()).isEmpty();
+        assertThat(harness.getFiredTimers()).hasSize(1);
+
+        harness.close();
+    }
+
+    @Test
+    void testTimerReplacement() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<id INT, ts TIMESTAMP(3), event STRING>"))
+                        .withPartitionBy("input", "id")
+                        .withOnTimeColumn("input", "ts")
+                        .build();
+
+        // Register timer at 2000ms
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(1000),
+                                java.time.ZoneId.systemDefault()),
+                        "click"));
+
+        List<ProcessTableFunctionTestHarness.Timer> timers =
+                harness.getPendingTimers("timeout-click");
+        assertThat(timers).hasSize(1);
+        assertThat(timers.get(0).getTimestamp(java.time.LocalDateTime.class))
+                .isEqualTo(
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(2000),
+                                java.time.ZoneId.systemDefault()));
+
+        // Register same timer name at 3000ms (should replace)
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(2000),
+                                java.time.ZoneId.systemDefault()),
+                        "click"));
+
+        timers = harness.getPendingTimers("timeout-click");
+        assertThat(timers).hasSize(1); // Only one timer with this name
+        assertThat(timers.get(0).getTimestamp(java.time.LocalDateTime.class))
+                .isEqualTo(
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(3000),
+                                java.time.ZoneId.systemDefault())); // Updated timestamp
+
+        harness.close();
+    }
+
+    @Test
+    void testMultipleTimersFiringInOrder() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<id INT, ts TIMESTAMP(3), event STRING>"))
+                        .withPartitionBy("input", "id")
+                        .withOnTimeColumn("input", "ts")
+                        .build();
+
+        // Register timers at different timestamps
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(3000),
+                                java.time.ZoneId.systemDefault()),
+                        "third"));
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(1000),
+                                java.time.ZoneId.systemDefault()),
+                        "first"));
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(2000),
+                                java.time.ZoneId.systemDefault()),
+                        "second"));
+
+        harness.clearOutput();
+
+        // Advance watermark to fire all timers
+        harness.advanceWatermark(
+                java.time.LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(5000), java.time.ZoneId.systemDefault()));
+
+        List<Row> output = harness.getOutput();
+        assertThat(output).hasSize(3);
+
+        // Verify deterministic firing order (sorted by timestamp, then name)
+        assertThat(output.get(0).getField(0)).isEqualTo("timer-fired-timeout-first");
+        assertThat(output.get(1).getField(0)).isEqualTo("timer-fired-timeout-second");
+        assertThat(output.get(2).getField(0)).isEqualTo("timer-fired-timeout-third");
+
+        harness.close();
+    }
+
+    @Test
+    void testStateAccessInOnTimer() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerWithStatePTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "id")
+                        .withOnTimeColumn("input", "ts")
+                        .build();
+
+        // Process 3 events - counter should increment each time
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(1000),
+                                java.time.ZoneId.systemDefault())));
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(1500),
+                                java.time.ZoneId.systemDefault())));
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(2000),
+                                java.time.ZoneId.systemDefault())));
+
+        harness.clearOutput();
+
+        // Fire timer - should access state and emit count=3
+        harness.advanceWatermark(
+                java.time.LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(3000), java.time.ZoneId.systemDefault()));
+
+        List<Row> output = harness.getOutput();
+        // Timer registered at 2000ms, 2500ms, 3000ms - all should fire
+        assertThat(output).hasSize(3);
+        // All should see count=3 (state is shared across timer firings)
+        assertThat(output.get(0).getField(0)).isEqualTo(3);
+
+        harness.close();
+    }
+
+    @Test
+    void testTimerIntrospection() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<id INT, ts TIMESTAMP(3), event STRING>"))
+                        .withPartitionBy("input", "id")
+                        .withOnTimeColumn("input", "ts")
+                        .build();
+
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(1000),
+                                java.time.ZoneId.systemDefault()),
+                        "click"));
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(2000),
+                                java.time.ZoneId.systemDefault()),
+                        "view"));
+
+        // Check pending timers
+        assertThat(harness.getPendingTimers()).hasSize(2);
+        assertThat(harness.getPendingTimers("timeout-click")).hasSize(1);
+        assertThat(harness.getPendingTimers("timeout-view")).hasSize(1);
+        assertThat(harness.getFiredTimers()).isEmpty();
+
+        // Fire one timer
+        harness.advanceWatermark(
+                java.time.LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(2000), java.time.ZoneId.systemDefault()));
+
+        assertThat(harness.getPendingTimers()).hasSize(1);
+        assertThat(harness.getFiredTimers()).hasSize(1);
+        assertThat(harness.getFiredTimers("timeout-click")).hasSize(1);
+
+        // Clear fired timers
+        harness.clearFiredTimers();
+        assertThat(harness.getFiredTimers()).isEmpty();
+
+        harness.close();
+    }
+
+    @Test
+    void testWatermarkBackwardMovementThrowsException() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<id INT, ts TIMESTAMP(3), event STRING>"))
+                        .withPartitionBy("input", "id")
+                        .withOnTimeColumn("input", "ts")
+                        .build();
+
+        harness.advanceWatermark(
+                java.time.LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(2000), java.time.ZoneId.systemDefault()));
+
+        assertThatThrownBy(
+                        () ->
+                                harness.advanceWatermark(
+                                        java.time.LocalDateTime.ofInstant(
+                                                java.time.Instant.ofEpochMilli(1000),
+                                                java.time.ZoneId.systemDefault())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Cannot move watermark backward");
+
+        harness.close();
+    }
+
+    @Test
+    void testNoOnTimerMethodThrowsException() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(NoOnTimerPTF.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT, ts TIMESTAMP(3)>"))
+                        .withPartitionBy("input", "id")
+                        .withOnTimeColumn("input", "ts")
+                        .build();
+
+        harness.processElement(
+                Row.of(
+                        1,
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(1000),
+                                java.time.ZoneId.systemDefault())));
+
+        assertThatThrownBy(
+                        () ->
+                                harness.advanceWatermark(
+                                        java.time.LocalDateTime.ofInstant(
+                                                java.time.Instant.ofEpochMilli(2000),
+                                                java.time.ZoneId.systemDefault())))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Timer fired but no onTimer() method is defined");
+
+        harness.close();
+    }
+
+    @Test
+    void testInitialWatermark() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                "input", DataTypes.of("ROW<id INT, ts TIMESTAMP(3), event STRING>"))
+                        .withPartitionBy("input", "id")
+                        .withOnTimeColumn("input", "ts")
+                        .withInitialWatermark(
+                                java.time.LocalDateTime.ofInstant(
+                                        java.time.Instant.ofEpochMilli(1000),
+                                        java.time.ZoneId.systemDefault()))
+                        .build();
+
+        assertThat(harness.getCurrentWatermarkForTable("input", java.time.LocalDateTime.class))
+                .isEqualTo(
+                        java.time.LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(1000),
+                                java.time.ZoneId.systemDefault()));
+
+        harness.close();
+    }
+
+    // -------------------------------------------------------------------------
+    // Tests for tableSemanticsFor()
+    // -------------------------------------------------------------------------
+
+    @DataTypeHint("ROW<field_count INT, partition_count INT, time_column_index INT>")
+    public static class IntrospectTablePTF extends ProcessTableFunction<Row> {
+        public void eval(Context ctx, @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            org.apache.flink.table.functions.TableSemantics semantics =
+                    ctx.tableSemanticsFor("input");
+
+            int fieldCount = semantics.dataType().getChildren().size();
+            int partitionCount = semantics.partitionByColumns().length;
+            int timeColumnIndex = semantics.timeColumn();
+
+            collect(Row.of(fieldCount, partitionCount, timeColumnIndex));
+        }
+    }
+
+    @Test
+    void testTableSemanticsFor_BasicIntrospection() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(IntrospectTablePTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.ROW(
+                                        DataTypes.FIELD("id", DataTypes.INT()),
+                                        DataTypes.FIELD("name", DataTypes.STRING()),
+                                        DataTypes.FIELD("ts", DataTypes.TIMESTAMP(3))))
+                        .withPartitionBy("input", "id", "name")
+                        .withOnTimeColumn("input", "ts")
+                        .build();
+
+        harness.processElement(Row.of(1, "Alice", null));
+
+        assertThat(harness.getOutput())
+                .containsExactly(Row.of(3, 2, 2)); // 3 fields, 2 partition columns, time at index 2
+
+        harness.close();
+    }
+
+    @Test
+    void testTableSemanticsFor_NoTimeColumn() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(IntrospectTablePTF.class)
+                        .withTableArgument(
+                                "input",
+                                DataTypes.ROW(
+                                        DataTypes.FIELD("id", DataTypes.INT()),
+                                        DataTypes.FIELD("value", DataTypes.BIGINT())))
+                        .withPartitionBy("input", "id")
+                        .build();
+
+        harness.processElement(Row.of(1, 100L));
+
+        assertThat(harness.getOutput())
+                .containsExactly(Row.of(2, 1, -1)); // 2 fields, 1 partition column, no time (-1)
 
         harness.close();
     }

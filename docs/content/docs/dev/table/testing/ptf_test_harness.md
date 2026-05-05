@@ -670,13 +670,295 @@ void testElementTTL() throws Exception {
 
 {{< top >}}
 
+## Testing Time and Timers
+
+Process Table Functions can work with event time, register timers, and respond to timer firings. The test harness fully supports these time-based features.
+
+### Basic Timer Registration
+
+Use the `Context` parameter to access time services and register timers:
+
+{{< tabs "basic-timer" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<message STRING>")
+public class TimeoutPTF extends ProcessTableFunction<Row> {
+
+    public void eval(
+            Context ctx,
+            @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+        // Register a timer 5 seconds in the future
+        Instant timeout = Instant.ofEpochMilli(input.getFieldAs("timestamp"))
+            .plusSeconds(5);
+        ctx.timeContext(Instant.class).registerOnTime("timeout", timeout);
+        collect(Row.of("Timer registered"));
+    }
+
+    public void onTimer(OnTimerContext ctx) {
+        collect(Row.of("Timer fired: " + ctx.currentTimer()));
+    }
+}
+
+@Test
+void testTimer() throws Exception {
+    try (ProcessTableFunctionTestHarness<Row> harness =
+            ProcessTableFunctionTestHarness.ofClass(TimeoutPTF.class)
+                    .withTableArgument("input", DataTypes.of("ROW<id INT, timestamp BIGINT>"))
+                    .withPartitionBy("input", "id")
+                    .withOnTimeColumn("input", "timestamp")
+                    .build()) {
+
+        // Process element with timestamp 1000ms
+        harness.processElement(Row.of(1, 1000L));
+        assertThat(harness.getOutput()).containsExactly(Row.of("Timer registered"));
+        harness.clearOutput();
+
+        // Advance watermark past timer timestamp (1000 + 5000 = 6000)
+        harness.advanceWatermark(Instant.ofEpochMilli(6000));
+
+        // Timer fires
+        assertThat(harness.getOutput()).containsExactly(Row.of("Timer fired: timeout"));
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### Named vs Unnamed Timers
+
+Timers can be **named** or **unnamed**. Named timers are identified by a string name, while unnamed timers are identified only by their timestamp:
+
+{{< tabs "timer-types" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<type STRING>")
+public class MultiTimerPTF extends ProcessTableFunction<Row> {
+
+    public void eval(Context ctx, @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+        Instant time = Instant.ofEpochMilli(input.getFieldAs("timestamp"));
+
+        // Named timer
+        ctx.timeContext(Instant.class).registerOnTime("named-timer", time.plusSeconds(10));
+
+        // Unnamed timer
+        ctx.timeContext(Instant.class).registerOnTime(time.plusSeconds(20));
+
+        collect(Row.of("Timers registered"));
+    }
+
+    public void onTimer(OnTimerContext ctx) {
+        String name = ctx.currentTimer();
+        if (name != null) {
+            collect(Row.of("Named: " + name));
+        } else {
+            collect(Row.of("Unnamed timer"));
+        }
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+**Timer Semantics**:
+- **Named timers** have replacement semantics - registering a timer with an existing name replaces the old timer
+- **Unnamed timers** are independent - multiple unnamed timers can exist for different timestamps
+- **Partition scoping** - timers are scoped to partition keys, just like state
+
+### Accessing Time in eval()
+
+Extract event time from the on-time column using `timeContext().time()`:
+
+{{< tabs "time-access" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<event_time TIMESTAMP(3)>")
+public class TimeExtractorPTF extends ProcessTableFunction<Row> {
+
+    public void eval(
+            Context ctx,
+            @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+
+        // Extract event time from the on-time column
+        Instant eventTime = ctx.timeContext(Instant.class).time();
+        collect(Row.of(eventTime));
+    }
+}
+
+@Test
+void testTimeExtraction() throws Exception {
+    try (ProcessTableFunctionTestHarness<Row> harness =
+            ProcessTableFunctionTestHarness.ofClass(TimeExtractorPTF.class)
+                    .withTableArgument("input", DataTypes.of("ROW<id INT, ts BIGINT>"))
+                    .withPartitionBy("input", "id")
+                    .withOnTimeColumn("input", "ts")  // Designate ts as on-time column
+                    .build()) {
+
+        harness.processElement(Row.of(1, 1000L));
+        assertThat(harness.getOutput()).containsExactly(
+            Row.of(Instant.ofEpochMilli(1000)));
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### Watermark Management
+
+Watermarks control when timers fire. Advance watermarks using `advanceWatermark()` or `advanceWatermarkForTable()`:
+
+{{< tabs "watermarks" >}}
+{{< tab "Java" >}}
+```java
+@Test
+void testWatermarks() throws Exception {
+    try (ProcessTableFunctionTestHarness<Row> harness =
+            ProcessTableFunctionTestHarness.ofClass(TimeoutPTF.class)
+                    .withTableArgument("input", DataTypes.of("ROW<id INT, ts BIGINT>"))
+                    .withPartitionBy("input", "id")
+                    .withOnTimeColumn("input", "ts")
+                    .withInitialWatermark(Instant.ofEpochMilli(0))  // Set initial watermark
+                    .build()) {
+
+        harness.processElement(Row.of(1, 1000L));
+
+        // Advance all table watermarks
+        harness.advanceWatermark(Instant.ofEpochMilli(6000));
+
+        // Or advance specific table watermark (useful for multi-table PTFs)
+        harness.advanceWatermarkForTable("input", Instant.ofEpochMilli(7000));
+
+        // Query current watermark
+        Instant current = harness.getCurrentWatermarkForTable("input", Instant.class);
+        assertThat(current).isEqualTo(Instant.ofEpochMilli(7000));
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+**Watermark Semantics**:
+- **Global watermark** = minimum watermark across all table inputs
+- Timers fire when `watermark >= timer.timestamp`
+- Watermarks cannot move backward (throws exception)
+- For multi-input PTFs, use `advanceWatermarkForTable()` to control per-table watermarks
+
+### Timer Introspection
+
+Inspect pending and fired timers during tests:
+
+{{< tabs "timer-introspection" >}}
+{{< tab "Java" >}}
+```java
+@Test
+void testTimerIntrospection() throws Exception {
+    try (ProcessTableFunctionTestHarness<Row> harness =
+            ProcessTableFunctionTestHarness.ofClass(TimeoutPTF.class)
+                    .withTableArgument("input", DataTypes.of("ROW<id INT, ts BIGINT>"))
+                    .withPartitionBy("input", "id")
+                    .withOnTimeColumn("input", "ts")
+                    .build()) {
+
+        harness.processElement(Row.of(1, 1000L));
+
+        // Check pending timers
+        List<Timer> pending = harness.getPendingTimers();
+        assertThat(pending).hasSize(1);
+        assertThat(pending.get(0).getName()).isEqualTo("timeout");
+        assertThat(pending.get(0).getTimestamp(Instant.class))
+            .isEqualTo(Instant.ofEpochMilli(6000));
+        assertThat(pending.get(0).hasFired()).isFalse();
+
+        // Fire the timer
+        harness.advanceWatermark(Instant.ofEpochMilli(7000));
+
+        // Check fired timers
+        List<Timer> fired = harness.getFiredTimers();
+        assertThat(fired).hasSize(1);
+        assertThat(fired.get(0).hasFired()).isTrue();
+
+        // Pending timers are now empty
+        assertThat(harness.getPendingTimers()).isEmpty();
+
+        // Clear fired timer history
+        harness.clearFiredTimers();
+        assertThat(harness.getFiredTimers()).isEmpty();
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### State Access in onTimer
+
+Access and mutate state when timers fire:
+
+{{< tabs "timer-state" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<timeout_count BIGINT>")
+public class TimeoutCounterPTF extends ProcessTableFunction<Row> {
+
+    public static class CounterState {
+        public long timeouts = 0;
+    }
+
+    public void eval(
+            Context ctx,
+            @StateHint(type = @DataTypeHint("ROW<timeouts BIGINT>")) CounterState state,
+            @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+
+        Instant timeout = Instant.ofEpochMilli(input.getFieldAs("timestamp"))
+            .plusSeconds(5);
+        ctx.timeContext(Instant.class).registerOnTime("timeout", timeout);
+    }
+
+    public void onTimer(
+            OnTimerContext ctx,
+            @StateHint(type = @DataTypeHint("ROW<timeouts BIGINT>")) CounterState state) {
+
+        // State mutations in onTimer persist
+        state.timeouts++;
+        collect(Row.of(state.timeouts));
+    }
+}
+
+@Test
+void testTimerWithState() throws Exception {
+    try (ProcessTableFunctionTestHarness<Row> harness =
+            ProcessTableFunctionTestHarness.ofClass(TimeoutCounterPTF.class)
+                    .withTableArgument("input", DataTypes.of("ROW<id INT, timestamp BIGINT>"))
+                    .withPartitionBy("input", "id")
+                    .withOnTimeColumn("input", "timestamp")
+                    .build()) {
+
+        // Register two timers
+        harness.processElement(Row.of(1, 1000L));
+        harness.processElement(Row.of(1, 2000L));
+
+        // Fire first timer
+        harness.advanceWatermark(Instant.ofEpochMilli(6000));
+        assertThat(harness.getOutput()).containsExactly(Row.of(1L));
+        harness.clearOutput();
+
+        // Fire second timer - counter increments
+        harness.advanceWatermark(Instant.ofEpochMilli(7000));
+        assertThat(harness.getOutput()).containsExactly(Row.of(2L));
+
+        // Verify state persisted
+        CounterState state = harness.getStateForKey("state", Row.of(1), CounterState.class);
+        assertThat(state.timeouts).isEqualTo(2L);
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}
+
 ## Unimplemented Features
 
 | Feature                                                     | Support                   |
 |-------------------------------------------------------------|---------------------------|
-| **Context parameter**                                       | ❌ Not currently supported |
-| **Timers (onTimer)**                                        | ❌ Not currently supported |
-| **on_time / rowtime**                                       | ❌ Not currently supported |
 | **Update traits (SUPPORTS_UPDATES, REQUIRE_UPDATE_BEFORE)** | ❌ Not currently supported |
 
 {{< top >}}
