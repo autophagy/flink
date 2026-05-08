@@ -35,14 +35,12 @@ if [[ `uname -s` == "Darwin" && `uname -m` == "arm64" ]]; then
 fi
 
 retry_times=3
-install_command="python -m pip install $@"
-${install_command}
+python -m pip install "$@"
 status=$?
 while [[ ${status} -ne 0 ]] && [[ ${retry_times} -gt 0 ]]; do
     retry_times=$((retry_times-1))
-    # sleep 3 seconds and then reinstall.
     sleep 3
-    ${install_command}
+    python -m pip install "$@"
     status=$?
 done
 
