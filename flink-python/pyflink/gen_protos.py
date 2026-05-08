@@ -188,9 +188,9 @@ def _add_license_header(dir, file_name):
 def _check_grpcio_tools_version():
     version_str = importlib_metadata.version("grpcio-tools")
     version = parse_version(version_str)
-    if version < parse_version('1.29.0') or version > parse_version('1.71.0'):
+    if version < parse_version('1.29.0') or version > parse_version('1.80.0'):
         raise RuntimeError(
-            "Version of grpcio-tools must be between 1.29.0 and 1.71.0, got %s" % version_str)
+            "Version of grpcio-tools must be between 1.29.0 and 1.80.0, got %s" % version_str)
 
 
 if __name__ == '__main__':
