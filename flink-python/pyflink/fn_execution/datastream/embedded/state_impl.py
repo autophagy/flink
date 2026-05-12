@@ -223,7 +223,10 @@ class MapStateImpl(KeyedStateImpl, InternalMapState):
         entries = self._state.entries()
         if entries:
             for entry in entries:
-                raise Exception(f"{entries} // {type(entries)} // {str(dir(entry))} // {entry} // {type(entry)} // {self._state}")
+                a = f"{entries} // {type(entries)} // {str(dir(entry))}"
+                b = f"{entry} // {type(entry)} // {self._state}"
+                c = f"{self.keys()} // {self.values()}"
+                raise Exception(f"{a} // {b} // {c}")
                 yield (self._k_converter.to_internal(entry.getKey()),
                        self._v_converter.to_internal(entry.getValue()))
 
