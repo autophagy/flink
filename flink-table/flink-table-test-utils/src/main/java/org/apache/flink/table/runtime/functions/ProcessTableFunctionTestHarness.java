@@ -1067,7 +1067,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                     stateName));
                 }
                 DataType stateDataType = dataTypeOpt.get();
-
+                
                 Optional<Duration> ttlOpt = strategy.getTimeToLive(callContext);
                 stateArguments.add(
                         new StateArgumentInfo(stateName, stateDataType, ttlOpt.orElse(null)));
