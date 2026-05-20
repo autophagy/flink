@@ -2456,4 +2456,3 @@ void testPOJO() throws Exception {
 - Timers (`onTimer`)
 - `on_time` / `rowtime`
 - Update traits (`SUPPORTS_UPDATES`, `REQUIRE_UPDATE_BEFORE`)
-- State TTL (state is supported but TTL expiration is not yet implemented)

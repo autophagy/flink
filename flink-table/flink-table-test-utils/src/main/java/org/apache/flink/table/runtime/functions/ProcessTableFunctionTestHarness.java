@@ -51,6 +51,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -300,6 +303,43 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     /** Clear specific state entry for a given partition. */
     public void clearStateEntry(Row partitionKey, String stateName) {
         stateManager.clearStateEntry(partitionKey, stateName);
+    }
+
+    /**
+     * Advances the simulated system clock to the given timestamp (in milliseconds since epoch) and
+     * triggers TTL-based eviction of expired state entries.
+     *
+     * <p>State entries whose idle time (time since last write) meets or exceeds their configured
+     * TTL will be cleared. For value state, the entire value is reset. For ListView and MapView,
+     * expired elements/entries are removed individually.
+     *
+     * @param timestamp the new system time in milliseconds since epoch; must be >= current time
+     * @throws IllegalArgumentException if the timestamp is before the current system time
+     * @throws IllegalStateException if the harness is not open
+     */
+    public void advanceSystemClock(long timestamp) {
+        checkState(isOpen, "Harness is not open");
+        stateManager.advanceSystemClock(timestamp);
+    }
+
+    /**
+     * Advances the simulated system clock to the given {@link Instant} and triggers TTL-based
+     * eviction.
+     *
+     * @see #advanceSystemClock(long)
+     */
+    public void advanceSystemClock(Instant timestamp) {
+        advanceSystemClock(timestamp.toEpochMilli());
+    }
+
+    /**
+     * Advances the simulated system clock to the given {@link LocalDateTime} (interpreted in the
+     * system default time zone) and triggers TTL-based eviction.
+     *
+     * @see #advanceSystemClock(long)
+     */
+    public void advanceSystemClock(LocalDateTime timestamp) {
+        advanceSystemClock(timestamp.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
     }
 
     private void invokeEval(TableArgumentInfo activeTableArg, Row activeRow) throws Exception {
@@ -1067,8 +1107,9 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                     stateName));
                 }
                 DataType stateDataType = dataTypeOpt.get();
-                
+
                 Optional<Duration> ttlOpt = strategy.getTimeToLive(callContext);
+
                 stateArguments.add(
                         new StateArgumentInfo(stateName, stateDataType, ttlOpt.orElse(null)));
             }
@@ -1451,6 +1492,10 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         StateArgumentInfo(String name, DataType dataType, Duration ttl) {
             super(name, dataType);
             this.ttl = ttl;
+        }
+
+        boolean hasTtl() {
+            return ttl != null && !ttl.isZero() && !ttl.isNegative();
         }
     }
 

@@ -32,6 +32,9 @@ import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -357,6 +360,98 @@ class ProcessTableFunctionTestHarnessTest {
                 sum += v;
             }
             collect(Row.of(counter.count, sum));
+        }
+    }
+
+    // ---- TTL PTF definitions ----
+
+    /** PTF with value state that has a 5-second TTL. */
+    @DataTypeHint("ROW<count BIGINT>")
+    public static class PTFWithTtlValueState extends ProcessTableFunction<Row> {
+        public static class CounterState {
+            public long counter = 0L;
+        }
+
+        public void eval(
+                @StateHint(ttl = "5000 ms") CounterState state,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            state.counter++;
+            collect(Row.of(state.counter));
+        }
+    }
+
+    /** PTF with both TTL and non-TTL value state. */
+    @DataTypeHint("ROW<ttlCount BIGINT, permCount BIGINT>")
+    public static class PTFWithMixedTtlState extends ProcessTableFunction<Row> {
+        public static class TtlCounter {
+            public long counter = 0L;
+        }
+
+        public static class PermanentCounter {
+            public long counter = 0L;
+        }
+
+        public void eval(
+                @StateHint(ttl = "5000 ms") TtlCounter ttlState,
+                @StateHint PermanentCounter permState,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            ttlState.counter++;
+            permState.counter++;
+            collect(Row.of(ttlState.counter, permState.counter));
+        }
+    }
+
+    /** PTF with ListView state that has a 5-second TTL. */
+    @DataTypeHint("ROW<size INT>")
+    public static class PTFWithTtlListViewState extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint(ttl = "5000 ms", type = @DataTypeHint("ARRAY<INT>"))
+                        ListView<Integer> listState,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input)
+                throws Exception {
+            Integer value = input.getFieldAs("value");
+            listState.add(value);
+            int size = 0;
+            for (Integer ignored : listState.get()) {
+                size++;
+            }
+            collect(Row.of(size));
+        }
+    }
+
+    /** PTF with MapView state that has a 5-second TTL. */
+    @DataTypeHint("ROW<key STRING, count INT>")
+    public static class PTFWithTtlMapViewState extends ProcessTableFunction<Row> {
+        public void eval(
+                @StateHint(ttl = "5000 ms") MapView<String, Integer> mapState,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input)
+                throws Exception {
+            String key = input.getFieldAs("key");
+            Integer count = mapState.get(key);
+            if (count == null) {
+                mapState.put(key, 1);
+            } else {
+                mapState.put(key, count + 1);
+            }
+            collect(Row.of(key, mapState.get(key)));
+        }
+    }
+
+    /** PTF that only updates state when input value is positive. Negative values are read-only. */
+    @DataTypeHint("ROW<count BIGINT>")
+    public static class PTFWithConditionalTtlUpdate extends ProcessTableFunction<Row> {
+        public static class CounterState {
+            public long counter = 0L;
+        }
+
+        public void eval(
+                @StateHint(ttl = "5000 ms") CounterState state,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            int value = input.getFieldAs("value");
+            if (value > 0) {
+                state.counter++;
+            }
+            collect(Row.of(state.counter));
         }
     }
 
@@ -1414,5 +1509,361 @@ class ProcessTableFunctionTestHarnessTest {
         assertThat(exception.getMessage()).contains("nonExistentState");
         assertThat(exception.getMessage()).contains("Available states");
         assertThat(exception.getMessage()).contains("state");
+    }
+
+    // -------------------------------------------------------------------------
+    // TTL Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testTtlValueStateExpires() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.processElement(Row.of(1));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 1L));
+
+            harness.advanceSystemClock(5000L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 1L));
+        }
+    }
+
+    @Test
+    void testTtlValueStateSurvivesBeforeTtl() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.processElement(Row.of(1));
+            harness.advanceSystemClock(4999L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 2L));
+        }
+    }
+
+    @Test
+    void testTtlMultiplePartitionsDifferentTiming() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.processElement(Row.of(1));
+            harness.advanceSystemClock(3000L);
+            harness.processElement(Row.of(2));
+
+            // At time 5000: partition 1 has been idle for 5000ms (>= TTL), partition 2 for 2000ms
+            harness.advanceSystemClock(5000L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1));
+            harness.processElement(Row.of(2));
+
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 1L), Row.of(2, 2L));
+        }
+    }
+
+    @Test
+    void testTtlMixedTtlAndNonTtlState() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithMixedTtlState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.processElement(Row.of(1));
+            harness.processElement(Row.of(1));
+            assertThat(harness.getOutput()).contains(Row.of(1, 2L, 2L));
+
+            harness.advanceSystemClock(5000L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1));
+            // TTL state resets to 1, permanent state continues at 3
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 1L, 3L));
+        }
+    }
+
+    @Test
+    void testTtlRefreshOnWrite() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.processElement(Row.of(1));
+            harness.advanceSystemClock(3000L);
+            // Write again — this should refresh the TTL timestamp to 3000
+            harness.processElement(Row.of(1));
+
+            // At 7999ms: idle since 3000ms = 4999ms < 5000ms TTL
+            harness.advanceSystemClock(7999L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 3L));
+        }
+    }
+
+    @Test
+    void testTtlBackwardClockThrows() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.advanceSystemClock(5000L);
+            assertThrows(IllegalArgumentException.class, () -> harness.advanceSystemClock(4999L));
+        }
+    }
+
+    @Test
+    void testTtlNoOpWithoutTtlState() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithPojoState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.processElement(Row.of(1));
+            harness.processElement(Row.of(1));
+
+            harness.advanceSystemClock(999999L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 3L));
+        }
+    }
+
+    @Test
+    void testTtlListViewPerElement() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlListViewState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT, value INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            // Add element at time 0
+            harness.processElement(Row.of(1, 100));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 1));
+
+            // Add element at time 3000
+            harness.advanceSystemClock(3000L);
+            harness.clearOutput();
+            harness.processElement(Row.of(1, 200));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 2));
+
+            // At time 5000: first element (written at 0) has been idle 5000ms >= TTL, evicted
+            // Second element (written at 3000) idle 2000ms < TTL, survives
+            harness.advanceSystemClock(5000L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1, 300));
+            // 1 surviving + 1 new = 2
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 2));
+        }
+    }
+
+    @Test
+    void testTtlMapViewPerEntry() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlMapViewState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT, key STRING>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            // Put entry "a" at time 0
+            harness.processElement(Row.of(1, "a"));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, "a", 1));
+
+            // Put entry "b" at time 3000
+            harness.advanceSystemClock(3000L);
+            harness.clearOutput();
+            harness.processElement(Row.of(1, "b"));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, "b", 1));
+
+            // At time 5000: entry "a" (written at 0) idle 5000ms >= TTL, evicted
+            // entry "b" (written at 3000) idle 2000ms < TTL, survives
+            harness.advanceSystemClock(5000L);
+
+            harness.clearOutput();
+            // "a" was evicted, so this is a fresh entry
+            harness.processElement(Row.of(1, "a"));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, "a", 1));
+
+            // "b" survived, so count increments
+            harness.clearOutput();
+            harness.processElement(Row.of(1, "b"));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, "b", 2));
+        }
+    }
+
+    @Test
+    void testTtlInitialStateExpires() throws Exception {
+        PTFWithTtlValueState.CounterState initialState = new PTFWithTtlValueState.CounterState();
+        initialState.counter = 50L;
+
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .withInitialStateArgument("state", Row.of(1), initialState)
+                        .build()) {
+            PTFWithTtlValueState.CounterState state = harness.getStateForKey("state", Row.of(1));
+            assertThat(state.counter).isEqualTo(50L);
+
+            harness.advanceSystemClock(5000L);
+
+            harness.processElement(Row.of(1));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 1L));
+        }
+    }
+
+    @Test
+    void testTtlListViewFullEviction() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlListViewState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT, value INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.processElement(Row.of(1, 100));
+            harness.processElement(Row.of(1, 200));
+
+            // Advance past TTL — all elements expire
+            harness.advanceSystemClock(5000L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1, 300));
+            // Only the newly added element survives
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 1));
+        }
+    }
+
+    @Test
+    void testTtlMapViewFullEviction() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlMapViewState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT, key STRING>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.processElement(Row.of(1, "a"));
+            harness.processElement(Row.of(1, "b"));
+
+            // Advance past TTL — all entries expire
+            harness.advanceSystemClock(5000L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1, "a"));
+            // "a" was evicted, so this is a fresh entry with count=1
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, "a", 1));
+        }
+    }
+
+    @Test
+    void testAdvanceSystemClockSameTimeIsNoOp() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.processElement(Row.of(1));
+            harness.processElement(Row.of(1));
+
+            // Advance to 0 (same as current) — should not evict
+            harness.advanceSystemClock(0L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 3L));
+        }
+    }
+
+    @Test
+    void testAdvanceSystemClockInstantOverload() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.processElement(Row.of(1));
+            harness.advanceSystemClock(Instant.ofEpochMilli(5000L));
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 1L));
+        }
+    }
+
+    @Test
+    void testAdvanceSystemClockLocalDateTimeOverload() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithTtlValueState.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            harness.processElement(Row.of(1));
+
+            LocalDateTime futureTime =
+                    LocalDateTime.ofInstant(Instant.ofEpochMilli(5000L), ZoneId.systemDefault());
+            harness.advanceSystemClock(futureTime);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1));
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 1L));
+        }
+    }
+
+    @Test
+    void testTtlValueStateReadDoesNotRefreshTimestamp() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithConditionalTtlUpdate.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT, value INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            // Write at time 0 (positive value triggers state.counter++)
+            harness.processElement(Row.of(1, 1));
+
+            // Read-only eval at time 3000 (negative value, state unchanged)
+            harness.advanceSystemClock(3000L);
+            harness.processElement(Row.of(1, -1));
+
+            // Advance to 5000ms — 5000ms since the last WRITE at time 0
+            // Read-only eval should not have refreshed the timestamp
+            harness.advanceSystemClock(5000L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1, 1));
+            // State expired and reset — counter starts from 0 again → 1
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 1L));
+        }
+    }
+
+    @Test
+    void testTtlValueStateWriteRefreshesTimestamp() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithConditionalTtlUpdate.class)
+                        .withTableArgument("input", DataTypes.of("ROW<id INT, value INT>"))
+                        .withPartitionBy("input", "id")
+                        .build()) {
+            // Write at time 0
+            harness.processElement(Row.of(1, 1));
+
+            // Write again at time 3000 (positive value triggers state.counter++)
+            harness.advanceSystemClock(3000L);
+            harness.processElement(Row.of(1, 1));
+
+            // At 7999ms: 4999ms since last write at 3000 — should survive
+            harness.advanceSystemClock(7999L);
+
+            harness.clearOutput();
+            harness.processElement(Row.of(1, 1));
+            // State survived — counter is now 3
+            assertThat(harness.getOutput()).containsExactly(Row.of(1, 3L));
+        }
     }
 }
