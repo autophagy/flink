@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 
 /**
  * Converter between external state representations (ListView, MapView, Row & Pojo state) and
- * internal storage formats (ArrayData, MapData, & RowData).
+ * internal storage formats.
  */
 @Internal
 interface StateConverter {
@@ -33,6 +33,12 @@ interface StateConverter {
     /** Converts an internal storage format to external state object. */
     Object toExternal(Object internal);
 
-    /** Create new internal state instance. */
+    /** Creates a new empty internal state instance. */
     Object createNewInternalState();
+
+    /**
+     * Evicts expired elements/entries from a TTL-aware internal state object. Only DataView
+     * converters override this; value state eviction is handled by the state manager directly.
+     */
+    default void evictExpired(Object internalState, long now, long ttlMillis) {}
 }
