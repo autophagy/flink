@@ -2620,6 +2620,97 @@ void testTimerWithState() throws Exception {
 {{< /tab >}}
 {{< /tabs >}}
 
+#### Testing Updating (Changelog) Tables
+
+A table argument that declares `ArgumentTrait.SUPPORT_UPDATES` receives an updating changelog rather
+than an insert-only stream. Configure the changelog mode it carries with `.changelogMode()` on
+`TableArgument.Builder`; this is required for such an argument, and the harness rejects any row kind
+the configured mode does not contain. Feed rows of a given kind with the
+`processElement(RowKind, Object...)` overload (or `Row.ofKind(...)`).
+
+{{< tabs "changelog-input" >}}
+{{< tab "Java" >}}
+```java
+// A row-semantic PTF that accepts an updating input and echoes each row's kind and value.
+@DataTypeHint("ROW<seen STRING>")
+public class UpdatingConsumerPTF extends ProcessTableFunction<Row> {
+  public void eval(
+      @ArgumentHint({ArgumentTrait.ROW_SEMANTIC_TABLE, ArgumentTrait.SUPPORT_UPDATES}) Row input) {
+    collect(Row.of(input.getKind() + ":" + input.getFieldAs("value")));
+  }
+}
+
+@Test
+void testUpdatingInput() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(UpdatingConsumerPTF.class)
+    .withTableArgument(
+        TableArgument.forName("input")
+            .type(DataTypes.of("ROW<value INT>"))
+            // A SUPPORT_UPDATES argument must be told which changelog mode it receives.
+            .changelogMode(ChangelogMode.all())
+            .build())
+    .build()) {
+
+    harness.processElement(RowKind.INSERT, 10);
+    harness.processElement(RowKind.UPDATE_AFTER, 20);
+    harness.processElement(RowKind.DELETE, 10);
+
+    List<Row> output = harness.getFunctionOutput();
+    assertThat(output).containsExactly(
+        Row.of("INSERT:10"), Row.of("UPDATE_AFTER:20"), Row.of("DELETE:10"));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+**Upsert Input**: Upsert changelog modes (`ChangelogMode.upsert(...)`) apply to `SET_SEMANTIC_TABLE`
+arguments only. Configure the upsert key with `.upsertKey()` on `TableArgument.Builder`; its columns
+must cover the same set as the partition columns.
+
+{{< tabs "changelog-upsert" >}}
+{{< tab "Java" >}}
+```java
+@DataTypeHint("ROW<v INT>")
+public class UpsertConsumerPTF extends ProcessTableFunction<Row> {
+  public void eval(
+      @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.SUPPORT_UPDATES}) Row input) {
+    collect(Row.of((Integer) input.getFieldAs("value")));
+  }
+}
+
+@Test
+void testUpsertInput() throws Exception {
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(UpsertConsumerPTF.class)
+    .withTableArgument(
+        TableArgument.forName("input")
+            .type(DataTypes.of("ROW<key STRING, value INT>"))
+            .partitionBy("key")
+            .upsertKey("key")
+            .changelogMode(ChangelogMode.upsert(true))
+            .build())
+    .build()) {
+
+    harness.processElement(RowKind.INSERT, "A", 1);
+    harness.processElement(RowKind.UPDATE_AFTER, "A", 2);
+
+    List<Row> output = harness.getFunctionOutput();
+    assertThat(output).containsExactly(Row.of(1), Row.of(2));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+**Output Changelog Mode**: A PTF that produces updates must declare an output changelog mode. If it
+implements `ChangelogFunction`, the harness derives the mode automatically; otherwise pin it with
+`.withOutputChangelogMode()`. The harness rejects any collected row whose kind the output mode does
+not contain.
+
+{{< top >}}
+
 #### Optional Partitioning
 
 For PTFs with `OPTIONAL_PARTITION_BY`, you can omit `.partitionBy(...)` on `TableArgument.Builder`
@@ -2797,5 +2888,4 @@ void testAtomicOutputFunctionOutput() throws Exception {
 
 ### PTF Features Unsupported by the TestHarness
 
-- Update traits (`SUPPORTS_UPDATES`, `REQUIRE_UPDATE_BEFORE`)
 - State TTL (state is supported but TTL expiration is not yet implemented)
