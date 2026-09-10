@@ -43,6 +43,7 @@ from pyflink.common import Row
 from pyflink.dataframe.datatype import DataType
 from pyflink.table.expression import Expression
 from pyflink.table.expressions import call as table_call
+from pyflink.table.typehints import _is_typed_dict
 from pyflink.table.types import ArrayType, MapType, RowType
 from pyflink.table.udf import (
     AsyncScalarFunction,
@@ -949,7 +950,7 @@ def _infer_return_dtype(
             "Specify return_dtype explicitly."
         )
     try:
-        return _data_type_from_type_hint(return_hint)
+        return DataType._from_type_hint(return_hint)
     except (NameError, AttributeError, SyntaxError, TypeError) as exc:
         raise TypeError(
             f"Cannot infer return_dtype for '{udf_name}' from its return annotation.\n"
@@ -963,7 +964,7 @@ def _convert_to_dtype(dtype_like: _DataTypeLike) -> DataType:
     if isinstance(dtype_like, str):
         return DataType._from_sql(dtype_like)
     try:
-        return _data_type_from_type_hint(dtype_like)
+        return DataType._from_type_hint(dtype_like)
     except (NameError, AttributeError, SyntaxError, TypeError) as exc:
         if _is_typed_dict(dtype_like):
             raise TypeError(
@@ -974,32 +975,6 @@ def _convert_to_dtype(dtype_like: _DataTypeLike) -> DataType:
             "return_dtype must be a DataFrame DataType, Python type, or SQL "
             f"type string, got {type(dtype_like).__name__}."
         ) from exc
-
-
-def _is_typed_dict(type_hint: Any) -> bool:
-    try:
-        from typing import is_typeddict
-
-        if is_typeddict(type_hint):
-            return True
-    except ImportError:
-        pass
-    return (
-        isinstance(type_hint, type)
-        and issubclass(type_hint, dict)
-        and hasattr(type_hint, "__required_keys__")
-    )
-
-
-def _data_type_from_type_hint(type_hint: Any) -> DataType:
-    if _is_typed_dict(type_hint):
-        return DataType.struct(
-            {
-                name: _data_type_from_type_hint(field_hint)
-                for name, field_hint in get_type_hints(type_hint).items()
-            }
-        )
-    return DataType._from_type_hint(type_hint)
 
 
 def _detect_func_type(declaration_context: _UDFDeclarationContext) -> str:
