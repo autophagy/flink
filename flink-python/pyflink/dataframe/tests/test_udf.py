@@ -24,7 +24,7 @@ import operator
 import types
 import unittest
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, TypedDict, cast
+from typing import Any, Callable, NamedTuple, Optional, Tuple, TypedDict, cast
 from unittest import mock
 
 import pandas as pd
@@ -1710,6 +1710,42 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
                 Row(1, "alice", 3, 4, Row(2, ["1"]), 5, 6, "ALICE", Row(2), 8, 5),
                 Row(2, None, 4, 5, Row(4, ["2"]), 6, 7, None, Row(4), 10, 7),
                 Row(3, "Bob", 5, 6, Row(6, ["3"]), 7, 8, "BOB", Row(6), 12, 9),
+            ],
+        )
+
+    def test_inferred_composite_results_round_trip(self):
+        @dataclass
+        class Measurement:
+            value: int
+            label: str
+
+        class Extent(NamedTuple):
+            low: int
+            high: int
+
+        @pf.udf
+        def measure(value: int) -> Measurement:
+            return Measurement(value=value * 2, label=str(value))
+
+        @pf.udf
+        def extent(value: int) -> Extent:
+            return Extent(low=value - 1, high=value + 1)
+
+        @pf.udf
+        def pair(value: int) -> Tuple[int, str]:
+            return value, str(value)
+
+        result = pf.from_records([(1,), (2,)], schema=["id"]).with_columns(
+            measurement=measure(pf.col("id")),
+            extent=extent(pf.col("id")),
+            pair=pair(pf.col("id")),
+        )
+
+        self.assertEqual(
+            sorted(result.collect(), key=lambda row: row[0]),
+            [
+                Row(1, Row(2, "1"), Row(0, 2), Row(1, "1")),
+                Row(2, Row(4, "2"), Row(1, 3), Row(2, "2")),
             ],
         )
 
